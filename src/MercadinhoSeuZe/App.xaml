@@ -109,7 +109,7 @@
                                     BorderBrush="{StaticResource Verde50}" Visibility="Collapsed" />
                             <Border x:Name="Borda" CornerRadius="8" Background="{TemplateBinding Background}"
                                     BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
-                                <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"
+                                <ScrollViewer x:Name="PART_ContentHost"
                                               VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
                                               Focusable="False" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden" />
                             </Border>

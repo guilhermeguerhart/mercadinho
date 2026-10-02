@@ -30,6 +30,7 @@ src/MercadinhoSeuZe/
   Views/                   Uma UserControl por tela: LandingView, LoginView, EmDesenvolvimentoView.
   Assets/mercado.ico       Ícone do programa.
 publicar.ps1               Gera publish/MercadinhoSeuZe.exe (feche o .exe aberto antes).
+                           Com -Desenvolvimento gera publish-dev/ com o atalho Alt+1 (usuários de teste).
 
 3. O QUE JÁ FOI FEITO (SEMANA 1)
 --------------------------------
@@ -41,6 +42,8 @@ publicar.ps1               Gera publish/MercadinhoSeuZe.exe (feche o .exe aberto
 - Usuário desativado (perfis.ativo = false) não entra.
 - Depois do login, os dois perfis vão para a tela "em desenvolvimento".
 - Ícone do .exe e da janela.
+- Atalho de desenvolvimento Alt+1 no login (Views/LoginView.Desenvolvimento.cs, só compila com a
+  constante DESENVOLVIMENTO: Debug ou publicar.ps1 -Desenvolvimento). Nunca ligue no .exe normal.
 
 4. O QUE AINDA DEVE SER FEITO (UMA SEMANA POR VEZ, NESTA ORDEM)
 --------------------------------------------------------------

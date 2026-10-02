@@ -23,6 +23,7 @@ public partial class LoginView : UserControl
         _auth = auth;
         _preferencias = preferencias;
         _timerBloqueio.Tick += (_, _) => AtualizarBloqueio();
+        IniciarAtalhosDesenvolvimento();
 
         Loaded += (_, _) =>
         {
@@ -244,6 +245,9 @@ public partial class LoginView : UserControl
         AvisoRecuperarTexto.Text = "Se o usuário existir, o gerente vai receber o pedido para redefinir a sua senha.";
         AvisoRecuperar.Visibility = Visibility.Visible;
     }
+
+    /// <summary>Atalhos que só existem na versão de desenvolvimento (ver LoginView.Desenvolvimento.cs).</summary>
+    partial void IniciarAtalhosDesenvolvimento();
 
     // ------------------------------------------------------------ Navegação e layout
 

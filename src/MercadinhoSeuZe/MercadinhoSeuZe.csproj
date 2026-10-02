@@ -23,6 +23,11 @@
     <DebugType>none</DebugType>
   </PropertyGroup>
 
+  <!-- Atalhos de desenvolvimento (Alt+1 no login): em Debug ou com publicar.ps1 -Desenvolvimento -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug' Or '$(Desenvolvimento)' == 'true'">
+    <DefineConstants>$(DefineConstants);DESENVOLVIMENTO</DefineConstants>
+  </PropertyGroup>
+
   <!-- Ícone também usado na barra de título da janela -->
   <ItemGroup>
     <Resource Include="Assets\mercado.ico" />

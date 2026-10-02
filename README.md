@@ -53,7 +53,11 @@ INSTRUCOES_PARA_IA.txt    resumo do projeto, próximos passos e restrições (le
 ```powershell
 dotnet run --project src/MercadinhoSeuZe     # abrir para testar
 ./publicar.ps1                                # gera publish/MercadinhoSeuZe.exe
+./publicar.ps1 -Desenvolvimento               # gera publish-dev/ com o atalho de teste (Alt+1)
 ```
+
+Na versão de desenvolvimento (ou rodando em Debug), **Alt+1 na tela de login** abre a lista dos usuários de
+teste no canto inferior esquerdo; clicar num deles preenche usuário e senha. O .exe normal não tem esse atalho.
 
 O .exe já leva a configuração dentro dele e roda em qualquer Windows 64 bits sem instalar nada.
 
