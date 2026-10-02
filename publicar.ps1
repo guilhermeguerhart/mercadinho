@@ -7,4 +7,8 @@ if (-not (Test-Path (Join-Path $PSScriptRoot "src\MercadinhoSeuZe\appsettings.js
 }
 
 dotnet publish $projeto -c Release -o (Join-Path $PSScriptRoot "publish")
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Falhou. Se o erro for 'Access ... denied', feche o MercadinhoSeuZe.exe aberto e rode de novo."
+    exit 1
+}
 Write-Host "Pronto: publish\MercadinhoSeuZe.exe"

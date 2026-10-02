@@ -3,65 +3,203 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-        <!-- Cores do mercado: verde de hortifrúti e amarelo de etiqueta de preço -->
-        <SolidColorBrush x:Key="Fundo" Color="#F3F6F1" />
-        <SolidColorBrush x:Key="Superficie" Color="#FFFFFF" />
-        <SolidColorBrush x:Key="Texto" Color="#1D2A22" />
-        <SolidColorBrush x:Key="TextoSuave" Color="#5D6B62" />
-        <SolidColorBrush x:Key="Linha" Color="#D9E2DA" />
-        <SolidColorBrush x:Key="Verde" Color="#1F6B45" />
-        <SolidColorBrush x:Key="VerdeEscuro" Color="#17543A" />
-        <SolidColorBrush x:Key="Amarelo" Color="#F2C230" />
-        <SolidColorBrush x:Key="Erro" Color="#B3261E" />
+        <!-- Cores e medidas iguais às do site de referência (css/landing.css e css/login.css) -->
+        <Color x:Key="CorVerde800">#17552E</Color>
+        <Color x:Key="CorVerde600">#26844A</Color>
+        <SolidColorBrush x:Key="Verde800" Color="#17552E" />
+        <SolidColorBrush x:Key="Verde700" Color="#1F6B3A" />
+        <SolidColorBrush x:Key="Verde600" Color="#26844A" />
+        <SolidColorBrush x:Key="Verde100" Color="#D4ECDC" />
+        <SolidColorBrush x:Key="Verde50" Color="#EAF5EE" />
+        <SolidColorBrush x:Key="Azul600" Color="#2B6CB0" />
+        <SolidColorBrush x:Key="Ambar700" Color="#8A5A00" />
+        <SolidColorBrush x:Key="Ambar50" Color="#FFF6E0" />
+        <SolidColorBrush x:Key="Vermelho600" Color="#C0392B" />
+        <SolidColorBrush x:Key="Vermelho50" Color="#FDECEA" />
+        <SolidColorBrush x:Key="Tinta" Color="#1D2420" />
+        <SolidColorBrush x:Key="Suave" Color="#5F6B64" />
+        <SolidColorBrush x:Key="Placeholder" Color="#9AA49E" />
+        <SolidColorBrush x:Key="Linha" Color="#D9DFDB" />
+        <SolidColorBrush x:Key="Fundo" Color="#F4F6F4" />
+        <SolidColorBrush x:Key="Cartao" Color="#FFFFFF" />
+        <SolidColorBrush x:Key="BrancoTransl82" Color="#D1FFFFFF" />
+        <SolidColorBrush x:Key="BrancoTransl75" Color="#BFFFFFFF" />
 
+        <DropShadowEffect x:Key="SombraCartao" BlurRadius="32" ShadowDepth="12" Direction="270" Opacity="0.07" Color="#14281C" />
+        <DropShadowEffect x:Key="SombraJanela" BlurRadius="48" ShadowDepth="24" Direction="270" Opacity="0.18" Color="#14281C" />
+
+        <!-- Ícones (mesmos desenhos SVG do site, em grade 24x24) -->
+        <Geometry x:Key="IconeCaixaProduto">M3 7l9-4 9 4v10l-9 4-9-4V7z M3 7l9 4 9-4 M12 11v10</Geometry>
+        <Geometry x:Key="IconeCaminhao">M1 6h13v10H1z M14 10h4l3 3v3h-7z M3 18a2 2 0 1 0 4 0a2 2 0 1 0 -4 0 M15 18a2 2 0 1 0 4 0a2 2 0 1 0 -4 0</Geometry>
+        <Geometry x:Key="IconeCaixaRegistradora">M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2H5a2 2 0 0 1 -2 -2V6a2 2 0 0 1 2 -2z M7 9h10 M7 13h4 M14 13h3 M7 16h4 M14 16h3</Geometry>
+        <Geometry x:Key="IconeUsuario">M8 8a4 4 0 1 0 8 0a4 4 0 1 0 -8 0 M4 21c0-4 4-6 8-6s8 2 8 6</Geometry>
+        <Geometry x:Key="IconeCadeado">M7 11h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2H7a2 2 0 0 1 -2 -2v-6a2 2 0 0 1 2 -2z M8 11V7a4 4 0 0 1 8 0v4</Geometry>
+        <Geometry x:Key="IconeAlerta">M2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0 M12 7v6 M12 17h.01</Geometry>
+        <Geometry x:Key="IconeFerramenta">M14.7 6.3a4 4 0 0 0 -5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z</Geometry>
+
+        <!-- Ícone reutilizável: <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeCadeado}" Foreground="..." Width="20" /> -->
+        <Style x:Key="Icone" TargetType="ContentControl">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="IsTabStop" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ContentControl">
+                        <Viewbox Width="{TemplateBinding Width}" Height="{TemplateBinding Width}">
+                            <Canvas Width="24" Height="24">
+                                <Path Data="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
+                                      Stroke="{TemplateBinding Foreground}" StrokeThickness="1.8"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+                            </Canvas>
+                        </Viewbox>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Cor, fonte e tamanho do texto vêm da janela (herdados), para os botões poderem trocar a cor do texto -->
         <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="{StaticResource Texto}" />
-            <Setter Property="FontFamily" Value="Segoe UI" />
-            <Setter Property="FontSize" Value="15" />
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
 
-        <Style x:Key="Titulo" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
-            <Setter Property="FontSize" Value="34" />
-            <Setter Property="FontWeight" Value="Bold" />
+        <Style x:Key="TextoSuave" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="Foreground" Value="{StaticResource Suave}" />
         </Style>
 
         <Style x:Key="Rotulo" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
-            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontSize" Value="14" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Margin" Value="0,0,0,6" />
         </Style>
 
-        <Style x:Key="Campo" TargetType="Control">
+        <Style x:Key="ErroCampo" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Foreground" Value="{StaticResource Vermelho600}" />
+            <Setter Property="Margin" Value="0,6,0,0" />
+            <Style.Triggers>
+                <Trigger Property="Text" Value="">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Logo "M" + nome -->
+        <Style x:Key="MarcaQuadrado" TargetType="Border">
+            <Setter Property="Width" Value="36" />
+            <Setter Property="Height" Value="36" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Background" Value="{StaticResource Verde600}" />
+        </Style>
+
+        <!-- Campos de texto -->
+        <Style x:Key="CampoBase" TargetType="Control">
+            <Setter Property="FontFamily" Value="Segoe UI" />
             <Setter Property="FontSize" Value="15" />
-            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="Foreground" Value="{StaticResource Tinta}" />
+            <Setter Property="Background" Value="White" />
             <Setter Property="BorderBrush" Value="{StaticResource Linha}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Background" Value="{StaticResource Superficie}" />
+            <Setter Property="Padding" Value="14,0" />
+            <Setter Property="MinHeight" Value="46" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Control">
+                        <Grid>
+                            <Border x:Name="Brilho" CornerRadius="10" Margin="-3" BorderThickness="3"
+                                    BorderBrush="{StaticResource Verde50}" Visibility="Collapsed" />
+                            <Border x:Name="Borda" CornerRadius="8" Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                                <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              Focusable="False" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden" />
+                            </Border>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="Borda" Property="BorderBrush" Value="{StaticResource Verde600}" />
+                                <Setter TargetName="Brilho" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <Trigger Property="Tag" Value="invalido">
+                                <Setter TargetName="Borda" Property="BorderBrush" Value="{StaticResource Vermelho600}" />
+                                <Setter TargetName="Brilho" Property="BorderBrush" Value="{StaticResource Vermelho50}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
-        <Style TargetType="TextBox" BasedOn="{StaticResource Campo}" />
-        <Style TargetType="PasswordBox" BasedOn="{StaticResource Campo}" />
+        <Style TargetType="TextBox" BasedOn="{StaticResource CampoBase}" />
+        <Style TargetType="PasswordBox" BasedOn="{StaticResource CampoBase}" />
 
-        <Style x:Key="BotaoPrincipal" TargetType="Button">
-            <Setter Property="Background" Value="{StaticResource Verde}" />
+        <!-- Botões -->
+        <Style x:Key="BotaoPrimario" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource Verde600}" />
             <Setter Property="Foreground" Value="White" />
+            <Setter Property="FontFamily" Value="Segoe UI" />
             <Setter Property="FontSize" Value="15" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Padding" Value="22,11" />
+            <Setter Property="Height" Value="46" />
+            <Setter Property="Padding" Value="22,0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Borda" Background="{TemplateBinding Background}" CornerRadius="8"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Borda" Property="Background" Value="{StaticResource Verde700}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Borda" Property="Opacity" Value="0.7" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="BotaoFantasma" TargetType="Button" BasedOn="{StaticResource BotaoPrimario}">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="Foreground" Value="{StaticResource Verde700}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Linha}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Borda" Background="{TemplateBinding Background}" CornerRadius="8"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Borda" Property="BorderBrush" Value="{StaticResource Verde600}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Botão que parece link de texto -->
+        <Style x:Key="BotaoLink" TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource Verde700}" />
+            <Setter Property="FontFamily" Value="Segoe UI" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Borda" Background="{TemplateBinding Background}" CornerRadius="6"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
+                        <TextBlock x:Name="Texto" Text="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}"
+                                   FontSize="{TemplateBinding FontSize}" FontWeight="{TemplateBinding FontWeight}" Background="Transparent" />
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Borda" Property="Background" Value="{StaticResource VerdeEscuro}" />
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Borda" Property="Opacity" Value="0.5" />
+                                <Setter TargetName="Texto" Property="TextDecorations" Value="Underline" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -69,41 +207,46 @@
             </Setter>
         </Style>
 
-        <Style x:Key="BotaoSecundario" TargetType="Button" BasedOn="{StaticResource BotaoPrincipal}">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="{StaticResource Verde}" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="Borda" Background="{TemplateBinding Background}" CornerRadius="6"
-                                BorderBrush="{StaticResource Verde}" BorderThickness="1"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Borda" Property="Background" Value="#E1F0E6" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
+        <Style x:Key="LinkSuave" TargetType="Button" BasedOn="{StaticResource BotaoLink}">
+            <Setter Property="Foreground" Value="{StaticResource Suave}" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Foreground" Value="{StaticResource Verde700}" />
+                </Trigger>
+            </Style.Triggers>
         </Style>
 
-        <Style x:Key="Cartao" TargetType="Border">
-            <Setter Property="Background" Value="{StaticResource Superficie}" />
+        <!-- Cartões e etiquetas -->
+        <Style x:Key="CartaoBorda" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource Cartao}" />
             <Setter Property="BorderBrush" Value="{StaticResource Linha}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="10" />
-            <Setter Property="Padding" Value="20" />
+            <Setter Property="CornerRadius" Value="12" />
         </Style>
 
-        <!-- Etiqueta amarela de gôndola, usada como marca visual -->
-        <Style x:Key="Etiqueta" TargetType="Border">
-            <Setter Property="Background" Value="{StaticResource Amarelo}" />
-            <Setter Property="CornerRadius" Value="4,14,14,4" />
-            <Setter Property="Padding" Value="12,4,16,4" />
+        <Style x:Key="Pilula" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource Verde50}" />
+            <Setter Property="CornerRadius" Value="13" />
+            <Setter Property="Padding" Value="12,4" />
             <Setter Property="HorizontalAlignment" Value="Left" />
+        </Style>
+
+        <!-- Avisos (erro, atenção, sucesso) -->
+        <Style x:Key="Aviso" TargetType="Border">
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="14,11" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Margin" Value="0,0,0,18" />
+        </Style>
+
+        <Style TargetType="CheckBox">
+            <Setter Property="FontFamily" Value="Segoe UI" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Foreground" Value="{StaticResource Tinta}" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Cursor" Value="Hand" />
         </Style>
     </Application.Resources>
 </Application>

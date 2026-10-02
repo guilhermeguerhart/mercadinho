@@ -1,9 +1,10 @@
 namespace MercadinhoSeuZe.Models;
 
-public enum Papel
+public enum Perfil
 {
-    Caixa,
-    Dono
+    Operador,
+    Gerente
 }
 
-public record Perfil(Guid Id, string Nome, Papel Papel);
+/// <summary>Usuário logado no sistema.</summary>
+public record Sessao(Guid Id, string Usuario, string Nome, Perfil Perfil, string Token);

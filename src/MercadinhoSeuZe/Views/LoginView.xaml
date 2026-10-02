@@ -1,32 +1,233 @@
 <UserControl x:Class="MercadinhoSeuZe.Views.LoginView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             SizeChanged="AoRedimensionar">
     <Grid>
-        <Button Content="← Voltar" Style="{StaticResource BotaoSecundario}" Padding="14,6"
-                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="32,28" Click="Voltar_Click" />
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition x:Name="ColunaMarca" Width="*" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
 
-        <Border Style="{StaticResource Cartao}" Width="400" Padding="32"
-                HorizontalAlignment="Center" VerticalAlignment="Center">
-            <StackPanel>
-                <Border Style="{StaticResource Etiqueta}">
-                    <TextBlock Text="Mercadinho Seu Zé" FontWeight="Bold" />
+        <!-- ================= Painel da marca (esquerda) ================= -->
+        <Grid x:Name="PainelMarca" ClipToBounds="True">
+            <Grid.Background>
+                <LinearGradientBrush StartPoint="0.2,0" EndPoint="0.8,1">
+                    <GradientStop Color="{StaticResource CorVerde600}" Offset="0" />
+                    <GradientStop Color="{StaticResource CorVerde800}" Offset="1" />
+                </LinearGradientBrush>
+            </Grid.Background>
+
+            <!-- Círculos decorativos -->
+            <Ellipse Width="420" Height="420" Fill="#0FFFFFFF" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-120,-140,0" />
+            <Ellipse Width="300" Height="300" Fill="#0FFFFFFF" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="-120,0,0,-100" />
+
+            <DockPanel x:Name="ConteudoMarca" Margin="56,40">
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
+                    <Border Style="{StaticResource MarcaQuadrado}" Background="White">
+                        <TextBlock Text="M" Foreground="{StaticResource Verde700}" FontWeight="Bold" FontSize="18"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <TextBlock Text="Mercado" Foreground="White" FontWeight="Bold" FontSize="18" Margin="10,0,0,0" VerticalAlignment="Center" />
+                </StackPanel>
+
+                <TextBlock DockPanel.Dock="Bottom" Text="© 2026 Mercado · Sistema de gestão" Foreground="#A6FFFFFF" FontSize="13" />
+
+                <StackPanel MaxWidth="460" HorizontalAlignment="Left" VerticalAlignment="Center">
+                    <TextBlock Text="Toda a operação do seu mercado em um só lugar" Foreground="White" FontSize="34" FontWeight="Bold"
+                               LineHeight="39" LineStackingStrategy="BlockLineHeight" Margin="0,0,0,12" />
+                    <TextBlock Text="Do estoque ao fechamento do caixa, com dados atualizados a cada venda." Foreground="{StaticResource BrancoTransl82}"
+                               FontSize="16" Margin="0,0,0,28" />
+
+                    <!-- Benefícios -->
+                    <DockPanel Margin="0,0,0,14">
+                        <Border Width="40" Height="40" CornerRadius="10" Background="#24FFFFFF" VerticalAlignment="Top" Margin="0,0,14,0">
+                            <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeCaixaProduto}" Foreground="White" Width="20" />
+                        </Border>
+                        <StackPanel>
+                            <TextBlock Text="Estoque" Foreground="White" FontWeight="Bold" />
+                            <TextBlock Text="Alerta automático de estoque baixo e validade" Foreground="#C7FFFFFF" FontSize="14" />
+                        </StackPanel>
+                    </DockPanel>
+                    <DockPanel Margin="0,0,0,14">
+                        <Border Width="40" Height="40" CornerRadius="10" Background="#24FFFFFF" VerticalAlignment="Top" Margin="0,0,14,0">
+                            <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeCaminhao}" Foreground="White" Width="20" />
+                        </Border>
+                        <StackPanel>
+                            <TextBlock Text="Fornecedores" Foreground="White" FontWeight="Bold" />
+                            <TextBlock Text="Sugestão de reposição por estoque mínimo" Foreground="#C7FFFFFF" FontSize="14" />
+                        </StackPanel>
+                    </DockPanel>
+                    <DockPanel Margin="0,0,0,28">
+                        <Border Width="40" Height="40" CornerRadius="10" Background="#24FFFFFF" VerticalAlignment="Top" Margin="0,0,14,0">
+                            <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeCaixaRegistradora}" Foreground="White" Width="20" />
+                        </Border>
+                        <StackPanel>
+                            <TextBlock Text="Caixa" Foreground="White" FontWeight="Bold" />
+                            <TextBlock Text="Venda, pagamento e comprovante em poucos cliques" Foreground="#C7FFFFFF" FontSize="14" />
+                        </StackPanel>
+                    </DockPanel>
+
+                    <!-- Mini resumo ilustrativo -->
+                    <UniformGrid x:Name="MiniResumo" Columns="2">
+                        <Border Background="#1AFFFFFF" BorderBrush="#29FFFFFF" BorderThickness="1" CornerRadius="12" Padding="16" Margin="0,0,6,0">
+                            <StackPanel>
+                                <TextBlock Text="Vendas hoje" Foreground="{StaticResource BrancoTransl75}" FontSize="12" />
+                                <TextBlock Text="R$ 1.284,50" Foreground="White" FontSize="22" FontWeight="Bold" Margin="0,2" />
+                                <TextBlock Text="▲ 12% vs. ontem" Foreground="{StaticResource Verde100}" FontSize="12" />
+                            </StackPanel>
+                        </Border>
+                        <Border Background="#1AFFFFFF" BorderBrush="#29FFFFFF" BorderThickness="1" CornerRadius="12" Padding="16" Margin="6,0,0,0">
+                            <StackPanel>
+                                <TextBlock Text="Ticket médio" Foreground="{StaticResource BrancoTransl75}" FontSize="12" />
+                                <TextBlock Text="R$ 40,10" Foreground="White" FontSize="22" FontWeight="Bold" Margin="0,2" />
+                                <TextBlock Text="32 vendas" Foreground="{StaticResource Verde100}" FontSize="12" />
+                            </StackPanel>
+                        </Border>
+                    </UniformGrid>
+                </StackPanel>
+            </DockPanel>
+        </Grid>
+
+        <!-- ================= Formulário (direita) ================= -->
+        <ScrollViewer x:Name="PainelFormulario" Grid.Column="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Width="420" Margin="24" VerticalAlignment="Center" HorizontalAlignment="Center" x:Name="ColunaFormulario">
+                <DockPanel Margin="0,0,0,20">
+                    <StackPanel x:Name="MarcaCompacta" Orientation="Horizontal" Visibility="Collapsed">
+                        <Border Style="{StaticResource MarcaQuadrado}">
+                            <TextBlock Text="M" Foreground="White" FontWeight="Bold" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <TextBlock Text="Mercado" FontWeight="Bold" FontSize="18" Margin="10,0,0,0" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <Button Content="← Voltar ao site" Style="{StaticResource LinkSuave}" HorizontalAlignment="Right"
+                            VerticalAlignment="Center" Click="Voltar_Click" />
+                </DockPanel>
+
+                <Border Style="{StaticResource CartaoBorda}" CornerRadius="16" Padding="32,28,32,24" Effect="{StaticResource SombraCartao}">
+                    <Grid>
+                        <!-- Etapa 1: login -->
+                        <StackPanel x:Name="EtapaLogin">
+                            <Border Style="{StaticResource Pilula}" Padding="10,4" Margin="0,0,0,16">
+                                <StackPanel Orientation="Horizontal">
+                                    <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeCadeado}" Foreground="{StaticResource Verde700}" Width="14" />
+                                    <TextBlock Text="Acesso restrito a funcionários" Foreground="{StaticResource Verde700}" FontSize="12" FontWeight="SemiBold" Margin="6,0,0,0" />
+                                </StackPanel>
+                            </Border>
+                            <TextBlock Text="Entrar no sistema" FontSize="26" FontWeight="Bold" Margin="0,0,0,6" />
+                            <TextBlock Text="Use seu usuário e senha cadastrados" Style="{StaticResource TextoSuave}" FontSize="14" Margin="0,0,0,24" />
+
+                            <!-- Aviso de erro / bloqueio -->
+                            <Border x:Name="Aviso" Style="{StaticResource Aviso}" Visibility="Collapsed">
+                                <DockPanel>
+                                    <ContentControl x:Name="AvisoIcone" Style="{StaticResource Icone}" Tag="{StaticResource IconeAlerta}" Width="18"
+                                                    VerticalAlignment="Top" Margin="0,1,10,0" />
+                                    <TextBlock x:Name="AvisoTexto" FontSize="14" />
+                                </DockPanel>
+                            </Border>
+
+                            <TextBlock Text="Usuário" Style="{StaticResource Rotulo}" />
+                            <Grid>
+                                <TextBox x:Name="CampoUsuario" Padding="40,0,14,0" TextChanged="CampoUsuario_TextChanged" />
+                                <TextBlock x:Name="DicaUsuario" Text="ex: joao.mercado" Foreground="{StaticResource Placeholder}"
+                                           Margin="41,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False" />
+                                <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeUsuario}" Foreground="#8C978F" Width="18"
+                                                HorizontalAlignment="Left" Margin="13,0,0,0" IsHitTestVisible="False" />
+                            </Grid>
+                            <TextBlock x:Name="ErroUsuario" Style="{StaticResource ErroCampo}" />
+
+                            <TextBlock Text="Senha" Style="{StaticResource Rotulo}" Margin="0,18,0,6" />
+                            <Grid>
+                                <PasswordBox x:Name="CampoSenha" Padding="40,0,84,0" PasswordChanged="CampoSenha_PasswordChanged"
+                                             KeyUp="CampoSenha_Teclado" GotKeyboardFocus="CampoSenha_Teclado" LostKeyboardFocus="CampoSenha_PerdeuFoco" />
+                                <TextBox x:Name="CampoSenhaVisivel" Padding="40,0,84,0" Visibility="Collapsed" TextChanged="CampoSenhaVisivel_TextChanged"
+                                         KeyUp="CampoSenha_Teclado" GotKeyboardFocus="CampoSenha_Teclado" LostKeyboardFocus="CampoSenha_PerdeuFoco" />
+                                <TextBlock x:Name="DicaSenha" Text="Digite sua senha" Foreground="{StaticResource Placeholder}"
+                                           Margin="41,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False" />
+                                <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeCadeado}" Foreground="#8C978F" Width="18"
+                                                HorizontalAlignment="Left" Margin="13,0,0,0" IsHitTestVisible="False" />
+                                <Button x:Name="BotaoMostrar" Content="Mostrar" Style="{StaticResource BotaoLink}" FontSize="13"
+                                        HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,16,0"
+                                        ToolTip="Mostrar senha" Click="MostrarSenha_Click" />
+                            </Grid>
+                            <TextBlock x:Name="AvisoCapsLock" Text="⚠ Caps Lock está ativado" Foreground="{StaticResource Ambar700}"
+                                       FontSize="13" Margin="0,6,0,0" Visibility="Collapsed" />
+                            <TextBlock x:Name="ErroSenha" Style="{StaticResource ErroCampo}" />
+
+                            <DockPanel Margin="0,16,0,22">
+                                <Button DockPanel.Dock="Right" Content="Esqueci minha senha" Style="{StaticResource BotaoLink}"
+                                        VerticalAlignment="Center" Click="EsqueciSenha_Click" />
+                                <CheckBox x:Name="Lembrar" Content="Lembrar meu usuário" />
+                            </DockPanel>
+
+                            <Button x:Name="BotaoEntrar" AutomationProperties.Name="Entrar" Style="{StaticResource BotaoPrimario}" Height="48" FontSize="16"
+                                    IsDefault="True" Click="Entrar_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock x:Name="BotaoEntrarTexto" Text="Entrar" Foreground="White" FontSize="16" FontWeight="SemiBold" />
+                                    <Ellipse x:Name="Carregando" Width="16" Height="16" Margin="10,0,0,0" StrokeThickness="2"
+                                             Visibility="Collapsed" RenderTransformOrigin="0.5,0.5" StrokeDashArray="5 3">
+                                        <Ellipse.Stroke>
+                                            <SolidColorBrush Color="White" />
+                                        </Ellipse.Stroke>
+                                        <Ellipse.RenderTransform>
+                                            <RotateTransform x:Name="GiroCarregando" />
+                                        </Ellipse.RenderTransform>
+                                    </Ellipse>
+                                </StackPanel>
+                            </Button>
+
+                            <!-- Perfis -->
+                            <Border x:Name="Perfis" BorderBrush="{StaticResource Linha}" BorderThickness="0,1,0,0" Margin="0,20,0,0" Padding="0,16,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Cada perfil acessa a sua área" Style="{StaticResource TextoSuave}" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,12" />
+                                    <DockPanel Margin="0,0,0,10">
+                                        <Ellipse Width="10" Height="10" Fill="{StaticResource Verde600}" VerticalAlignment="Top" Margin="0,5,10,0" />
+                                        <StackPanel>
+                                            <TextBlock Text="Gerente" FontSize="14" FontWeight="Bold" />
+                                            <TextBlock Text="Painel, estoque, fornecedores e fechamento" Style="{StaticResource TextoSuave}" FontSize="13" />
+                                        </StackPanel>
+                                    </DockPanel>
+                                    <DockPanel>
+                                        <Ellipse Width="10" Height="10" Fill="{StaticResource Azul600}" VerticalAlignment="Top" Margin="0,5,10,0" />
+                                        <StackPanel>
+                                            <TextBlock Text="Operador" FontSize="14" FontWeight="Bold" />
+                                            <TextBlock Text="Caixa e fechamento do turno" Style="{StaticResource TextoSuave}" FontSize="13" />
+                                        </StackPanel>
+                                    </DockPanel>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- Etapa 2: recuperação de senha -->
+                        <StackPanel x:Name="EtapaRecuperar" Visibility="Collapsed">
+                            <Button Content="← Voltar para o login" Style="{StaticResource BotaoLink}" HorizontalAlignment="Left"
+                                    Margin="0,0,0,18" Click="VoltarLogin_Click" />
+                            <TextBlock Text="Recuperar senha" FontSize="26" FontWeight="Bold" Margin="0,0,0,6" />
+                            <TextBlock Text="Informe seu usuário. O gerente vai receber o pedido e redefinir a sua senha."
+                                       Style="{StaticResource TextoSuave}" FontSize="14" Margin="0,0,0,24" />
+
+                            <Border x:Name="AvisoRecuperar" Style="{StaticResource Aviso}" Visibility="Collapsed"
+                                    Background="{StaticResource Verde50}" BorderBrush="#BFE0CB">
+                                <TextBlock x:Name="AvisoRecuperarTexto" Foreground="{StaticResource Verde700}" FontSize="14" />
+                            </Border>
+
+                            <TextBlock Text="Usuário" Style="{StaticResource Rotulo}" />
+                            <Grid>
+                                <TextBox x:Name="CampoUsuarioRecuperar" Padding="40,0,14,0" />
+                                <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeUsuario}" Foreground="#8C978F" Width="18"
+                                                HorizontalAlignment="Left" Margin="13,0,0,0" IsHitTestVisible="False" />
+                            </Grid>
+                            <TextBlock x:Name="ErroUsuarioRecuperar" Style="{StaticResource ErroCampo}" />
+
+                            <Button x:Name="BotaoRecuperar" Content="Enviar pedido" Style="{StaticResource BotaoPrimario}" Height="48"
+                                    FontSize="16" Margin="0,18,0,0" Click="Recuperar_Click" />
+                        </StackPanel>
+                    </Grid>
                 </Border>
-                <TextBlock Text="Entrar no sistema" FontSize="24" FontWeight="Bold" Margin="0,18,0,4" />
-                <TextBlock Text="Use o e-mail e a senha cadastrados pelo dono do mercado."
-                           Foreground="{StaticResource TextoSuave}" FontSize="14" Margin="0,0,0,22" />
 
-                <TextBlock Text="E-mail" Style="{StaticResource Rotulo}" />
-                <TextBox x:Name="CampoEmail" Margin="0,0,0,16" />
-
-                <TextBlock Text="Senha" Style="{StaticResource Rotulo}" />
-                <PasswordBox x:Name="CampoSenha" Margin="0,0,0,8" />
-
-                <TextBlock x:Name="Mensagem" Foreground="{StaticResource Erro}" FontSize="13"
-                           Margin="0,6,0,0" Visibility="Collapsed" />
-
-                <Button x:Name="BotaoEntrar" Content="Entrar" Style="{StaticResource BotaoPrincipal}"
-                        Margin="0,18,0,0" IsDefault="True" Click="Entrar_Click" />
+                <TextBlock x:Name="Ajuda" Style="{StaticResource TextoSuave}" FontSize="13" TextAlignment="Center" Margin="0,16,0,0">
+                    Problemas para acessar? Fale com o gerente ou com o suporte:
+                    <Run Text="contato@mercado.com.br" Foreground="{StaticResource Verde700}" FontWeight="SemiBold" /> · (11) 4000-0000
+                </TextBlock>
             </StackPanel>
-        </Border>
+        </ScrollViewer>
     </Grid>
 </UserControl>
