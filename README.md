@@ -29,6 +29,7 @@ src/MercadinhoSeuZe/
   Views/                  telas (tela inicial, login, em desenvolvimento)
   App.xaml                cores e estilos visuais
 publicar.ps1              gera o .exe único
+INSTRUCOES_PARA_IA.txt    resumo do projeto, próximos passos e restrições (leia antes de alterar)
 ```
 
 ## Como preparar

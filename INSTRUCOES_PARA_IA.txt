@@ -1,0 +1,89 @@
+INSTRUÇÕES PARA IA E COLABORADORES — Mercado · Sistema de gestão
+=================================================================
+Leia este arquivo inteiro antes de alterar qualquer coisa. Depois leia README.md.
+
+1. O QUE É O PROJETO
+--------------------
+Programa para Windows que gerencia um mercado (caixa, estoque, fornecedores, fechamento
+do dia e previsão de compras). É entregue como UM ÚNICO ARQUIVO .exe, com banco de dados
+na nuvem para vários funcionários usarem ao mesmo tempo.
+
+- Linguagem: C# com .NET 10 e WPF (telas em XAML).
+- Banco: PostgreSQL no Supabase, acessado por HTTP (Auth + REST). Não há servidor próprio.
+- Versionamento: git. Mensagens de commit em português.
+- Visual: segue o projeto de referência https://github.com/kethleensilva06/Projeto_mercado
+  (site em HTML/CSS; as telas do Figma estão na pasta figma/ desse repositório).
+  Cores, textos, ícones e nomes vêm de lá: nome "Mercado", logo "M" verde,
+  perfis "Gerente" e "Operador".
+
+2. ESTRUTURA
+------------
+database/                  Scripts SQL, numerados, para rodar no SQL Editor do Supabase em ordem.
+  001_semana1_perfis.sql   Tabelas perfis, auditoria_login, pedidos_senha, contatos e as regras (RLS).
+  002_usuarios_teste.sql   Cria 5 usuários de teste (lista em USUARIOS_TESTE.md).
+src/MercadinhoSeuZe/
+  App.xaml                 Cores, ícones (Geometry) e estilos de botões/campos. Reutilize, não duplique.
+  MainWindow.xaml(.cs)     Janela única; troca as telas com MostrarInicio/MostrarLogin/MostrarAreaDoUsuario.
+  Models/                  Perfil (Gerente/Operador) e Sessao (usuário logado).
+  Services/                Configuracao (lê appsettings.json embutido), SupabaseApi (HTTP),
+                           AuthService (login, bloqueio, auditoria), PreferenciasLocais.
+  Views/                   Uma UserControl por tela: LandingView, LoginView, EmDesenvolvimentoView.
+  Assets/mercado.ico       Ícone do programa.
+publicar.ps1               Gera publish/MercadinhoSeuZe.exe (feche o .exe aberto antes).
+
+3. O QUE JÁ FOI FEITO (SEMANA 1)
+--------------------------------
+- Tela inicial: apresentação, cartões dos módulos e janela "Fale com a gente" (grava em contatos).
+- Login por nome de usuário. O Supabase exige e-mail, então "ana.caixa" vira
+  "ana.caixa@mercado.local" (AuthService.EmailDoUsuario).
+- Mostrar senha, aviso de Caps Lock, lembrar usuário, recuperação de senha (grava em pedidos_senha).
+- 5 senhas erradas seguidas bloqueiam o usuário por 5 minutos; cada tentativa vai para auditoria_login.
+- Usuário desativado (perfis.ativo = false) não entra.
+- Depois do login, os dois perfis vão para a tela "em desenvolvimento".
+- Ícone do .exe e da janela.
+
+4. O QUE AINDA DEVE SER FEITO (UMA SEMANA POR VEZ, NESTA ORDEM)
+--------------------------------------------------------------
+Faça só a semana pedida. Cada semana é apresentada ao dono do mercado antes da próxima.
+Semana 2 - Painel: tela pós-login diferente por perfil; resumo de vendas do dia; para o gerente,
+           avisos de estoque baixo e itens a repor; operador vai só para o Caixa; tela central
+           com botões para as outras telas. Trocar o destino em MainWindow.MostrarAreaDoUsuario.
+Semana 3 - Estoque: cadastro de produtos; lotes com quantidade restante e validade; filtros
+           (perto da validade, estoque baixo, sem estoque, ordem alfabética); indicadores visuais.
+Semana 4 - Fornecedores: cadastro; produtos de cada fornecedor; indicadores de estoque;
+           contato rápido; histórico de pedidos (feitos, pendentes).
+Semana 5 - Caixa: tela padrão de caixa; pagamento; item na venda fica reservado e só dá baixa
+           no estoque após o pagamento; bloquear venda de lote vencido.
+Semana 6 - Fechamento do dia: resumo de vendas; envio por e-mail; dados na nuvem para análise
+           diária, semanal e mensal; integração com app de celular da gerência.
+Semana 7 - Previsão de compras: previsão pelo histórico de vendas; sugestões para períodos
+           e eventos; pedido automático com IA quando o estoque baixar ou a previsão indicar.
+Para cada tela nova, use como modelo a tela equivalente do projeto de referência
+(painel.html, estoque.html, fornecedores.html, caixa.html e os SVG da pasta figma/).
+
+5. RESTRIÇÕES — NÃO FAÇA
+------------------------
+- NÃO coloque no git o src/MercadinhoSeuZe/appsettings.json (tem as chaves). Ele está no .gitignore.
+- NÃO use nem grave a chave secreta do Supabase (sb_secret / service_role) em nenhum arquivo
+  ou no .exe. O programa usa só a chave pública (sb_publishable).
+- NÃO desligue nem afrouxe o Row Level Security das tabelas. Toda tabela nova precisa de RLS
+  e de regras por perfil (use a função public.eh_gerente()).
+- NÃO altere scripts SQL já rodados no Supabase; crie um novo arquivo numerado (003_..., 004_...).
+- NÃO renomeie tabelas/colunas existentes nem os perfis "gerente" e "operador".
+- NÃO mude as regras do login (5 tentativas, 5 minutos, auditoria, usuário@mercado.local)
+  sem pedido do responsável.
+- NÃO mude o visual (cores, fontes, logo, textos) para fora do padrão do projeto de referência.
+  Use os estilos e cores de App.xaml em vez de valores soltos.
+- NÃO troque a tecnologia (C#/.NET 10/WPF/Supabase) nem adicione pacotes sem necessidade clara.
+- NÃO quebre a geração do .exe único (configurações de Release no .csproj).
+- NÃO adiante funcionalidades de semanas futuras.
+- NÃO coloque dados fictícios nas telas internas como se fossem reais; as prévias com valores
+  de exemplo existem só na tela inicial e no painel de marca do login.
+
+6. COMO TRABALHAR
+-----------------
+- Nomes de classes, métodos, variáveis e textos em português, como no código atual.
+- Antes de terminar: compilar sem erros (dotnet build), abrir o programa e testar a tela,
+  gerar o .exe com publicar.ps1.
+- Usuários de teste em USUARIOS_TESTE.md. Apagar antes do uso real.
+- Peça confirmação ao responsável antes de commit, push ou mudanças no banco.

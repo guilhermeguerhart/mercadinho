@@ -10,6 +10,7 @@
     <RootNamespace>MercadinhoSeuZe</RootNamespace>
     <Product>Mercadinho Seu Zé</Product>
     <Version>0.1.0</Version>
+    <ApplicationIcon>Assets\mercado.ico</ApplicationIcon>
   </PropertyGroup>
 
   <!-- Gera um único .exe que roda sem instalar o .NET -->
@@ -21,6 +22,11 @@
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <DebugType>none</DebugType>
   </PropertyGroup>
+
+  <!-- Ícone também usado na barra de título da janela -->
+  <ItemGroup>
+    <Resource Include="Assets\mercado.ico" />
+  </ItemGroup>
 
   <!-- A configuração do Supabase vai embutida dentro do .exe -->
   <ItemGroup>
