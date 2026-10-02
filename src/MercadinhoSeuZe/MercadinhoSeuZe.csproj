@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>MercadinhoSeuZe</AssemblyName>
+    <RootNamespace>MercadinhoSeuZe</RootNamespace>
+    <Product>Mercadinho Seu Zé</Product>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+  <!-- Gera um único .exe que roda sem instalar o .NET -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+
+  <!-- A configuração do Supabase vai embutida dentro do .exe -->
+  <ItemGroup>
+    <EmbeddedResource Include="appsettings.json" Condition="Exists('appsettings.json')" LogicalName="appsettings.json" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,11 @@
+# Build
+bin/
+obj/
+publish/
+*.user
+.vs/
+.vscode/
+*.suo
+
+# Configuração local com as chaves do Supabase (nunca versionar)
+src/MercadinhoSeuZe/appsettings.json

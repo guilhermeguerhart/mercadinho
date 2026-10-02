@@ -1,0 +1,63 @@
+<UserControl x:Class="MercadinhoSeuZe.Views.LandingView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid Margin="48,32" MaxWidth="980">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- Cabeçalho -->
+            <DockPanel Grid.Row="0">
+                <Border Style="{StaticResource Etiqueta}" DockPanel.Dock="Left">
+                    <TextBlock Text="Mercadinho Seu Zé" FontWeight="Bold" FontSize="17" />
+                </Border>
+                <Button Content="Entrar" Style="{StaticResource BotaoSecundario}" Padding="18,7"
+                        HorizontalAlignment="Right" Click="Entrar_Click" />
+            </DockPanel>
+
+            <!-- Chamada principal -->
+            <StackPanel Grid.Row="1" Margin="0,56,0,40" MaxWidth="640" HorizontalAlignment="Left">
+                <TextBlock Text="SISTEMA DO MERCADO" Foreground="{StaticResource Verde}" FontSize="12"
+                           FontWeight="SemiBold" Margin="0,0,0,10" />
+                <TextBlock Style="{StaticResource Titulo}"
+                           Text="O mercado inteiro na palma da mão, do caixa ao estoque." />
+                <TextBlock Foreground="{StaticResource TextoSuave}" FontSize="17" Margin="0,16,0,28"
+                           Text="Vendas, estoque, fornecedores e fechamento do dia em um só lugar, com os dados na nuvem para toda a equipe acessar." />
+                <Button Content="Entrar no sistema" Style="{StaticResource BotaoPrincipal}"
+                        HorizontalAlignment="Left" Click="Entrar_Click" />
+            </StackPanel>
+
+            <!-- O que o sistema oferece -->
+            <UniformGrid Grid.Row="2" Columns="3">
+                <Border Style="{StaticResource Cartao}" Margin="0,0,8,0">
+                    <StackPanel>
+                        <TextBlock Text="Caixa" FontWeight="Bold" FontSize="18" />
+                        <TextBlock Foreground="{StaticResource TextoSuave}" Margin="0,8,0,0"
+                                   Text="Registro de vendas rápido, com baixa automática no estoque." />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource Cartao}" Margin="4,0">
+                    <StackPanel>
+                        <TextBlock Text="Estoque" FontWeight="Bold" FontSize="18" />
+                        <TextBlock Foreground="{StaticResource TextoSuave}" Margin="0,8,0,0"
+                                   Text="Lotes, validades e avisos de produtos acabando." />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource Cartao}" Margin="8,0,0,0">
+                    <StackPanel>
+                        <TextBlock Text="Gestão" FontWeight="Bold" FontSize="18" />
+                        <TextBlock Foreground="{StaticResource TextoSuave}" Margin="0,8,0,0"
+                                   Text="Fornecedores, fechamento do dia e previsão de compras." />
+                    </StackPanel>
+                </Border>
+            </UniformGrid>
+
+            <TextBlock Grid.Row="3" Margin="0,32,0,0" FontSize="13" Foreground="{StaticResource TextoSuave}"
+                       Text="Cada colaborador entra com o próprio login e vê apenas o que o seu perfil permite." />
+        </Grid>
+    </ScrollViewer>
+</UserControl>

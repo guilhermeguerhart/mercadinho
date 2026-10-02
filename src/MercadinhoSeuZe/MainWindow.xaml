@@ -1,0 +1,10 @@
+<Window x:Class="MercadinhoSeuZe.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Mercadinho Seu Zé"
+        Width="1100" Height="720" MinWidth="820" MinHeight="600"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource Fundo}">
+    <!-- Uma janela só; as telas trocam dentro dela -->
+    <ContentControl x:Name="Tela" />
+</Window>
