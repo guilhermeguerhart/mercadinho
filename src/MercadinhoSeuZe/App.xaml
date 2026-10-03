@@ -12,6 +12,7 @@
         <SolidColorBrush x:Key="Verde100" Color="#D4ECDC" />
         <SolidColorBrush x:Key="Verde50" Color="#EAF5EE" />
         <SolidColorBrush x:Key="Azul600" Color="#2B6CB0" />
+        <SolidColorBrush x:Key="Azul50" Color="#EAF2FB" />
         <SolidColorBrush x:Key="Ambar700" Color="#8A5A00" />
         <SolidColorBrush x:Key="Ambar50" Color="#FFF6E0" />
         <SolidColorBrush x:Key="Vermelho600" Color="#C0392B" />
@@ -35,6 +36,12 @@
         <Geometry x:Key="IconeUsuario">M8 8a4 4 0 1 0 8 0a4 4 0 1 0 -8 0 M4 21c0-4 4-6 8-6s8 2 8 6</Geometry>
         <Geometry x:Key="IconeCadeado">M7 11h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2H7a2 2 0 0 1 -2 -2v-6a2 2 0 0 1 2 -2z M8 11V7a4 4 0 0 1 8 0v4</Geometry>
         <Geometry x:Key="IconeAlerta">M2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0 M12 7v6 M12 17h.01</Geometry>
+        <Geometry x:Key="IconePainel">M4.5 3h4a1.5 1.5 0 0 1 1.5 1.5v6a1.5 1.5 0 0 1 -1.5 1.5h-4a1.5 1.5 0 0 1 -1.5 -1.5v-6a1.5 1.5 0 0 1 1.5 -1.5z M15.5 3h4a1.5 1.5 0 0 1 1.5 1.5v2a1.5 1.5 0 0 1 -1.5 1.5h-4a1.5 1.5 0 0 1 -1.5 -1.5v-2a1.5 1.5 0 0 1 1.5 -1.5z M15.5 12h4a1.5 1.5 0 0 1 1.5 1.5v6a1.5 1.5 0 0 1 -1.5 1.5h-4a1.5 1.5 0 0 1 -1.5 -1.5v-6a1.5 1.5 0 0 1 1.5 -1.5z M4.5 16h4a1.5 1.5 0 0 1 1.5 1.5v2a1.5 1.5 0 0 1 -1.5 1.5h-4a1.5 1.5 0 0 1 -1.5 -1.5v-2a1.5 1.5 0 0 1 1.5 -1.5z</Geometry>
+        <Geometry x:Key="IconeFechamento">M6 3h12a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2H6a2 2 0 0 1 -2 -2V5a2 2 0 0 1 2 -2z M8 8h8 M8 12h8 M8 16h5</Geometry>
+        <Geometry x:Key="IconeSair">M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-4 M10 17l5-5-5-5 M15 12H3</Geometry>
+        <Geometry x:Key="IconeTendencia">M3 17l6-6 4 4 8-8 M14 7h7v7</Geometry>
+        <Geometry x:Key="IconeTriangulo">M12 3l9 16H3z M12 10v4 M12 17h.01</Geometry>
+        <Geometry x:Key="IconeCarteira">M5 6h14a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2H5a2 2 0 0 1 -2 -2V8a2 2 0 0 1 2 -2z M9.5 12a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0 -5 0</Geometry>
         <Geometry x:Key="IconeFerramenta">M14.7 6.3a4 4 0 0 0 -5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z</Geometry>
 
         <!-- Ícone reutilizável: <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeCadeado}" Foreground="..." Width="20" /> -->

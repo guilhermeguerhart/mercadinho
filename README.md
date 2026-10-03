@@ -12,7 +12,7 @@ O visual, os textos e os perfis seguem o projeto de referência
 | Semana | Entrega | Situação |
 |---|---|---|
 | 1 | Tela inicial e login com perfis gerente e operador | Feito |
-| 2 | Painel | Planejado |
+| 2 | Painel (modo de teste, com dados de exemplo) | Em teste |
 | 3 | Estoque | Planejado |
 | 4 | Fornecedores | Planejado |
 | 5 | Caixa | Planejado |
@@ -26,7 +26,7 @@ database/                 scripts SQL para rodar no Supabase, em ordem
 src/MercadinhoSeuZe/
   Models/                 tipos do sistema (Perfil, Sessao)
   Services/               configuração, acesso ao Supabase, login e preferências locais
-  Views/                  telas (tela inicial, login, em desenvolvimento)
+  Views/                  telas (tela inicial, login, área interna com menu, painel, caixa provisório)
   App.xaml                cores e estilos visuais
 publicar.ps1              gera o .exe único
 INSTRUCOES_PARA_IA.txt    resumo do projeto, próximos passos e restrições (leia antes de alterar)
@@ -68,8 +68,7 @@ O .exe já leva a configuração dentro dele e roda em qualquer Windows 64 bits 
 - "Esqueci minha senha" grava um pedido em `pedidos_senha` para o gerente redefinir a senha.
 - "Lembrar meu usuário" guarda o último usuário em `%LocalAppData%\Mercado\preferencias.json`.
 - As mensagens de "Fale com a gente" vão para a tabela `contatos`.
-- Gerente e operador vão, por enquanto, para a tela "em desenvolvimento"; a partir da semana 2 o gerente vai
-  para o Painel e o operador para o Caixa.
+- Depois do login, o gerente vai para o Painel e o operador para o Caixa (provisório até a semana 5).
 
 ## Segurança
 

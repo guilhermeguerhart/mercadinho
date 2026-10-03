@@ -29,10 +29,6 @@ public partial class MainWindow : Window
 
     public void MostrarLogin() => Tela.Content = new LoginView(this, _auth, _preferencias);
 
-    /// <summary>
-    /// Tela de cada perfil após o login. Por enquanto só a tela inicial e o login estão prontos,
-    /// então os dois perfis vão para "em desenvolvimento" (como no site de referência).
-    /// A partir da semana 2: gerente vai para o Painel e operador para o Caixa.
-    /// </summary>
-    public void MostrarAreaDoUsuario(Sessao sessao) => Tela.Content = new EmDesenvolvimentoView(this, sessao);
+    /// <summary>Área interna: gerente cai no Painel e operador no Caixa (semana 2, modo de teste).</summary>
+    public void MostrarAreaDoUsuario(Sessao sessao) => Tela.Content = new AreaInternaView(this, sessao);
 }

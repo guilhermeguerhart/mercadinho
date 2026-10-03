@@ -40,15 +40,25 @@ publicar.ps1               Gera publish/MercadinhoSeuZe.exe (feche o .exe aberto
 - Mostrar senha, aviso de Caps Lock, lembrar usuário, recuperação de senha (grava em pedidos_senha).
 - 5 senhas erradas seguidas bloqueiam o usuário por 5 minutos; cada tentativa vai para auditoria_login.
 - Usuário desativado (perfis.ativo = false) não entra.
-- Depois do login, os dois perfis vão para a tela "em desenvolvimento".
+- Depois do login: gerente vai para o Painel e operador para o Caixa (semana 2).
 - Ícone do .exe e da janela.
 - Atalho de desenvolvimento Alt+1 no login (Views/LoginView.Desenvolvimento.cs, só compila com a
   constante DESENVOLVIMENTO: Debug ou publicar.ps1 -Desenvolvimento). Nunca ligue no .exe normal.
 
+3b. SEMANA 2 (EM MODO DE TESTE)
+-------------------------------
+- Views/AreaInternaView: menu lateral comum das telas internas (itens por perfil, "em breve", toast).
+- Views/PainelView: painel do gerente (indicadores, acesso rápido, avisos; atualiza a cada 30 s).
+- Views/CaixaView: caixa provisório do operador com o resumo de vendas do dia.
+- Os dados vêm de Services/DadosExemplo.cs (exemplos em memória, faixa amarela "Modo de teste" na tela).
+  Nenhuma tabela foi criada. Próximo passo: criar as tabelas (script 003), ler do Supabase no lugar
+  de DadosExemplo e tirar a faixa de modo de teste.
+- Views/EmDesenvolvimentoView não é mais usada (ficou da semana 1).
+
 4. O QUE AINDA DEVE SER FEITO (UMA SEMANA POR VEZ, NESTA ORDEM)
 --------------------------------------------------------------
 Faça só a semana pedida. Cada semana é apresentada ao dono do mercado antes da próxima.
-Semana 2 - Painel: tela pós-login diferente por perfil; resumo de vendas do dia; para o gerente,
+Semana 2 - Painel (feito em modo de teste; falta ligar ao banco): tela pós-login diferente por perfil; resumo de vendas do dia; para o gerente,
            avisos de estoque baixo e itens a repor; operador vai só para o Caixa; tela central
            com botões para as outras telas. Trocar o destino em MainWindow.MostrarAreaDoUsuario.
 Semana 3 - Estoque: cadastro de produtos; lotes com quantidade restante e validade; filtros
