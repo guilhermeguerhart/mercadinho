@@ -76,7 +76,8 @@ Para cada tela nova, use como modelo a tela equivalente do projeto de referênci
 
 5. RESTRIÇÕES — NÃO FAÇA
 ------------------------
-- NÃO coloque no git o src/MercadinhoSeuZe/appsettings.json (tem as chaves). Ele está no .gitignore.
+- src/MercadinhoSeuZe/appsettings.json fica no git de propósito, só com a URL e a chave PÚBLICA
+  (sb_publishable). NÃO coloque nele nenhuma outra chave.
 - NÃO use nem grave a chave secreta do Supabase (sb_secret / service_role) em nenhum arquivo
   ou no .exe. O programa usa só a chave pública (sb_publishable).
 - NÃO desligue nem afrouxe o Row Level Security das tabelas. Toda tabela nova precisa de RLS

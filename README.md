@@ -44,9 +44,9 @@ INSTRUCOES_PARA_IA.txt    resumo do projeto, próximos passos e restrições (le
    ```sql
    update public.perfis set perfil = 'gerente' where usuario = 'marcos.gerente';
    ```
-5. Copiar `src/MercadinhoSeuZe/appsettings.example.json` para `appsettings.json` na mesma pasta e preencher
-   com a **Project URL** e a **anon public key** (Supabase > Project Settings > API).
-   Esse arquivo não vai para o git.
+5. Configuração: `src/MercadinhoSeuZe/appsettings.json` já vem no repositório com a URL e a chave
+   pública (publishable) do Supabase do projeto, então quem baixar não precisa configurar nada.
+   Para usar outro projeto do Supabase, troque os dois valores (Project Settings > API).
 
 ## Rodar e gerar o .exe
 
@@ -74,4 +74,5 @@ O .exe já leva a configuração dentro dele e roda em qualquer Windows 64 bits 
 
 O .exe guarda apenas a chave pública (anon) do Supabase, que pode ser exposta. Quem protege os dados são as
 regras de acesso (Row Level Security) do banco: cada colaborador entra com o próprio login e só lê o que o
-seu perfil permite. **Nunca** coloque a chave `service_role` no appsettings.json.
+seu perfil permite. Por isso o `appsettings.json` pode ficar no git. **Nunca** coloque nele a chave
+secreta (`sb_secret` / `service_role`).

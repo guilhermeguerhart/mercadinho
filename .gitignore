@@ -8,5 +8,4 @@ publish-dev/
 .vscode/
 *.suo
 
-# Configuração local com as chaves do Supabase (nunca versionar)
-src/MercadinhoSeuZe/appsettings.json
+# appsettings.json é versionado de propósito: só tem a URL e a chave pública do Supabase.
