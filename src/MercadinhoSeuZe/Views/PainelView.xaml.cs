@@ -9,27 +9,41 @@ using MercadinhoSeuZe.Services;
 
 namespace MercadinhoSeuZe.Views;
 
-/// <summary>Painel do gerente (igual a painel.html do site). Por enquanto usa dados de exemplo.</summary>
+/// <summary>
+/// Painel do gerente (igual a painel.html do site). Os avisos de estoque vêm do banco (tabelas produtos e lotes);
+/// vendas, pedidos e caixa ainda são dados de exemplo até as semanas 4 e 5.
+/// </summary>
 public partial class PainelView : UserControl
 {
     private static readonly CultureInfo PtBr = new("pt-BR");
 
     private readonly AreaInternaView _area;
     private readonly Sessao _sessao;
+    private readonly EstoqueService? _estoque;
+    private bool _atualizando;
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(30) };
 
-    public PainelView(AreaInternaView area, Sessao sessao)
+    public PainelView(AreaInternaView area, Sessao sessao, EstoqueService? estoque)
     {
         InitializeComponent();
         _area = area;
         _sessao = sessao;
+        _estoque = estoque;
 
-        _timer.Tick += (_, _) => Atualizar();
-        Loaded += (_, _) => { Atualizar(); _timer.Start(); };
+        _timer.Tick += async (_, _) => await AtualizarAsync();
+        Loaded += async (_, _) => { _timer.Start(); await AtualizarAsync(); };
         Unloaded += (_, _) => _timer.Stop();
     }
 
-    private void Atualizar()
+    private async Task AtualizarAsync()
+    {
+        if (_atualizando) return;
+        _atualizando = true;
+        try { await AtualizarDadosAsync(); }
+        finally { _atualizando = false; }
+    }
+
+    private async Task AtualizarDadosAsync()
     {
         var agora = DateTime.Now;
         Saudacao.Text = $"Olá, {_sessao.Nome}";
@@ -37,19 +51,56 @@ public partial class PainelView : UserControl
         DataTurno.Text = char.ToUpper(data[0]) + data[1..] + " — " + Turno(agora.Hour);
 
         var dados = DadosExemplo.Painel();
-        var baixos = dados.EstoqueBaixo.ToList();
+
+        // Estoque real do banco
+        List<Produto>? produtos = null;
+        string? erroEstoque = null;
+        if (_estoque is null) erroEstoque = "Sistema sem configuração do banco de dados.";
+        else
+        {
+            try { produtos = await _estoque.ListarAsync(); }
+            catch (ConexaoException ex) { erroEstoque = ex.Message; }
+        }
+        var porNome = StringComparer.Create(PtBr, CompareOptions.IgnoreCase);
+        var semEstoque = produtos?.Where(p => p.SemEstoque).OrderBy(p => p.Nome, porNome).ToList() ?? [];
+        var baixos = produtos?.Where(p => p.EstoqueBaixo).OrderBy(p => p.Quantidade).ThenBy(p => p.Nome, porNome).ToList() ?? [];
+        var antecipados = produtos?.Where(p => p.AvisoAntecipado).OrderBy(p => p.Quantidade).ThenBy(p => p.Nome, porNome).ToList() ?? [];
+        var validade = produtos?.Where(p => p.ValidadeProxima).OrderBy(p => p.ProximaValidade).ToList() ?? [];
 
         KpiVendas.Text = Moeda(dados.Resumo.Total);
         KpiVendasSub.Text = Plural(dados.Resumo.QuantidadeVendas, "venda realizada", "vendas realizadas");
-        KpiEstoque.Text = Plural(baixos.Count, "produto", "produtos");
+        KpiEstoque.Text = produtos is null ? "—" : Plural(baixos.Count + semEstoque.Count, "produto", "produtos");
+        KpiEstoqueSub.Text = produtos is null ? "Não foi possível ler o estoque"
+            : antecipados.Count > 0 ? $"Abaixo do mínimo ou zerados · +{antecipados.Count} perto do mínimo"
+            : "Abaixo do mínimo ou zerados";
         KpiPedidos.Text = Plural(dados.PedidosPendentes.Count, "pedido", "pedidos");
         KpiTicket.Text = Moeda(dados.Resumo.TicketMedio);
         AtalhoCaixa.Text = dados.Caixa.Aberto ? "Ir para o caixa" : "Abrir caixa";
 
         ListaAvisos.Children.Clear();
+        if (erroEstoque is not null)
+            AdicionarAviso("IconeAlerta", "Vermelho50", "Vermelho600", [new Run("Não foi possível ler o estoque: " + erroEstoque)], "Estoque");
+
+        // Avisos de estoque (do mais urgente ao menos urgente), no máximo 8 para não esconder o resto
+        var avisosEstoque = new List<(string Icone, string Fundo, string Cor, Inline[] Texto)>();
+        foreach (var p in semEstoque)
+            avisosEstoque.Add(("IconeAlerta", "Vermelho50", "Vermelho600", [Negrito(p.Nome), new Run(" está sem estoque.")]));
         foreach (var p in baixos)
-            AdicionarAviso("IconeTriangulo", "Ambar50", "Ambar700",
-                [Negrito(p.Nome), new Run($" está com estoque baixo ({Plural(p.Quantidade, "unidade", "unidades")}).")], "Estoque");
+            avisosEstoque.Add(("IconeTriangulo", "Ambar50", "Ambar700",
+                [Negrito(p.Nome), new Run($" está com estoque baixo ({p.Formatar(p.Quantidade)}, mínimo {p.Formatar(p.EstoqueMinimo)}).")]));
+        foreach (var p in validade)
+            avisosEstoque.Add(p.Situacao!.Nivel == NivelValidade.Vencido
+                ? ("IconeRelogio", "Vermelho50", "Vermelho600", [Negrito(p.Nome), new Run($": tem lote vencido ({p.Situacao.Texto.ToLower(PtBr)}).")])
+                : ("IconeRelogio", "Ambar50", "Ambar700", [Negrito(p.Nome), new Run($": lote {p.Situacao.Texto.ToLower(PtBr)}.")]));
+        foreach (var p in antecipados)
+            avisosEstoque.Add(("IconeTriangulo", "Ambar50", "Ambar700",
+                [Negrito(p.Nome), new Run($" está chegando no mínimo ({p.Formatar(p.Quantidade)}). Hora de pedir.")]));
+        foreach (var a in avisosEstoque.Take(8))
+            AdicionarAviso(a.Icone, a.Fundo, a.Cor, a.Texto, "Estoque");
+        if (avisosEstoque.Count > 8)
+            AdicionarAviso("IconeCaixaProduto", "Verde50", "Verde700",
+                [new Run($"E mais {avisosEstoque.Count - 8} avisos de estoque. Abra o Estoque para ver todos.")], "Estoque");
+
         foreach (var p in dados.PedidosPendentes)
             AdicionarAviso("IconeCaminhao", "Azul50", "Azul600",
                 p.Atrasado
@@ -93,6 +144,8 @@ public partial class PainelView : UserControl
     {
         var destino = (string)((Button)sender).Tag;
         if (destino == "caixa") _area.Abrir("caixa");
+        else if (destino == "estoque") _area.Abrir("estoque");
+        else if (destino == "Estoque") (_area.Abrir("estoque") as EstoqueView)?.NovoProduto();
         else _area.EmBreve(destino);
     }
 

@@ -21,13 +21,18 @@ na nuvem para vários funcionários usarem ao mesmo tempo.
 database/                  Scripts SQL, numerados, para rodar no SQL Editor do Supabase em ordem.
   001_semana1_perfis.sql   Tabelas perfis, auditoria_login, pedidos_senha, contatos e as regras (RLS).
   002_usuarios_teste.sql   Cria 5 usuários de teste (lista em USUARIOS_TESTE.md).
+  003_semana3_estoque.sql  Tabelas produtos e lotes, com RLS (todos leem, só o gerente altera).
 src/MercadinhoSeuZe/
   App.xaml                 Cores, ícones (Geometry) e estilos de botões/campos. Reutilize, não duplique.
   MainWindow.xaml(.cs)     Janela única; troca as telas com MostrarInicio/MostrarLogin/MostrarAreaDoUsuario.
-  Models/                  Perfil (Gerente/Operador) e Sessao (usuário logado).
-  Services/                Configuracao (lê appsettings.json embutido), SupabaseApi (HTTP),
-                           AuthService (login, bloqueio, auditoria), PreferenciasLocais.
-  Views/                   Uma UserControl por tela: LandingView, LoginView, EmDesenvolvimentoView.
+  Models/                  Perfil (Gerente/Operador), Sessao (usuário logado), Painel, Estoque (Produto, Lote).
+  Services/                Configuracao (lê appsettings.json embutido), SupabaseApi (HTTP; ListarAsync,
+                           InserirAsync, AtualizarAsync, ExcluirAsync com o token do usuário logado),
+                           AuthService (login, bloqueio, auditoria), PreferenciasLocais, EstoqueService.
+  Views/                   Uma UserControl por tela: LandingView, LoginView, AreaInternaView, PainelView,
+                           CaixaView, EstoqueView. Janelas por cima da tela (ProdutoJanela, LoteJanela,
+                           ConfirmacaoJanela) abrem com AreaInternaView.AbrirJanela; Esc fecha.
+                           Formulario.cs: leitura de preço, inteiro e data (dd/mm/aaaa) e erros de campo.
   Assets/mercado.ico       Ícone do programa.
 publicar.ps1               Gera publish/MercadinhoSeuZe.exe (feche o .exe aberto antes).
                            Com -Desenvolvimento gera publish-dev/ com o atalho Alt+1 (usuários de teste).
@@ -44,6 +49,9 @@ publicar.ps1               Gera publish/MercadinhoSeuZe.exe (feche o .exe aberto
 - Ícone do .exe e da janela.
 - Atalho de desenvolvimento Alt+1 no login (Views/LoginView.Desenvolvimento.cs, só compila com a
   constante DESENVOLVIMENTO: Debug ou publicar.ps1 -Desenvolvimento). Nunca ligue no .exe normal.
+- Atalho de desenvolvimento Alt+2 no Estoque (Views/EstoqueView.Desenvolvimento.cs, mesma regra):
+  leitor de código de barras simulado. Catálogo com 113 produtos (22 de açougue, por kg); cada clique gera um código de caixa
+  DUN-14 novo e válido, "passa no leitor" e preenche o cadastro. Também repassa caixas já cadastradas.
 
 3b. SEMANA 2 (EM MODO DE TESTE)
 -------------------------------
@@ -54,6 +62,45 @@ publicar.ps1               Gera publish/MercadinhoSeuZe.exe (feche o .exe aberto
   Nenhuma tabela foi criada. Próximo passo: criar as tabelas (script 003), ler do Supabase no lugar
   de DadosExemplo e tirar a faixa de modo de teste.
 - Views/EmDesenvolvimentoView não é mais usada (ficou da semana 1).
+- A faixa amarela "Modo de teste" aparece só no Painel e no Caixa.
+
+3c. SEMANA 3 - ESTOQUE (LIGADO AO BANCO)
+----------------------------------------
+- Antes de usar: rodar database/003_semana3_estoque.sql no SQL Editor do Supabase. Sem isso a tela mostra
+  o aviso "As tabelas desta tela ainda não foram criadas no banco".
+- Tabelas: produtos (nome único sem diferenciar maiúsculas, categoria, preco, estoque_minimo,
+  codigo_barras_caixa único, unidades_por_caixa, estoque_aviso) e
+  lotes (produto_id, quantidade_inicial, quantidade_restante, data_compra, validade opcional).
+  Quantidade do produto = soma de quantidade_restante dos lotes. Excluir produto exclui os lotes.
+- Views/EstoqueView (só gerente): indicadores clicáveis (produtos, estoque baixo, sem estoque, validade
+  próxima), busca por nome/categoria, filtros, ordem (nome A-Z, validade mais próxima, menor quantidade),
+  bolinha vermelha na quantidade baixa/zerada, etiquetas "Vence em X dias"/"Venceu" (prazo de 30 dias,
+  igual ao site), lotes de cada produto com adicionar/editar/excluir.
+- Açougue / produtos por quilo (pedido do Guilherme): produtos.unidade_medida = 'kg' ou 'un'. Quantidades
+  (estoque_minimo, estoque_aviso, unidades_por_caixa, quantidade_inicial/restante dos lotes) são
+  numeric(12,3). Por quilo: preço por kg, mínimo/aviso/lotes em kg com até 3 casas ("18,745"), caixa em
+  kg (o peso das caixas de carne varia; a janela de lote pede para conferir a etiqueta). Por unidade
+  continuam inteiros (Formulario.LerQuantidade). Textos de quantidade sempre por Produto.Formatar/Numero.
+  A venda por peso (balança, etiqueta do açougue) é da semana 5.
+- Leitor de código de barras (pedido do Guilherme): campo "Chegou mercadoria?" no topo, já com o foco.
+  O leitor digita o código e manda Enter. Código conhecido abre "Novo lote" com caixas recebidas x
+  unidades por caixa; código desconhecido abre o cadastro de produto com o código preenchido.
+  Nos campos de código o Enter só pula para o próximo campo (Formulario.EnterVaiParaProximo).
+- Lotes no drop-down de cada produto: restante/comprado (ex.: 7/10) com barra, vendido, compra e validade.
+  "Vendido" = quantidade_inicial - quantidade_restante (a baixa pelas vendas vem na semana 5).
+- Aviso antecipado (pedido do Guilherme): sinal amarelo ao lado da quantidade quando ela está acima do
+  mínimo mas igual ou abaixo de estoque_aviso (vazio = mínimo + 50%). O texto do aviso aparece ao passar
+  o mouse. Filtro "Repor em breve". Para produtos de entrega demorada, cadastrar um estoque_aviso maior.
+- Regras: estoque baixo = tem unidades mas menos que o mínimo; sem estoque = 0; validade próxima = lote
+  com unidades vencido ou vencendo em até 30 dias (Models/Estoque.cs, SituacaoValidade).
+- Cadastro de produto cria junto o primeiro lote (quantidade 0 = sem lote). Se o lote falhar, o produto
+  é desfeito. O atalho "Novo produto" do Painel abre o Estoque já com o cadastro aberto.
+- O token do login vale 1 hora (padrão do Supabase). Depois disso a gravação mostra "Sua sessão expirou";
+  é só sair e entrar de novo. Renovar o token sozinho fica para depois, se o dono pedir.
+- Painel (pedido do Guilherme): o indicador "Estoque baixo" e os avisos de estoque (sem estoque, estoque
+  baixo, lote vencido/vencendo, aviso antecipado; no máximo 8) vêm do banco pelo EstoqueService, a cada
+  30 s. Vendas, pedidos e caixa continuam em DadosExemplo até as tabelas das semanas 4 e 5 existirem;
+  a faixa amarela do Painel diz isso.
 
 4. O QUE AINDA DEVE SER FEITO (UMA SEMANA POR VEZ, NESTA ORDEM)
 --------------------------------------------------------------
@@ -61,7 +108,7 @@ Faça só a semana pedida. Cada semana é apresentada ao dono do mercado antes d
 Semana 2 - Painel (feito em modo de teste; falta ligar ao banco): tela pós-login diferente por perfil; resumo de vendas do dia; para o gerente,
            avisos de estoque baixo e itens a repor; operador vai só para o Caixa; tela central
            com botões para as outras telas. Trocar o destino em MainWindow.MostrarAreaDoUsuario.
-Semana 3 - Estoque: cadastro de produtos; lotes com quantidade restante e validade; filtros
+Semana 3 - Estoque (feito, ligado ao banco): cadastro de produtos; lotes com quantidade restante e validade; filtros
            (perto da validade, estoque baixo, sem estoque, ordem alfabética); indicadores visuais.
 Semana 4 - Fornecedores: cadastro; produtos de cada fornecedor; indicadores de estoque;
            contato rápido; histórico de pedidos (feitos, pendentes).

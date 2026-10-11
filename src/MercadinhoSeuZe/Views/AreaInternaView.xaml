@@ -77,8 +77,8 @@
                         <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeTriangulo}" Foreground="{StaticResource Ambar700}"
                                         Width="18" VerticalAlignment="Top" Margin="0,1,10,0" />
                         <TextBlock Foreground="{StaticResource Ambar700}" FontSize="14">
-                            <Run FontWeight="SemiBold" Text="Modo de teste da semana 2." />
-                            Os números e avisos são dados de exemplo; nada é lido nem gravado no banco.
+                            <Run FontWeight="SemiBold" Text="Modo de teste." />
+                            <Run x:Name="AvisoTesteTexto" />
                         </TextBlock>
                     </DockPanel>
                 </Border>
@@ -127,6 +127,14 @@
                 <StackPanel x:Name="ItensMenu" />
             </DockPanel>
         </Border>
+
+        <!-- Janela por cima da tela (cadastros e confirmações); Esc fecha -->
+        <Grid x:Name="Sobreposicao" Grid.RowSpan="2" Grid.ColumnSpan="2" Visibility="Collapsed">
+            <Border Background="#73141E18" />
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ContentControl x:Name="JanelaAtual" Focusable="False" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="16" />
+            </ScrollViewer>
+        </Grid>
 
         <!-- Aviso rápido (toast) -->
         <Border x:Name="Toast" Grid.Row="1" Grid.ColumnSpan="2" Background="{StaticResource Tinta}" CornerRadius="10" Padding="18,12"

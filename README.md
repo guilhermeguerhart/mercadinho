@@ -13,7 +13,7 @@ O visual, os textos e os perfis seguem o projeto de referência
 |---|---|---|
 | 1 | Tela inicial e login com perfis gerente e operador | Feito |
 | 2 | Painel (modo de teste, com dados de exemplo) | Em teste |
-| 3 | Estoque | Planejado |
+| 3 | Estoque (produtos, lotes e validade) | Feito |
 | 4 | Fornecedores | Planejado |
 | 5 | Caixa | Planejado |
 | 6 | Fechamento do dia | Planejado |
@@ -26,7 +26,7 @@ database/                 scripts SQL para rodar no Supabase, em ordem
 src/MercadinhoSeuZe/
   Models/                 tipos do sistema (Perfil, Sessao)
   Services/               configuração, acesso ao Supabase, login e preferências locais
-  Views/                  telas (tela inicial, login, área interna com menu, painel, caixa provisório)
+  Views/                  telas (tela inicial, login, área interna com menu, painel, caixa provisório, estoque)
   App.xaml                cores e estilos visuais
 publicar.ps1              gera o .exe único
 INSTRUCOES_PARA_IA.txt    resumo do projeto, próximos passos e restrições (leia antes de alterar)
@@ -36,7 +36,8 @@ INSTRUCOES_PARA_IA.txt    resumo do projeto, próximos passos e restrições (le
 
 1. **Instalar o .NET 10 SDK**: `winget install Microsoft.DotNet.SDK.10`
 2. **Criar o projeto no Supabase** (https://supabase.com, plano grátis).
-3. No Supabase, abrir **SQL Editor** e executar `database/001_semana1_perfis.sql`.
+3. No Supabase, abrir **SQL Editor** e executar os scripts de `database/` em ordem
+   (`001_semana1_perfis.sql`, depois `003_semana3_estoque.sql`; o `002` só cria usuários de teste).
 4. Em **Authentication > Users > Add user**, criar os usuários marcando *Auto Confirm User*.
    O login é por **nome de usuário**: crie cada um com o e-mail interno `<usuario>@mercado.local`
    (ex.: `ana.caixa@mercado.local`); no programa a pessoa digita só `ana.caixa`.
@@ -57,7 +58,9 @@ dotnet run --project src/MercadinhoSeuZe     # abrir para testar
 ```
 
 Na versão de desenvolvimento (ou rodando em Debug), **Alt+1 na tela de login** abre a lista dos usuários de
-teste no canto inferior esquerdo; clicar num deles preenche usuário e senha. O .exe normal não tem esse atalho.
+teste no canto inferior esquerdo; clicar num deles preenche usuário e senha. **Alt+2 na tela de Estoque** abre um
+leitor de código de barras simulado (catálogo de produtos; cada clique gera um código de caixa novo).
+O .exe normal não tem esses atalhos.
 
 O .exe já leva a configuração dentro dele e roda em qualquer Windows 64 bits sem instalar nada.
 

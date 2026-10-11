@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
 using MercadinhoSeuZe.Models;
+using MercadinhoSeuZe.Services;
 
 namespace MercadinhoSeuZe.Views;
 
@@ -18,7 +19,7 @@ public partial class AreaInternaView : UserControl
     private static readonly ItemMenu[] Menu =
     [
         new("painel", "Painel", "IconePainel", true, [Perfil.Gerente]),
-        new("estoque", "Estoque", "IconeCaixaProduto", false, [Perfil.Gerente]),
+        new("estoque", "Estoque", "IconeCaixaProduto", true, [Perfil.Gerente]),
         new("fornecedores", "Fornecedores", "IconeCaminhao", false, [Perfil.Gerente]),
         new("caixa", "Caixa", "IconeCaixaRegistradora", true, [Perfil.Gerente, Perfil.Operador]),
         new("fechamento", "Fechamento do dia", "IconeFechamento", false, [Perfil.Gerente, Perfil.Operador]),
@@ -26,16 +27,26 @@ public partial class AreaInternaView : UserControl
 
     private readonly MainWindow _janela;
     private readonly Sessao _sessao;
+    private readonly SupabaseApi? _api;
     private readonly DispatcherTimer _timerToast = new() { Interval = TimeSpan.FromSeconds(2.8) };
     private bool _compacta;
 
-    public AreaInternaView(MainWindow janela, Sessao sessao)
+    public AreaInternaView(MainWindow janela, Sessao sessao, SupabaseApi? api)
     {
         InitializeComponent();
         _janela = janela;
         _sessao = sessao;
+        _api = api;
         _timerToast.Tick += (_, _) => { Toast.Visibility = Visibility.Collapsed; _timerToast.Stop(); };
         Unloaded += (_, _) => _timerToast.Stop();
+        PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key == System.Windows.Input.Key.Escape && Sobreposicao.Visibility == Visibility.Visible)
+            {
+                FecharJanela();
+                e.Handled = true;
+            }
+        };
 
         Avatar.Text = sessao.Nome[..1].ToUpperInvariant();
         NomeUsuario.Text = sessao.Nome;
@@ -45,23 +56,46 @@ public partial class AreaInternaView : UserControl
         Abrir(sessao.Perfil == Perfil.Gerente ? "painel" : "caixa");
     }
 
-    public void Abrir(string id)
+    /// <summary>Abre a tela do menu e devolve ela (ou null se não estiver liberada).</summary>
+    public UserControl? Abrir(string id)
     {
         var item = Menu.First(m => m.Id == id);
         if (!item.Pronto || !item.Perfis.Contains(_sessao.Perfil))
         {
             EmBreve(item.Nome);
-            return;
+            return null;
         }
 
-        Pagina.Content = id switch
+        UserControl tela = id switch
         {
-            "painel" => new PainelView(this, _sessao),
+            "painel" => new PainelView(this, _sessao, _api is null ? null : new EstoqueService(_api, _sessao)),
+            "estoque" => new EstoqueView(this, _api is null ? null : new EstoqueService(_api, _sessao)),
             _ => new CaixaView(),
         };
+        Pagina.Content = tela;
+        // Vendas, pedidos e caixa ainda são exemplos (semana 2); o estoque já lê do banco.
+        AvisoTeste.Visibility = id is "painel" or "caixa" ? Visibility.Visible : Visibility.Collapsed;
+        AvisoTesteTexto.Text = id == "painel"
+            ? "Vendas, pedidos e caixa ainda são dados de exemplo. Os avisos de estoque já vêm do banco."
+            : "Os números de vendas são dados de exemplo; nada é lido nem gravado no banco.";
         MontarMenu(id);
         Rolagem.ScrollToTop();
         if (_compacta) MostrarMenuCompacto(false);
+        return tela;
+    }
+
+    /// <summary>Mostra uma janela (cadastro, confirmação) por cima de tudo.</summary>
+    public void AbrirJanela(FrameworkElement conteudo)
+    {
+        conteudo.MaxWidth = Math.Max(300, ActualWidth - 32);
+        JanelaAtual.Content = conteudo;
+        Sobreposicao.Visibility = Visibility.Visible;
+    }
+
+    public void FecharJanela()
+    {
+        Sobreposicao.Visibility = Visibility.Collapsed;
+        JanelaAtual.Content = null;
     }
 
     public void EmBreve(string nomeTela) => MostrarToast($"A tela “{nomeTela}” será desenvolvida na próxima etapa.");

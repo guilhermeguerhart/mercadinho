@@ -42,6 +42,13 @@
         <Geometry x:Key="IconeTendencia">M3 17l6-6 4 4 8-8 M14 7h7v7</Geometry>
         <Geometry x:Key="IconeTriangulo">M12 3l9 16H3z M12 10v4 M12 17h.01</Geometry>
         <Geometry x:Key="IconeCarteira">M5 6h14a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2H5a2 2 0 0 1 -2 -2V8a2 2 0 0 1 2 -2z M9.5 12a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0 -5 0</Geometry>
+        <Geometry x:Key="IconeMais">M12 5v14 M5 12h14</Geometry>
+        <Geometry x:Key="IconeBusca">M4 11a7 7 0 1 0 14 0a7 7 0 1 0 -14 0 M21 21l-4.3-4.3</Geometry>
+        <Geometry x:Key="IconeSetaBaixo">M6 9l6 6 6-6</Geometry>
+        <Geometry x:Key="IconeSetaDireita">M9 6l6 6-6 6</Geometry>
+        <Geometry x:Key="IconeLixeira">M4 7h16 M10 11v6 M14 11v6 M6 7l1 13h10l1-13 M9 7V4h6v3</Geometry>
+        <Geometry x:Key="IconeRelogio">M2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0 M12 7v5l3 2</Geometry>
+        <Geometry x:Key="IconeCodigoBarras">M3 7V5a2 2 0 0 1 2 -2h2 M17 3h2a2 2 0 0 1 2 2v2 M21 17v2a2 2 0 0 1 -2 2h-2 M7 21H5a2 2 0 0 1 -2 -2v-2 M7 8v8 M10 8v8 M13 8v8 M17 8v8</Geometry>
         <Geometry x:Key="IconeFerramenta">M14.7 6.3a4 4 0 0 0 -5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z</Geometry>
 
         <!-- Ícone reutilizável: <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeCadeado}" Foreground="..." Width="20" /> -->
@@ -185,6 +192,30 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Borda" Property="BorderBrush" Value="{StaticResource Verde600}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Botão vermelho de exclusão (igual a .btn-danger do site) -->
+        <Style x:Key="BotaoPerigo" TargetType="Button" BasedOn="{StaticResource BotaoPrimario}">
+            <Setter Property="Background" Value="{StaticResource Vermelho600}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Borda" Background="{TemplateBinding Background}" CornerRadius="8"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Borda" Property="Background" Value="#A93226" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Borda" Property="Opacity" Value="0.7" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>

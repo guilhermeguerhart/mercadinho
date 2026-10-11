@@ -1,0 +1,130 @@
+<UserControl x:Class="MercadinhoSeuZe.Views.ProdutoJanela"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Width="540">
+    <!-- Cadastro / edição de produto (igual ao modal-produto de estoque.html) -->
+    <Border Style="{StaticResource CartaoBorda}" CornerRadius="16" Padding="24,24,24,20" Effect="{StaticResource SombraJanela}">
+        <StackPanel>
+            <DockPanel Margin="0,0,0,18">
+                <Button DockPanel.Dock="Right" Content="×" Style="{StaticResource LinkSuave}" FontSize="24" FontWeight="Normal"
+                        VerticalAlignment="Top" Click="Cancelar_Click" ToolTip="Fechar" AutomationProperties.Name="Fechar" />
+                <TextBlock x:Name="Titulo" Text="Novo produto" FontSize="22" FontWeight="Bold" />
+            </DockPanel>
+
+            <Border x:Name="AvisoErro" Style="{StaticResource Aviso}" Background="{StaticResource Vermelho50}" BorderBrush="#F2C4BE" Visibility="Collapsed">
+                <TextBlock x:Name="AvisoErroTexto" Foreground="{StaticResource Vermelho600}" FontSize="14" />
+            </Border>
+
+            <TextBlock Text="Nome do produto" Style="{StaticResource Rotulo}" />
+            <TextBox x:Name="Nome" MaxLength="80" AutomationProperties.Name="Nome do produto" />
+            <TextBlock x:Name="NomeErro" Style="{StaticResource ErroCampo}" />
+
+            <TextBlock Text="Categoria" Style="{StaticResource Rotulo}" Margin="0,14,0,6" />
+            <TextBox x:Name="Categoria" MaxLength="40" AutomationProperties.Name="Categoria" />
+            <TextBlock x:Name="CategoriaErro" Style="{StaticResource ErroCampo}" />
+            <TextBlock x:Name="CategoriasExistentes" FontSize="12" Style="{StaticResource TextoSuave}" Margin="0,6,0,0" />
+
+            <!-- Açougue e outros a granel: preço, estoque e lotes em quilos -->
+            <Border Background="{StaticResource Fundo}" CornerRadius="10" Padding="14,10" Margin="0,14,0,0">
+                <StackPanel>
+                    <CheckBox x:Name="PorPeso" Content="Vendido por quilo (kg), ex.: carnes do açougue" Checked="PorPeso_Mudou" Unchecked="PorPeso_Mudou" />
+                    <TextBlock x:Name="PorPesoErro" Style="{StaticResource ErroCampo}" />
+                </StackPanel>
+            </Border>
+
+            <Grid Margin="0,14,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock x:Name="RotuloPreco" Text="Preço (R$)" Style="{StaticResource Rotulo}" />
+                    <TextBox x:Name="Preco" MaxLength="12" AutomationProperties.Name="Preço" />
+                    <TextBlock x:Name="PrecoErro" Style="{StaticResource ErroCampo}" />
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                    <TextBlock x:Name="RotuloMinimo" Text="Estoque mínimo" Style="{StaticResource Rotulo}" />
+                    <TextBox x:Name="Minimo" MaxLength="10" AutomationProperties.Name="Estoque mínimo" />
+                    <TextBlock x:Name="MinimoErro" Style="{StaticResource ErroCampo}" />
+                </StackPanel>
+            </Grid>
+
+            <Grid Margin="0,14,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock x:Name="RotuloAviso" Text="Avisar com antecedência em" Style="{StaticResource Rotulo}" />
+                    <Grid>
+                        <TextBox x:Name="Aviso" MaxLength="10" AutomationProperties.Name="Avisar com antecedência em" />
+                        <TextBlock x:Name="DicaAviso" Foreground="{StaticResource Placeholder}" FontSize="15" VerticalAlignment="Center"
+                                   Margin="15,0,0,0" IsHitTestVisible="False" />
+                    </Grid>
+                    <TextBlock x:Name="AvisoAntecipadoErro" Style="{StaticResource ErroCampo}" />
+                </StackPanel>
+                <TextBlock Grid.Column="2" FontSize="12" Style="{StaticResource TextoSuave}" VerticalAlignment="Center" Margin="0,24,0,0"
+                           Text="Com essa quantidade ou menos aparece o sinal amarelo, antes de chegar no mínimo. Use um número maior para produtos que demoram a ser entregues. Vazio = mínimo + 50%." />
+            </Grid>
+
+            <Grid Margin="0,14,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="2*" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="Código de barras da caixa" Style="{StaticResource Rotulo}" />
+                    <TextBox x:Name="CodigoCaixa" MaxLength="40" AutomationProperties.Name="Código de barras da caixa"
+                             ToolTip="Clique aqui e passe o leitor na caixa (opcional)" />
+                    <TextBlock x:Name="CodigoCaixaErro" Style="{StaticResource ErroCampo}" />
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                    <TextBlock x:Name="RotuloUnidadesCaixa" Text="Unidades por caixa" Style="{StaticResource Rotulo}" />
+                    <TextBox x:Name="UnidadesCaixa" MaxLength="10" AutomationProperties.Name="Unidades por caixa" />
+                    <TextBlock x:Name="UnidadesCaixaErro" Style="{StaticResource ErroCampo}" />
+                </StackPanel>
+            </Grid>
+
+            <!-- Só no cadastro: a primeira compra vira o primeiro lote -->
+            <StackPanel x:Name="PrimeiroLote">
+                <Border BorderBrush="{StaticResource Linha}" BorderThickness="0,1,0,0" Margin="0,20,0,14" />
+                <TextBlock Text="Primeiro lote" FontSize="16" FontWeight="Bold" />
+                <TextBlock Text="Deixe a quantidade em 0 se a mercadoria ainda não chegou." FontSize="13" Style="{StaticResource TextoSuave}" Margin="0,2,0,12" />
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="16" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="16" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock x:Name="RotuloQuantidade" Text="Quantidade" Style="{StaticResource Rotulo}" />
+                        <TextBox x:Name="Quantidade" MaxLength="10" AutomationProperties.Name="Quantidade" />
+                        <TextBlock x:Name="QuantidadeErro" Style="{StaticResource ErroCampo}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="Data de compra" Style="{StaticResource Rotulo}" />
+                        <TextBox x:Name="Compra" MaxLength="10" AutomationProperties.Name="Data de compra" ToolTip="dd/mm/aaaa" />
+                        <TextBlock x:Name="CompraErro" Style="{StaticResource ErroCampo}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="4">
+                        <TextBlock Text="Validade" Style="{StaticResource Rotulo}" />
+                        <TextBox x:Name="Validade" MaxLength="10" AutomationProperties.Name="Validade" ToolTip="dd/mm/aaaa (deixe vazio se não vence)" />
+                        <TextBlock x:Name="ValidadeErro" Style="{StaticResource ErroCampo}" />
+                    </StackPanel>
+                </Grid>
+                <TextBlock Text="Datas no formato dd/mm/aaaa. Validade pode ficar vazia para produtos que não vencem." FontSize="12"
+                           Style="{StaticResource TextoSuave}" Margin="0,8,0,0" />
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,22,0,0">
+                <Button Content="Cancelar" Style="{StaticResource BotaoFantasma}" Margin="0,0,10,0" Click="Cancelar_Click" />
+                <Button x:Name="BotaoSalvar" Content="Cadastrar produto" Style="{StaticResource BotaoPrimario}" IsDefault="True" Click="Salvar_Click" />
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</UserControl>

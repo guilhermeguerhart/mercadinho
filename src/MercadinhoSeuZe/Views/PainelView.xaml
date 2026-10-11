@@ -86,7 +86,7 @@
                         <TextBlock Text="Estoque baixo" Style="{StaticResource KpiRotulo}" />
                     </DockPanel>
                     <TextBlock x:Name="KpiEstoque" Style="{StaticResource KpiValor}" Text="—" />
-                    <TextBlock Text="Abaixo do mínimo cadastrado" Style="{StaticResource KpiSub}" />
+                    <TextBlock x:Name="KpiEstoqueSub" Text="Abaixo do mínimo cadastrado" Style="{StaticResource KpiSub}" />
                 </StackPanel>
             </Border>
             <Border Style="{StaticResource Kpi}">
@@ -180,7 +180,11 @@
 
             <Border x:Name="CartaoAvisos" Grid.Column="1" Style="{StaticResource CartaoBorda}" Padding="24,22" Margin="0,0,0,20" VerticalAlignment="Top">
                 <StackPanel>
-                    <TextBlock Text="Avisos recentes" FontSize="16" FontWeight="Bold" Margin="0,0,0,16" />
+                    <DockPanel Margin="0,0,0,16">
+                        <Button DockPanel.Dock="Right" Content="Ver estoque" Style="{StaticResource BotaoLink}" Tag="estoque"
+                                Click="Atalho_Click" VerticalAlignment="Center" />
+                        <TextBlock Text="Avisos recentes" FontSize="16" FontWeight="Bold" />
+                    </DockPanel>
                     <StackPanel x:Name="ListaAvisos" />
                 </StackPanel>
             </Border>

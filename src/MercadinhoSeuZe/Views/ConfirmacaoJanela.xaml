@@ -1,0 +1,26 @@
+<UserControl x:Class="MercadinhoSeuZe.Views.ConfirmacaoJanela"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Width="420">
+    <!-- Confirmação de exclusão (igual ao modal-excluir de estoque.html) -->
+    <Border Style="{StaticResource CartaoBorda}" CornerRadius="16" Padding="24,28,24,20" Effect="{StaticResource SombraJanela}">
+        <StackPanel>
+            <Border Width="48" Height="48" CornerRadius="24" Background="{StaticResource Vermelho50}" HorizontalAlignment="Center" Margin="0,0,0,14">
+                <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeLixeira}" Foreground="{StaticResource Vermelho600}" Width="22" />
+            </Border>
+            <TextBlock x:Name="Titulo" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,8" />
+            <TextBlock x:Name="Texto" Style="{StaticResource TextoSuave}" FontSize="14" TextAlignment="Center" />
+
+            <Border x:Name="AvisoErro" Style="{StaticResource Aviso}" Background="{StaticResource Vermelho50}" BorderBrush="#F2C4BE"
+                    Margin="0,16,0,0" Visibility="Collapsed">
+                <TextBlock x:Name="AvisoErroTexto" Foreground="{StaticResource Vermelho600}" FontSize="14" />
+            </Border>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,22,0,0">
+                <Button x:Name="BotaoCancelar" Content="Cancelar" Style="{StaticResource BotaoFantasma}" Margin="0,0,10,0" Click="Cancelar_Click" />
+                <Button x:Name="BotaoConfirmar" Content="Excluir" Style="{StaticResource BotaoPerigo}"
+                        Click="Confirmar_Click" />
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</UserControl>
