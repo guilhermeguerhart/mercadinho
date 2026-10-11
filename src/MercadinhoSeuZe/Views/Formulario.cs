@@ -69,7 +69,8 @@ internal static class Formulario
     /// Validade pré-definida: preenche o campo de validade com compra + dias sempre que a data de compra
     /// (ou os dias) mudar, até a pessoa digitar outra validade à mão. Devolve a função que recalcula.
     /// </summary>
-    public static Action PreencherValidade(TextBox compra, TextBox validade, Func<int?> dias, TextBlock dica)
+    public static Action PreencherValidade(TextBox compra, TextBox validade, Func<int?> dias, TextBlock dica,
+        string origem = "validade padrão do produto")
     {
         string? automatica = null;
         var preenchendo = false;
@@ -83,8 +84,8 @@ internal static class Formulario
                 return;
             }
             dica.Text = manual
-                ? $"Validade padrão do produto: {d} dias (você mudou a data)."
-                : $"Preenchida pela validade padrão do produto ({d} dias depois da compra).";
+                ? $"Pela {origem} seriam {d} dias (você mudou a data)."
+                : $"Preenchida pela {origem} ({d} dias depois da compra).";
             if (manual) return;
             preenchendo = true;
             validade.Text = automatica = Data(dataCompra.AddDays(d.Value));

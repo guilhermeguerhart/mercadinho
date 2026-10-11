@@ -38,6 +38,16 @@ public sealed class Produto
     [JsonPropertyName("unidade_medida")] public string UnidadeMedida { get; set; } = "un";
     /// <summary>Validade padrão: dias depois da compra. Preenche a validade dos lotes novos.</summary>
     [JsonPropertyName("dias_validade")] public int? DiasValidade { get; set; }
+
+    /// <summary>
+    /// Dias de validade para preencher um lote novo: a validade padrão cadastrada ou, se não tiver,
+    /// o mesmo prazo do último lote com validade (compra até validade).
+    /// </summary>
+    public int? DiasValidadeSugerida => DiasValidade ?? Lotes
+        .Where(l => l.Validade is not null && l.Validade > l.DataCompra)
+        .OrderByDescending(l => l.DataCompra).ThenByDescending(l => l.Id)
+        .Select(l => (int?)(l.Validade!.Value.DayNumber - l.DataCompra.DayNumber))
+        .FirstOrDefault();
     [JsonPropertyName("lotes")] public List<Lote> Lotes { get; set; } = [];
 
     public bool PorPeso => UnidadeMedida == "kg";

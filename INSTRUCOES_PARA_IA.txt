@@ -86,7 +86,8 @@ publicar.ps1               Gera publish/MercadinhoSeuZe.exe (feche o .exe aberto
   A venda por peso (balança, etiqueta do açougue) é da semana 5.
 - Validade padrão (pedido do Guilherme): produtos.dias_validade (dias depois da compra). Lote novo e
   primeiro lote já vêm com validade = compra + dias e recalculam se a data de compra mudar, até a pessoa
-  digitar outra validade (Formulario.PreencherValidade). Vazio = sem validade pré-definida.
+  digitar outra validade (Formulario.PreencherValidade). Sem dias_validade cadastrado, usa o prazo do
+  último lote com validade (Produto.DiasValidadeSugerida), para produtos antigos também virem preenchidos.
 - Leitor de código de barras (pedido do Guilherme): campo "Chegou mercadoria?" no topo, já com o foco.
   O leitor digita o código e manda Enter. Código conhecido abre "Novo lote" com caixas recebidas x
   unidades por caixa; código desconhecido abre o cadastro de produto com o código preenchido.
