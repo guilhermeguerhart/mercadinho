@@ -37,6 +37,9 @@ public partial class LoteJanela : UserControl
         Restante.Text = lote is null ? "" : Formulario.Quantidade(lote.QuantidadeRestante);
         Compra.Text = Formulario.Data(lote?.DataCompra ?? DateOnly.FromDateTime(DateTime.Today));
         Validade.Text = Formulario.Data(lote?.Validade);
+        // Lote novo de produto com validade pré-definida: a validade já vem preenchida (compra + dias)
+        if (lote is null && produto.DiasValidade is > 0)
+            Formulario.PreencherValidade(Compra, Validade, () => produto.DiasValidade, DicaValidade)();
 
         Formulario.LimparAoDigitar(Inicial, InicialErro);
         Formulario.LimparAoDigitar(Restante, RestanteErro);

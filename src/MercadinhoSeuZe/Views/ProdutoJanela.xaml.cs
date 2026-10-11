@@ -38,6 +38,9 @@ public partial class ProdutoJanela : UserControl
         CodigoCaixa.Text = produto?.CodigoBarrasCaixa ?? codigoLido ?? "";
         UnidadesCaixa.Text = Formulario.Quantidade(produto?.UnidadesPorCaixa ?? 1);
         Quantidade.Text = "0";
+        DiasValidade.Text = produto?.DiasValidade?.ToString(CultureInfo.InvariantCulture) ?? "";
+        var recalcularValidade = Formulario.PreencherValidade(Compra, Validade, () => Formulario.LerInteiro(DiasValidade.Text) is > 0 and var d ? d : null, DicaValidade);
+        DiasValidade.TextChanged += (_, _) => recalcularValidade();
         Compra.Text = Formulario.Data(DateOnly.FromDateTime(DateTime.Today));
 
         // Igual ao datalist do site: mostra as categorias já usadas
@@ -60,6 +63,7 @@ public partial class ProdutoJanela : UserControl
         Minimo.TextChanged += (_, _) => AtualizarDica();
         Aviso.TextChanged += (_, _) => AtualizarDica();
         AtualizarRotulos();
+        Formulario.LimparAoDigitar(DiasValidade, DiasValidadeErro);
         Formulario.LimparAoDigitar(Compra, CompraErro);
         Formulario.LimparAoDigitar(Validade, ValidadeErro);
 
@@ -133,6 +137,10 @@ public partial class ProdutoJanela : UserControl
             ? dono.Nome : null;
         Checar(CodigoCaixa, CodigoCaixaErro, codigoRepetido is null, $"Este código já é da caixa de “{codigoRepetido}”.");
 
+        var diasVazio = DiasValidade.Text.Trim().Length == 0;
+        var diasValidade = diasVazio ? null : Formulario.LerInteiro(DiasValidade.Text);
+        Checar(DiasValidade, DiasValidadeErro, diasVazio || diasValidade is > 0 and <= 3650, "Use um número de dias (1 a 3650) ou deixe vazio.");
+
         var unidades = Formulario.LerQuantidade(UnidadesCaixa.Text, kg);
         Checar(UnidadesCaixa, UnidadesCaixaErro, unidades > 0, kg ? "Use um peso maior que 0, ex: 20." : "Use um número inteiro maior que 0.");
 
@@ -158,7 +166,7 @@ public partial class ProdutoJanela : UserControl
             return;
         }
 
-        var dados = new DadosProduto(nome, categoria, preco!.Value, minimo!.Value, aviso, codigo.Length > 0 ? codigo : null, unidades!.Value, kg);
+        var dados = new DadosProduto(nome, categoria, preco!.Value, minimo!.Value, aviso, codigo.Length > 0 ? codigo : null, unidades!.Value, kg, diasValidade);
         BotaoSalvar.IsEnabled = false;
         try
         {

@@ -66,6 +66,15 @@
                     <TextBlock x:Name="ValidadeErro" Style="{StaticResource ErroCampo}" />
                 </StackPanel>
             </Grid>
+            <TextBlock x:Name="DicaValidade" FontSize="12" Foreground="{StaticResource Verde700}" Margin="0,8,0,0">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                        <Style.Triggers>
+                            <Trigger Property="Text" Value=""><Setter Property="Visibility" Value="Collapsed" /></Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
             <TextBlock Text="Datas no formato dd/mm/aaaa. Validade pode ficar vazia para produtos que não vencem." FontSize="12"
                        Style="{StaticResource TextoSuave}" Margin="0,8,0,0" />
 

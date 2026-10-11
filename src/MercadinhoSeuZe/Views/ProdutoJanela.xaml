@@ -71,6 +71,21 @@
 
             <Grid Margin="0,14,0,0">
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="Validade padrão (dias)" Style="{StaticResource Rotulo}" />
+                    <TextBox x:Name="DiasValidade" MaxLength="4" AutomationProperties.Name="Validade padrão em dias" />
+                    <TextBlock x:Name="DiasValidadeErro" Style="{StaticResource ErroCampo}" />
+                </StackPanel>
+                <TextBlock Grid.Column="2" FontSize="12" Style="{StaticResource TextoSuave}" VerticalAlignment="Center" Margin="0,24,0,0"
+                           Text="Quantos dias depois da compra o produto vence (ex.: leite 120, carne 10). A validade dos lotes novos já vem preenchida. Vazio = não vence ou varia." />
+            </Grid>
+
+            <Grid Margin="0,14,0,0">
+                <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="2*" />
                     <ColumnDefinition Width="16" />
                     <ColumnDefinition Width="*" />
@@ -117,6 +132,15 @@
                         <TextBlock x:Name="ValidadeErro" Style="{StaticResource ErroCampo}" />
                     </StackPanel>
                 </Grid>
+                <TextBlock x:Name="DicaValidade" FontSize="12" Foreground="{StaticResource Verde700}" Margin="0,8,0,0">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                            <Style.Triggers>
+                                <Trigger Property="Text" Value=""><Setter Property="Visibility" Value="Collapsed" /></Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
                 <TextBlock Text="Datas no formato dd/mm/aaaa. Validade pode ficar vazia para produtos que não vencem." FontSize="12"
                            Style="{StaticResource TextoSuave}" Margin="0,8,0,0" />
             </StackPanel>

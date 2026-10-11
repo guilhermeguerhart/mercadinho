@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using MercadinhoSeuZe.Models;
+using MercadinhoSeuZe.Services;
 
 namespace MercadinhoSeuZe.Views;
 
@@ -127,17 +128,61 @@ public partial class EstoqueView
         cadastro.Nome.Text = modelo.Nome;
         cadastro.Categoria.Text = modelo.Categoria;
         cadastro.PorPeso.IsChecked = modelo.PorPeso;
+        cadastro.DiasValidade.Text = modelo.DiasValidade?.ToString(CultureInfo.InvariantCulture) ?? "";
         cadastro.Preco.Text = modelo.Preco.ToString("N2", new CultureInfo("pt-BR"));
         cadastro.Minimo.Text = Formulario.Quantidade(modelo.PorCaixa);
         cadastro.UnidadesCaixa.Text = Formulario.Quantidade(modelo.PorCaixa);
-        // Carne: o peso da caixa varia um pouco (ex.: 2 caixas de 15 kg = 29,84 kg)
-        var caixas = Sorteio.Next(1, 5);
-        var quantidade = modelo.PorPeso
-            ? Math.Round(caixas * modelo.PorCaixa * (decimal)(0.97 + Sorteio.NextDouble() * 0.06), 3)
-            : caixas * modelo.PorCaixa;
-        cadastro.Quantidade.Text = Formulario.Quantidade(quantidade);
-        if (modelo.DiasValidade is { } dias)
-            cadastro.Validade.Text = DateOnly.FromDateTime(DateTime.Today).AddDays(Sorteio.Next(dias / 3, dias + 1)).ToString("dd/MM/yyyy");
+        cadastro.Quantidade.Text = Formulario.Quantidade(SortearQuantidade(modelo, Sorteio.Next(1, 5)));
+    }
+
+    /// <summary>Carne: o peso da caixa varia um pouco (ex.: 2 caixas de 15 kg = 29,84 kg).</summary>
+    private static decimal SortearQuantidade(ItemCatalogo modelo, int caixas) => modelo.PorPeso
+        ? Math.Round(caixas * modelo.PorCaixa * (decimal)(0.97 + Sorteio.NextDouble() * 0.06), 3)
+        : caixas * modelo.PorCaixa;
+
+
+    /// <summary>Produtos do catálogo que ainda não estão no estoque (pelo nome).</summary>
+    private List<ItemCatalogo> CatalogoQueFalta() => Catalogo
+        .Where(c => !_produtos.Any(p => string.Equals(p.Nome.Trim(), c.Nome, StringComparison.CurrentCultureIgnoreCase)))
+        .ToList();
+
+    /// <summary>
+    /// Passa 1 caixa de cada produto do catálogo que ainda falta: cadastra o produto com um código de caixa
+    /// novo e cria o primeiro lote com o conteúdo de uma caixa. Grava no banco com o login atual.
+    /// </summary>
+    private async Task PassarTodasQueFaltamAsync(Button botao)
+    {
+        var faltam = CatalogoQueFalta();
+        if (faltam.Count == 0 || _servico is null) return;
+
+        botao.IsEnabled = false;
+        int certos = 0;
+        var erros = new List<string>();
+        var hoje = DateOnly.FromDateTime(DateTime.Today);
+        foreach (var item in faltam)
+        {
+            botao.Content = $"Passando caixas… {certos + erros.Count + 1} de {faltam.Count}";
+            var dados = new DadosProduto(item.Nome, item.Categoria, item.Preco, item.PorCaixa, null,
+                GerarCodigoCaixa(), item.PorCaixa, item.PorPeso, item.DiasValidade);
+            try
+            {
+                await _servico.CriarProdutoAsync(dados, SortearQuantidade(item, 1), hoje,
+                    item.DiasValidade is { } dias ? hoje.AddDays(dias) : null);
+                certos++;
+                // Guarda o código para o próximo sorteio não repetir
+                _produtos.Add(new Produto { Nome = item.Nome, CodigoBarrasCaixa = dados.CodigoBarrasCaixa });
+            }
+            catch (ConexaoException ex)
+            {
+                erros.Add($"{item.Nome}: {ex.Message}");
+                if (erros.Count >= 3 && certos == 0) break;   // banco fora do ar ou sem permissão: para logo
+            }
+        }
+
+        var mensagem = $"{certos} produtos cadastrados pelo leitor simulado.";
+        if (erros.Count > 0)
+            mensagem += $" {erros.Count} falharam (primeiro erro: {erros[0]})";
+        await RecarregarAsync(mensagem);
     }
 
     private FrameworkElement CriarLeitorSimulado()
@@ -158,6 +203,20 @@ public partial class EstoqueView
         });
         cabecalho.Children.Add(titulos);
         corpo.Children.Add(cabecalho);
+
+        // Uma caixa de cada produto do catálogo que ainda não está no estoque
+        var faltam = CatalogoQueFalta();
+        var todas = new Button
+        {
+            Style = Recurso<Style>("BotaoPrimario"),
+            Content = faltam.Count > 0
+                ? $"Passar 1 caixa de cada produto que falta ({faltam.Count})"
+                : "Todos os produtos do catálogo já estão no estoque",
+            IsEnabled = faltam.Count > 0,
+            Margin = new Thickness(0, 0, 0, 16)
+        };
+        todas.Click += async (_, _) => await PassarTodasQueFaltamAsync(todas);
+        corpo.Children.Add(todas);
 
         // Caixas já cadastradas: testa a entrada de lote
         var comCodigo = _produtos.Where(p => p.CodigoBarrasCaixa is not null).OrderBy(p => p.Nome).ToList();

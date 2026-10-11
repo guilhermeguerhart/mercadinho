@@ -36,6 +36,8 @@ public sealed class Produto
     [JsonPropertyName("estoque_aviso")] public decimal? EstoqueAviso { get; set; }
     /// <summary>"un" (por unidade) ou "kg" (por quilo, ex.: carnes do açougue).</summary>
     [JsonPropertyName("unidade_medida")] public string UnidadeMedida { get; set; } = "un";
+    /// <summary>Validade padrão: dias depois da compra. Preenche a validade dos lotes novos.</summary>
+    [JsonPropertyName("dias_validade")] public int? DiasValidade { get; set; }
     [JsonPropertyName("lotes")] public List<Lote> Lotes { get; set; } = [];
 
     public bool PorPeso => UnidadeMedida == "kg";

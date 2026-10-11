@@ -65,6 +65,36 @@ internal static class Formulario
             campo.MoveFocus(new System.Windows.Input.TraversalRequest(System.Windows.Input.FocusNavigationDirection.Next));
         };
 
+    /// <summary>
+    /// Validade pré-definida: preenche o campo de validade com compra + dias sempre que a data de compra
+    /// (ou os dias) mudar, até a pessoa digitar outra validade à mão. Devolve a função que recalcula.
+    /// </summary>
+    public static Action PreencherValidade(TextBox compra, TextBox validade, Func<int?> dias, TextBlock dica)
+    {
+        string? automatica = null;
+        var preenchendo = false;
+        void Recalcular()
+        {
+            var manual = validade.Text.Trim().Length > 0 && validade.Text != automatica;
+            var d = dias();
+            if (d is null || LerData(compra.Text) is not { } dataCompra)
+            {
+                dica.Text = "";
+                return;
+            }
+            dica.Text = manual
+                ? $"Validade padrão do produto: {d} dias (você mudou a data)."
+                : $"Preenchida pela validade padrão do produto ({d} dias depois da compra).";
+            if (manual) return;
+            preenchendo = true;
+            validade.Text = automatica = Data(dataCompra.AddDays(d.Value));
+            preenchendo = false;
+        }
+        compra.TextChanged += (_, _) => Recalcular();
+        validade.TextChanged += (_, _) => { if (!preenchendo) Recalcular(); };
+        return Recalcular;
+    }
+
     /// <summary>Limpa o erro do campo assim que a pessoa digita.</summary>
     public static void LimparAoDigitar(TextBox campo, TextBlock erro) =>
         campo.TextChanged += (_, _) => { campo.Tag = null; erro.Text = ""; };

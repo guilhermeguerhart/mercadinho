@@ -27,6 +27,11 @@ alter table public.produtos add column if not exists unidades_por_caixa numeric(
 alter table public.produtos add column if not exists estoque_aviso numeric(12, 3)
     check (estoque_aviso is null or estoque_aviso >= 0);
 
+-- Validade padrão: quantos dias depois da compra o produto vence (ex.: leite 120, carne 10).
+-- Preenche sozinha a validade dos lotes novos. Vazio = produto sem validade pré-definida.
+alter table public.produtos add column if not exists dias_validade integer
+    check (dias_validade is null or dias_validade between 1 and 3650);
+
 -- 'un' = vendido por unidade; 'kg' = vendido por quilo (preço, mínimo, aviso e lotes em kg).
 alter table public.produtos add column if not exists unidade_medida text not null default 'un'
     check (unidade_medida in ('un', 'kg'));

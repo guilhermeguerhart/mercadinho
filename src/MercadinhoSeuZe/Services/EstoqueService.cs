@@ -4,13 +4,13 @@ namespace MercadinhoSeuZe.Services;
 
 /// <summary>Campos do formulário de produto.</summary>
 public sealed record DadosProduto(string Nome, string Categoria, decimal Preco, decimal Minimo, decimal? Aviso,
-    string? CodigoBarrasCaixa, decimal UnidadesPorCaixa, bool PorPeso);
+    string? CodigoBarrasCaixa, decimal UnidadesPorCaixa, bool PorPeso, int? DiasValidade);
 
 /// <summary>Produtos e lotes do estoque no Supabase (tabelas do script database/003_semana3_estoque.sql).</summary>
 public sealed class EstoqueService(SupabaseApi api, Sessao sessao)
 {
     public Task<List<Produto>> ListarAsync() =>
-        api.ListarAsync<Produto>("produtos?select=id,nome,categoria,preco,estoque_minimo,codigo_barras_caixa,unidades_por_caixa,estoque_aviso,unidade_medida," +
+        api.ListarAsync<Produto>("produtos?select=id,nome,categoria,preco,estoque_minimo,codigo_barras_caixa,unidades_por_caixa,estoque_aviso,unidade_medida,dias_validade," +
                                  "lotes(id,produto_id,quantidade_inicial,quantidade_restante,data_compra,validade)", sessao.Token);
 
     /// <summary>Cadastra o produto e, se houver quantidade, o primeiro lote dele.</summary>
@@ -42,7 +42,8 @@ public sealed class EstoqueService(SupabaseApi api, Sessao sessao)
         estoque_aviso = d.Aviso,
         codigo_barras_caixa = d.CodigoBarrasCaixa,
         unidades_por_caixa = d.UnidadesPorCaixa,
-        unidade_medida = d.PorPeso ? "kg" : "un"
+        unidade_medida = d.PorPeso ? "kg" : "un",
+        dias_validade = d.DiasValidade
     };
 
     /// <summary>Os lotes do produto são excluídos junto (on delete cascade).</summary>

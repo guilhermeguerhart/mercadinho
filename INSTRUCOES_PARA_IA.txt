@@ -52,6 +52,8 @@ publicar.ps1               Gera publish/MercadinhoSeuZe.exe (feche o .exe aberto
 - Atalho de desenvolvimento Alt+2 no Estoque (Views/EstoqueView.Desenvolvimento.cs, mesma regra):
   leitor de código de barras simulado. Catálogo com 113 produtos (22 de açougue, por kg); cada clique gera um código de caixa
   DUN-14 novo e válido, "passa no leitor" e preenche o cadastro. Também repassa caixas já cadastradas.
+  Botão "Passar 1 caixa de cada produto que falta": cadastra no banco (com o login atual) todos os
+  produtos do catálogo que ainda não existem pelo nome, cada um com código novo e 1 caixa como lote.
 
 3b. SEMANA 2 (EM MODO DE TESTE)
 -------------------------------
@@ -82,6 +84,9 @@ publicar.ps1               Gera publish/MercadinhoSeuZe.exe (feche o .exe aberto
   kg (o peso das caixas de carne varia; a janela de lote pede para conferir a etiqueta). Por unidade
   continuam inteiros (Formulario.LerQuantidade). Textos de quantidade sempre por Produto.Formatar/Numero.
   A venda por peso (balança, etiqueta do açougue) é da semana 5.
+- Validade padrão (pedido do Guilherme): produtos.dias_validade (dias depois da compra). Lote novo e
+  primeiro lote já vêm com validade = compra + dias e recalculam se a data de compra mudar, até a pessoa
+  digitar outra validade (Formulario.PreencherValidade). Vazio = sem validade pré-definida.
 - Leitor de código de barras (pedido do Guilherme): campo "Chegou mercadoria?" no topo, já com o foco.
   O leitor digita o código e manda Enter. Código conhecido abre "Novo lote" com caixas recebidas x
   unidades por caixa; código desconhecido abre o cadastro de produto com o código preenchido.
