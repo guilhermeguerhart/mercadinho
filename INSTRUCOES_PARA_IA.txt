@@ -97,6 +97,26 @@ publicar.ps1               Gera publish/MercadinhoSeuZe.exe (feche o .exe aberto
 - Aviso antecipado (pedido do Guilherme): sinal amarelo ao lado da quantidade quando ela está acima do
   mínimo mas igual ou abaixo de estoque_aviso (vazio = mínimo + 50%). O texto do aviso aparece ao passar
   o mouse. Filtro "Repor em breve". Para produtos de entrega demorada, cadastrar um estoque_aviso maior.
+- Filtros (pedido do Guilherme): ficam numa janela própria (botão "Filtros", EstoqueView.Filtros.cs) com
+  Situação (estoque baixo, repor em breve, sem estoque, validade próxima, vencidos, sem código de barras),
+  Categoria (montada a partir dos produtos), Tipo (unidade/quilo) e Ordem. As escolhas valem ao clicar em
+  "Mostrar N produtos"; cada opção mostra quantos produtos aparecem e opções com 0 somem. Na tela ficam as
+  etiquetas dos filtros em uso (o × tira cada um), "Mostrando X de Y" e "Limpar filtros".
+- "Vencidos" = lote com unidades e validade antes de hoje; "Validade próxima" = vence de hoje até 30 dias
+  (Produto.Vencido / ValidadeProxima). Indicador próprio de vencidos no topo.
+- Lista (pedido do Guilherme): a linha do produto mostra nome, categoria, quantidade, preço, o alerta de
+  validade (triângulo, se houver) e a seta, nessa ordem (seta à direita). A seta (ou clicar na linha) abre o drop-down com resumo, próxima validade, "Editar produto", "Excluir" e
+  os lotes. Validade vencida ou próxima aparece como triângulo de alerta (vermelho = vencido, amarelo =
+  vence em até 30 dias) ao lado da data, no drop-down; passar o mouse diz quantos dias (DetalheValidade).
+- Indicadores do topo: 5 quadrados numa fileira (até 140 px, diminuem com a janela). Ícones: vencidos e
+  validade próxima = triângulo; estoque baixo = relógio (pedido do Guilherme).
+- Cores e ícones por categoria (Views/CategoriaVisual.cs; cores Roxo/Ciano/Rosa/Indigo/Marrom em App.xaml):
+  Açougue, Frios, Grãos, Mercearia, Padaria, Laticínios, Bebidas, Congelados, Hortifrúti, Limpeza,
+  Higiene e Pet têm ícone próprio; outras usam etiqueta com cor fixa pelo nome. Ícone e nome sempre
+  aparecem juntos (não depende só da cor).
+- O leitor de código de barras real funciona como teclado (o aparelho digita o código e manda Enter);
+  aceita qualquer código de até 40 caracteres (EAN-13, DUN-14, Code 128...). O leitor precisa estar
+  configurado para enviar Enter no fim (padrão da maioria).
 - Regras: estoque baixo = tem unidades mas menos que o mínimo; sem estoque = 0; validade próxima = lote
   com unidades vencido ou vencendo em até 30 dias (Models/Estoque.cs, SituacaoValidade).
 - Cadastro de produto cria junto o primeiro lote (quantidade 0 = sem lote). Se o lote falhar, o produto

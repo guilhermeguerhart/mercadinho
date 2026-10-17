@@ -17,6 +17,17 @@
         <SolidColorBrush x:Key="Ambar50" Color="#FFF6E0" />
         <SolidColorBrush x:Key="Vermelho600" Color="#C0392B" />
         <SolidColorBrush x:Key="Vermelho50" Color="#FDECEA" />
+        <!-- Cores das categorias do estoque (mesma lógica: fundo claro "50" + cor forte "600") -->
+        <SolidColorBrush x:Key="Roxo600" Color="#6B46C1" />
+        <SolidColorBrush x:Key="Roxo50" Color="#F1ECFB" />
+        <SolidColorBrush x:Key="Ciano600" Color="#0E7C86" />
+        <SolidColorBrush x:Key="Ciano50" Color="#E6F4F5" />
+        <SolidColorBrush x:Key="Rosa600" Color="#B83280" />
+        <SolidColorBrush x:Key="Rosa50" Color="#FBEAF3" />
+        <SolidColorBrush x:Key="Indigo600" Color="#4C51BF" />
+        <SolidColorBrush x:Key="Indigo50" Color="#ECEEFB" />
+        <SolidColorBrush x:Key="Marrom600" Color="#8B4A2B" />
+        <SolidColorBrush x:Key="Marrom50" Color="#F6EDE7" />
         <SolidColorBrush x:Key="Tinta" Color="#1D2420" />
         <SolidColorBrush x:Key="Suave" Color="#5F6B64" />
         <SolidColorBrush x:Key="Placeholder" Color="#9AA49E" />
@@ -49,6 +60,21 @@
         <Geometry x:Key="IconeLixeira">M4 7h16 M10 11v6 M14 11v6 M6 7l1 13h10l1-13 M9 7V4h6v3</Geometry>
         <Geometry x:Key="IconeRelogio">M2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0 M12 7v5l3 2</Geometry>
         <Geometry x:Key="IconeCodigoBarras">M3 7V5a2 2 0 0 1 2 -2h2 M17 3h2a2 2 0 0 1 2 2v2 M21 17v2a2 2 0 0 1 -2 2h-2 M7 21H5a2 2 0 0 1 -2 -2v-2 M7 8v8 M10 8v8 M13 8v8 M17 8v8</Geometry>
+        <Geometry x:Key="IconeFiltro">M3 5h18l-7 8v6l-4 2v-8z</Geometry>
+        <Geometry x:Key="IconeBalanca">M12 3v18 M6 21h12 M4 7h16 M7 7l-3 7a3 3 0 0 0 6 0z M17 7l-3 7a3 3 0 0 0 6 0z</Geometry>
+        <Geometry x:Key="IconeEtiqueta">M3 12V4h8l10 10-8 8z M7.5 8a0.5 0.5 0 1 0 1 0a0.5 0.5 0 1 0 -1 0</Geometry>
+        <Geometry x:Key="IconeCarne">M3 12a8 6 0 1 0 16 0a8 6 0 1 0 -16 0 M9 12a2 2 0 1 0 4 0a2 2 0 1 0 -4 0 M19 12h2</Geometry>
+        <Geometry x:Key="IconeQueijo">M3 18l10 -12 8 12z M3 18v2h18v-2 M10 14a1 1 0 1 0 2 0a1 1 0 1 0 -2 0 M15 15a1 1 0 1 0 2 0a1 1 0 1 0 -2 0</Geometry>
+        <Geometry x:Key="IconeTrigo">M12 21V9 M12 9c-3 0-4-3-4-5 2 0 4 1 4 5z M12 9c3 0 4-3 4-5-2 0-4 1-4 5z M12 15c-3 0-4-3-4-5 2 0 4 1 4 5z M12 15c3 0 4-3 4-5-2 0-4 1-4 5z</Geometry>
+        <Geometry x:Key="IconeCesta">M3 10h18l-2 10H5z M7 10l5-6 5 6 M9 14v3 M15 14v3</Geometry>
+        <Geometry x:Key="IconePao">M5 11a7 4 0 0 1 14 0v7a2 2 0 0 1 -2 2H7a2 2 0 0 1 -2 -2z M9 9v3 M12 8v3 M15 9v3</Geometry>
+        <Geometry x:Key="IconeGarrafa">M9 3h6v3l2 3v11a1 1 0 0 1 -1 1H8a1 1 0 0 1 -1 -1V9l2 -3z M7 13h10</Geometry>
+        <Geometry x:Key="IconeCopo">M6 4h12l-1.5 16h-9z M6.5 9h11</Geometry>
+        <Geometry x:Key="IconeFloco">M12 3v18 M4.2 7.5l15.6 9 M4.2 16.5l15.6 -9 M9.5 4.5L12 7l2.5 -2.5 M9.5 19.5L12 17l2.5 2.5</Geometry>
+        <Geometry x:Key="IconeFolha">M5 19C5 10 10 5 20 4c-1 10-6 15-15 15z M5 19l8-8</Geometry>
+        <Geometry x:Key="IconeBolhas">M4 15a5 5 0 1 0 10 0a5 5 0 1 0 -10 0 M14 6a3 3 0 1 0 6 0a3 3 0 1 0 -6 0 M15 15a2 2 0 1 0 4 0a2 2 0 1 0 -4 0</Geometry>
+        <Geometry x:Key="IconeGota">M12 3c4 5 6 8 6 11a6 6 0 0 1 -12 0c0-3 2-6 6-11z</Geometry>
+        <Geometry x:Key="IconePata">M8 16c0-2 2-4 4-4s4 2 4 4-2 4-4 4-4-2-4-4z M4.5 10a1.5 2 0 1 0 3 0a1.5 2 0 1 0 -3 0 M8.5 6a1.5 2 0 1 0 3 0a1.5 2 0 1 0 -3 0 M12.5 6a1.5 2 0 1 0 3 0a1.5 2 0 1 0 -3 0 M16.5 10a1.5 2 0 1 0 3 0a1.5 2 0 1 0 -3 0</Geometry>
         <Geometry x:Key="IconeFerramenta">M14.7 6.3a4 4 0 0 0 -5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z</Geometry>
 
         <!-- Ícone reutilizável: <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeCadeado}" Foreground="..." Width="20" /> -->

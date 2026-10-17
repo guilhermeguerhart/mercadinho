@@ -65,7 +65,7 @@ public partial class PainelView : UserControl
         var semEstoque = produtos?.Where(p => p.SemEstoque).OrderBy(p => p.Nome, porNome).ToList() ?? [];
         var baixos = produtos?.Where(p => p.EstoqueBaixo).OrderBy(p => p.Quantidade).ThenBy(p => p.Nome, porNome).ToList() ?? [];
         var antecipados = produtos?.Where(p => p.AvisoAntecipado).OrderBy(p => p.Quantidade).ThenBy(p => p.Nome, porNome).ToList() ?? [];
-        var validade = produtos?.Where(p => p.ValidadeProxima).OrderBy(p => p.ProximaValidade).ToList() ?? [];
+        var validade = produtos?.Where(p => p.Vencido || p.ValidadeProxima).OrderBy(p => p.ProximaValidade).ToList() ?? [];
 
         KpiVendas.Text = Moeda(dados.Resumo.Total);
         KpiVendasSub.Text = Plural(dados.Resumo.QuantidadeVendas, "venda realizada", "vendas realizadas");

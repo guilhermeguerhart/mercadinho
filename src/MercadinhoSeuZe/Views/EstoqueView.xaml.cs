@@ -20,6 +20,8 @@ public partial class EstoqueView : UserControl
     private readonly HashSet<long> _abertos = [];   // produtos com os lotes à mostra
     private List<Produto> _produtos = [];
     private string _filtro = "todos";
+    private string? _categoria;          // null = todas
+    private string _tipo = "todos";      // todos, un (por unidade) ou kg (por quilo)
     private string _ordem = "nome";
     private bool _compacta;
     private bool _carregou;
@@ -83,6 +85,7 @@ public partial class EstoqueView : UserControl
         var nBaixo = _produtos.Count(p => p.EstoqueBaixo);
         var nSem = _produtos.Count(p => p.SemEstoque);
         var nValidade = _produtos.Count(p => p.ValidadeProxima);
+        var nVencido = _produtos.Count(p => p.Vencido);
         var nAviso = _produtos.Count(p => p.AvisoAntecipado);
 
         KpiTotal.Text = _produtos.Count.ToString(PtBr);
@@ -93,32 +96,24 @@ public partial class EstoqueView : UserControl
             : Produto.FormatarQuantidade(unidades, false)) + " em estoque";
         KpiBaixo.Text = nBaixo.ToString(PtBr);
         KpiBaixoSub.Text = nAviso > 0 ? $"Abaixo do mínimo · +{nAviso} perto do mínimo" : "Abaixo do mínimo cadastrado";
-        ContAviso.Text = nAviso.ToString(PtBr);
         KpiSem.Text = nSem.ToString(PtBr);
         KpiValidade.Text = nValidade.ToString(PtBr);
-        ContTodos.Text = _produtos.Count.ToString(PtBr);
-        ContBaixo.Text = nBaixo.ToString(PtBr);
-        ContSem.Text = nSem.ToString(PtBr);
-        ContValidade.Text = nValidade.ToString(PtBr);
+        KpiVencido.Text = nVencido.ToString(PtBr);
         Resumo.Text = $"{Plural(_produtos.Count, "produto cadastrado", "produtos cadastrados")} · {nBaixo} com estoque baixo · {nAviso} para repor em breve · " +
-                      $"{nSem} sem estoque · {nValidade} com validade próxima";
+                      $"{nSem} sem estoque · {nValidade} com validade próxima · {nVencido} vencidos";
 
         var termo = Busca.Text.Trim();
         IEnumerable<Produto> lista = _produtos
-            .Where(p => termo.Length == 0 || Contem(p.Nome, termo) || Contem(p.Categoria, termo))
-            .Where(p => _filtro switch
-            {
-                "baixo" => p.EstoqueBaixo,
-                "aviso" => p.AvisoAntecipado,
-                "sem" => p.SemEstoque,
-                "validade" => p.ValidadeProxima,
-                _ => true
-            });
+            .Where(p => PassaBusca(p, termo) && PassaSituacao(p, _filtro) && PassaCategoria(p, _categoria) && PassaTipo(p, _tipo))
+            .ToList();
+        MostrarFiltrosAtivos(termo, ((List<Produto>)lista).Count);
         var porNome = StringComparer.Create(PtBr, CompareOptions.IgnoreCase);
         lista = _ordem switch
         {
             "validade" => lista.OrderBy(p => p.ProximaValidade ?? DateOnly.MaxValue).ThenBy(p => p.Nome, porNome),
             "quantidade" => lista.OrderBy(p => p.Quantidade).ThenBy(p => p.Nome, porNome),
+            "valor" => lista.OrderByDescending(p => p.Quantidade * p.Preco).ThenBy(p => p.Nome, porNome),
+            "preco" => lista.OrderBy(p => p.Preco).ThenBy(p => p.Nome, porNome),
             _ => lista.OrderBy(p => p.Nome, porNome)
         };
 
@@ -129,38 +124,71 @@ public partial class EstoqueView : UserControl
         Vazio.Visibility = Lista.Children.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         Vazio.Text = _produtos.Count == 0 ? "Nenhum produto cadastrado ainda. Clique em “Novo produto” para começar."
             : termo.Length > 0 ? $"Nenhum produto encontrado para “{termo}”."
-            : "Nenhum produto neste filtro.";
+            : "Nenhum produto com esses filtros.";
     }
+
+    // ------------------------------------------------------------ Filtros dinâmicos
+
+    private static bool PassaBusca(Produto p, string termo) =>
+        termo.Length == 0 || Contem(p.Nome, termo) || Contem(p.Categoria, termo) || (p.CodigoBarrasCaixa?.Contains(termo) ?? false);
+
+    private static bool PassaSituacao(Produto p, string filtro) => filtro switch
+    {
+        "baixo" => p.EstoqueBaixo,
+        "aviso" => p.AvisoAntecipado,
+        "sem" => p.SemEstoque,
+        "validade" => p.ValidadeProxima,
+        "vencido" => p.Vencido,
+        "semcodigo" => string.IsNullOrWhiteSpace(p.CodigoBarrasCaixa),
+        _ => true
+    };
+
+    private static bool PassaCategoria(Produto p, string? categoria) =>
+        categoria is null || string.Equals(p.Categoria.Trim(), categoria, StringComparison.CurrentCultureIgnoreCase);
+
+    private static bool PassaTipo(Produto p, string tipo) => tipo switch
+    {
+        "un" => !p.PorPeso,
+        "kg" => p.PorPeso,
+        _ => true
+    };
 
     private FrameworkElement LinhaProduto(Produto p)
     {
         var aberto = _abertos.Contains(p.Id);
         var alerta = p.SemEstoque || p.EstoqueBaixo;
-        var grade = new Grid { MinHeight = 56 };
+        var grade = new Grid { MinHeight = 54 };
         AjustarColunas(grade);
 
-        // Seta para abrir os lotes
+        // Uma seta só: abre e fecha o drop-down (lotes, validade, editar e excluir)
         var seta = new Button
         {
-            Style = Recurso<Style>("LinkSuave"),
             VerticalAlignment = VerticalAlignment.Center,
-            ToolTip = aberto ? "Ocultar lotes" : "Ver lotes",
+            Cursor = System.Windows.Input.Cursors.Hand,
+            ToolTip = aberto ? "Fechar detalhes" : "Ver lotes, validade e opções",
+            Template = BotaoSoConteudo(),
             Content = new ContentControl
             {
                 Style = Recurso<Style>("Icone"),
                 Tag = Recurso<Geometry>(aberto ? "IconeSetaBaixo" : "IconeSetaDireita"),
-                Foreground = Recurso<Brush>("Suave"),
+                Foreground = Recurso<Brush>(aberto ? "Verde700" : "Suave"),
                 Width = 18
             }
         };
-        // BotaoLink desenha só texto; aqui o conteúdo é o ícone
-        seta.Template = BotaoSoConteudo();
-        System.Windows.Automation.AutomationProperties.SetName(seta, $"Ver lotes de {p.Nome}");
+        System.Windows.Automation.AutomationProperties.SetName(seta, aberto ? $"Fechar detalhes de {p.Nome}" : $"Abrir detalhes de {p.Nome}");
         seta.Click += (_, _) => AlternarLotes(p.Id);
-        grade.Children.Add(seta);
+        seta.HorizontalAlignment = HorizontalAlignment.Right;
+        Colocar(grade, seta, 5);
 
-        // Produto (+ etiqueta de validade)
-        var nome = new WrapPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 8, 12, 8) };
+        // Antes da seta: alerta de validade (vermelho = vencido, amarelo = vence em até 30 dias)
+        if (SinalValidade(p.Situacao) is { } sinalValidade)
+        {
+            sinalValidade.HorizontalAlignment = HorizontalAlignment.Center;
+            Colocar(grade, sinalValidade, 4);
+        }
+
+        // Produto
+        var nome = new WrapPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 8, 12, 8) };
         nome.Children.Add(new TextBlock { Text = p.Nome, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) });
         if (p.PorPeso)
             nome.Children.Add(new Border
@@ -170,13 +198,16 @@ public partial class EstoqueView : UserControl
                 VerticalAlignment = VerticalAlignment.Center, ToolTip = "Vendido por quilo: estoque, mínimo e lotes em kg",
                 Child = new TextBlock { Text = "por kg", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = Recurso<Brush>("Suave") }
             });
-        if (p.Situacao is { Alerta: true } sv)
-            nome.Children.Add(Etiqueta(sv));
         if (_compacta)
-            nome.Children.Add(new TextBlock { Text = $"{p.Categoria} · {p.Preco.ToString("C", PtBr)}{(p.PorPeso ? "/kg" : "")}", FontSize = 13, Foreground = Recurso<Brush>("Suave"), Margin = new Thickness(0, 2, 0, 0) });
-        Colocar(grade, nome, 1);
+        {
+            var categoria = CategoriaVisual.Pilula(this, p.Categoria, 12);
+            categoria.Margin = new Thickness(0, 2, 8, 0);
+            nome.Children.Add(categoria);
+            nome.Children.Add(new TextBlock { Text = $"{p.Preco.ToString("C", PtBr)}{(p.PorPeso ? "/kg" : "")}", FontSize = 13, Foreground = Recurso<Brush>("Suave"), Margin = new Thickness(0, 2, 0, 0), VerticalAlignment = VerticalAlignment.Center });
+        }
+        Colocar(grade, nome, 0);
 
-        Colocar(grade, Celula(p.Categoria, suave: true), 2);
+        Colocar(grade, CategoriaVisual.Pilula(this, p.Categoria), 1);
 
         // Quantidade (vermelha com bolinha quando baixa ou zerada)
         var qtd = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
@@ -193,22 +224,18 @@ public partial class EstoqueView : UserControl
             FontWeight = alerta ? FontWeights.Bold : FontWeights.Normal,
             Foreground = alerta ? Recurso<Brush>("Vermelho600") : Recurso<Brush>("Tinta")
         });
-        Colocar(grade, qtd, 3);
+        Colocar(grade, qtd, 2);
 
-        Colocar(grade, Celula(p.ProximaValidade is { } v ? v.ToString("dd/MM/yyyy", PtBr) : "—", suave: p.ProximaValidade is null, margem: 20), 4);
         var preco = Celula(p.Preco.ToString("C", PtBr) + (p.PorPeso ? "/kg" : ""));
         preco.HorizontalAlignment = HorizontalAlignment.Right;
-        Colocar(grade, preco, 5);
+        Colocar(grade, preco, 3);
 
-        // Ações
-        var acoes = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
-        if (!_compacta) acoes.Children.Add(Link(aberto ? "Ocultar" : "Lotes", () => AlternarLotes(p.Id)));
-        acoes.Children.Add(Link("Editar", () => AbrirProduto(p)));
-        acoes.Children.Add(Link("Excluir", () => ConfirmarExclusaoProduto(p), perigo: true));
-        Colocar(grade, acoes, 6);
+        // Clicar em qualquer parte da linha também abre e fecha
+        var linha = new Border { Background = Brushes.Transparent, Cursor = System.Windows.Input.Cursors.Hand, Child = grade };
+        linha.MouseLeftButtonUp += (_, e) => { if (e.OriginalSource is not System.Windows.Documents.Run) AlternarLotes(p.Id); };
 
         var bloco = new StackPanel();
-        bloco.Children.Add(grade);
+        bloco.Children.Add(linha);
         if (aberto) bloco.Children.Add(PainelLotes(p));
 
         return new Border
@@ -220,19 +247,28 @@ public partial class EstoqueView : UserControl
         };
     }
 
-    /// <summary>Lotes do produto, do que vence primeiro para o último.</summary>
+    /// <summary>Drop-down do produto: resumo, próxima validade, editar/excluir e os lotes.</summary>
     private FrameworkElement PainelLotes(Produto p)
     {
-        var painel = new StackPanel { Margin = new Thickness(_compacta ? 8 : 36, 0, 8, 16) };
+        var painel = new StackPanel { Margin = new Thickness(_compacta ? 4 : 12, 0, 8, 16) };
 
-        var resumo = new WrapPanel { Margin = new Thickness(0, 0, 0, 10) };
+        var topo = new DockPanel { Margin = new Thickness(0, 0, 0, 10) };
+        var acoes = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Top };
+        acoes.Children.Add(BotaoPequeno("Editar produto", "IconeFerramenta", "Verde700", () => AbrirProduto(p)));
+        acoes.Children.Add(BotaoPequeno("Excluir", "IconeLixeira", "Vermelho600", () => ConfirmarExclusaoProduto(p)));
+        DockPanel.SetDock(acoes, Dock.Right);
+        topo.Children.Add(acoes);
+
+        var resumo = new WrapPanel();
         resumo.Children.Add(Detalhe("Em estoque", p.Formatar(p.Quantidade)));
         resumo.Children.Add(Detalhe("Já vendido", p.Formatar(p.Vendido)));
+        resumo.Children.Add(DetalheValidade("Próxima validade", p.ProximaValidade, p.Situacao));
         resumo.Children.Add(Detalhe("Estoque mínimo", p.Formatar(p.EstoqueMinimo)));
         resumo.Children.Add(Detalhe("Aviso antecipado em", p.Formatar(p.LimiteAviso)));
         var porCaixa = $"{p.Numero(p.UnidadesPorCaixa)} {p.Sigla}";
         resumo.Children.Add(Detalhe("Caixa", p.CodigoBarrasCaixa is null ? $"{porCaixa} (sem código)" : $"{p.CodigoBarrasCaixa} · {porCaixa}"));
-        painel.Children.Add(resumo);
+        topo.Children.Add(resumo);
+        painel.Children.Add(topo);
 
         var lotes = p.Lotes
             .OrderBy(l => l.Esgotado)
@@ -257,24 +293,17 @@ public partial class EstoqueView : UserControl
                 Child = linha
             };
 
-            var acoes = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-            acoes.Children.Add(Link("Editar", () => AbrirLote(p, l)));
-            acoes.Children.Add(Link("Excluir", () => ConfirmarExclusaoLote(p, l), perigo: true));
-            DockPanel.SetDock(acoes, Dock.Right);
-            linha.Children.Add(acoes);
+            var acoesLote = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            acoesLote.Children.Add(Link("Editar", () => AbrirLote(p, l)));
+            acoesLote.Children.Add(Link("Excluir", () => ConfirmarExclusaoLote(p, l), perigo: true));
+            DockPanel.SetDock(acoesLote, Dock.Right);
+            linha.Children.Add(acoesLote);
 
             var info = new WrapPanel { VerticalAlignment = VerticalAlignment.Center };
             info.Children.Add(BarraLote(p, l));
             info.Children.Add(Detalhe("Vendido", p.PorPeso ? p.Formatar(l.Vendido) : p.Numero(l.Vendido), menor: true));
             info.Children.Add(Detalhe("Compra", l.DataCompra.ToString("dd/MM/yyyy", PtBr), menor: true));
-            info.Children.Add(Detalhe("Validade", l.Validade?.ToString("dd/MM/yyyy", PtBr) ?? "Sem validade", menor: true));
-            if (!l.Esgotado && l.Situacao is { } sv)
-            {
-                var etiqueta = Etiqueta(sv, mostrarOk: true);
-                etiqueta.Margin = new Thickness(0, 0, 0, 0);
-                etiqueta.VerticalAlignment = VerticalAlignment.Center;
-                info.Children.Add(etiqueta);
-            }
+            info.Children.Add(DetalheValidade("Validade", l.Validade, l.Esgotado ? null : l.Situacao, menor: true));
             linha.Children.Add(info);
             painel.Children.Add(caixa);
         }
@@ -287,6 +316,73 @@ public partial class EstoqueView : UserControl
         novo.Click += (_, _) => AbrirLote(p, null);
         painel.Children.Add(novo);
         return painel;
+    }
+
+    /// <summary>
+    /// Data de validade com o símbolo de alerta ao lado: vermelho se já venceu, amarelo se vence em até 30 dias.
+    /// Passar o mouse mostra há quantos dias venceu ou em quantos dias vence.
+    /// </summary>
+    private StackPanel DetalheValidade(string rotulo, DateOnly? validade, SituacaoValidade? situacao, bool menor = false)
+    {
+        var bloco = new StackPanel { Margin = new Thickness(0, 0, menor ? 24 : 32, menor ? 0 : 4) };
+        bloco.Children.Add(new TextBlock { Text = rotulo, FontSize = 12, Foreground = Recurso<Brush>("Suave") });
+        var valor = new StackPanel { Orientation = Orientation.Horizontal };
+        valor.Children.Add(new TextBlock
+        {
+            Text = validade?.ToString("dd/MM/yyyy", PtBr) ?? "Sem validade",
+            FontSize = menor ? 14 : 15,
+            FontWeight = FontWeights.SemiBold,
+            VerticalAlignment = VerticalAlignment.Center
+        });
+        if (SinalValidade(situacao) is { } sinal)
+        {
+            sinal.Margin = new Thickness(6, 0, 0, 0);
+            valor.Children.Add(sinal);
+        }
+        bloco.Children.Add(valor);
+        return bloco;
+    }
+
+    /// <summary>Triângulo de alerta de validade; null quando não há alerta. O texto ao passar o mouse diz os dias.</summary>
+    private Border? SinalValidade(SituacaoValidade? situacao)
+    {
+        if (situacao is not { Alerta: true }) return null;
+        var vencido = situacao.Nivel == NivelValidade.Vencido;
+        var dias = Math.Abs(situacao.Dias);
+        var explicacao = vencido
+            ? $"Vencido: passou da validade há {dias} {(dias == 1 ? "dia" : "dias")}. Tire da venda."
+            : situacao.Dias == 0 ? "Vence hoje."
+            : $"Validade próxima: vence em {dias} {(dias == 1 ? "dia" : "dias")}.";
+        var sinal = new Border
+        {
+            Background = Brushes.Transparent,
+            VerticalAlignment = VerticalAlignment.Center,
+            ToolTip = explicacao,
+            Child = new ContentControl
+            {
+                Style = Recurso<Style>("Icone"),
+                Tag = Recurso<Geometry>("IconeTriangulo"),
+                Foreground = Recurso<Brush>(vencido ? "Vermelho600" : "Ambar700"),
+                Width = 17
+            }
+        };
+        ToolTipService.SetInitialShowDelay(sinal, 150);
+        System.Windows.Automation.AutomationProperties.SetName(sinal, explicacao);
+        return sinal;
+    }
+
+    private Button BotaoPequeno(string texto, string icone, string cor, Action acao)
+    {
+        var conteudo = new StackPanel { Orientation = Orientation.Horizontal };
+        conteudo.Children.Add(new ContentControl { Style = Recurso<Style>("Icone"), Tag = Recurso<Geometry>(icone), Foreground = Recurso<Brush>(cor), Width = 15, Margin = new Thickness(0, 0, 6, 0) });
+        conteudo.Children.Add(new TextBlock { Text = texto });
+        var botao = new Button
+        {
+            Style = Recurso<Style>("BotaoFantasma"), Height = 34, FontSize = 14, Padding = new Thickness(12, 0, 12, 0),
+            Margin = new Thickness(8, 0, 0, 0), Foreground = Recurso<Brush>(cor), Content = conteudo
+        };
+        botao.Click += (_, _) => acao();
+        return botao;
     }
 
     /// <summary>Sinal amarelo ao lado da quantidade; o texto explica o aviso ao passar o mouse.</summary>
@@ -388,19 +484,10 @@ public partial class EstoqueView : UserControl
 
     // ------------------------------------------------------------ Filtros, busca e ordem
 
+    /// <summary>Indicadores do topo: clicar filtra pela situação.</summary>
     private void Filtro_Click(object sender, RoutedEventArgs e)
     {
         _filtro = ((FrameworkElement)sender).Uid;
-        foreach (Button chip in Filtros.Children)
-            chip.Tag = chip.Uid == _filtro ? "ativo" : null;
-        Mostrar();
-    }
-
-    private void Ordem_Click(object sender, RoutedEventArgs e)
-    {
-        _ordem = ((FrameworkElement)sender).Uid;
-        foreach (var chip in Ordens.Children.OfType<Button>())
-            chip.Tag = chip.Uid == _ordem ? "ativo" : null;
         Mostrar();
     }
 
@@ -452,15 +539,18 @@ public partial class EstoqueView : UserControl
     {
         grade.ColumnDefinitions.Clear();
         GridLength[] larguras = _compacta
-            ? [new(32), new(1, GridUnitType.Star), new(0), new(56), new(0), new(0), new(130)]
-            : [new(36), new(2, GridUnitType.Star), new(1.1, GridUnitType.Star), new(70), new(1.2, GridUnitType.Star), new(100), new(200)];
+            ? [new(1, GridUnitType.Star), new(0), new(96), new(0), new(28), new(32)]
+            : [new(2.2, GridUnitType.Star), new(1.3, GridUnitType.Star), new(110), new(130), new(36), new(40)];
         foreach (var l in larguras)
             grade.ColumnDefinitions.Add(new ColumnDefinition { Width = l });
     }
 
     private void AoRedimensionar(object sender, SizeChangedEventArgs e)
     {
-        Kpis.Columns = e.NewSize.Width < 520 ? 1 : e.NewSize.Width < 900 ? 2 : 4;
+        // Cinco quadrados numa fileira: diminuem junto com a janela (no máximo 140 px)
+        var lado = Math.Max(96, Math.Min(140, (e.NewSize.Width - 5 * 12) / 5));
+        foreach (var kpi in Kpis.Children.OfType<Button>())
+            kpi.Width = kpi.Height = lado;
         var compacta = e.NewSize.Width < 760;
         if (compacta == _compacta) return;
         _compacta = compacta;
@@ -470,7 +560,7 @@ public partial class EstoqueView : UserControl
         CaixaLeitor.HorizontalAlignment = compacta ? HorizontalAlignment.Stretch : HorizontalAlignment.Right;
         AjustarColunas(CabecalhoTabela);
         foreach (TextBlock t in CabecalhoTabela.Children)
-            t.Visibility = _compacta && Grid.GetColumn(t) is 2 or 4 or 5 ? Visibility.Collapsed : Visibility.Visible;
+            t.Visibility = _compacta && Grid.GetColumn(t) is 1 or 3 ? Visibility.Collapsed : Visibility.Visible;
         if (_carregou) Mostrar();
     }
 

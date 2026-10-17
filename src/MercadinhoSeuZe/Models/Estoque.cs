@@ -92,8 +92,11 @@ public sealed class Produto
 
     public SituacaoValidade? Situacao => SituacaoValidade.De(ProximaValidade);
 
-    /// <summary>Vencido ou vence em até 30 dias (com unidades restantes).</summary>
-    public bool ValidadeProxima => Situacao is { Alerta: true };
+    /// <summary>Tem lote com unidades e validade que já passou (antes de hoje).</summary>
+    public bool Vencido => Situacao?.Nivel == NivelValidade.Vencido;
+
+    /// <summary>Ainda não venceu, mas vence em até 30 dias (com unidades restantes).</summary>
+    public bool ValidadeProxima => Situacao?.Nivel == NivelValidade.Atencao;
 }
 
 public enum NivelValidade { Ok, Atencao, Vencido }
@@ -110,7 +113,7 @@ public sealed record SituacaoValidade(NivelValidade Nivel, string Texto, int Dia
         if (validade is null) return null;
         var d = validade.Value.DayNumber - DateOnly.FromDateTime(DateTime.Today).DayNumber;
         if (d < 0) return new(NivelValidade.Vencido, d == -1 ? "Venceu ontem" : $"Venceu há {-d} dias", d);
-        if (d == 0) return new(NivelValidade.Vencido, "Vence hoje", d);
+        if (d == 0) return new(NivelValidade.Atencao, "Vence hoje", d);
         if (d <= DiasAlerta) return new(NivelValidade.Atencao, d == 1 ? "Vence amanhã" : $"Vence em {d} dias", d);
         return new(NivelValidade.Ok, $"Vence em {d} dias", d);
     }
