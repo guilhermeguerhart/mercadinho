@@ -16,7 +16,9 @@ public partial class LoteJanela : UserControl
     private readonly Lote? _lote;
 
     /// <param name="pelaCaixa">true quando a janela abriu pelo leitor de código de barras da caixa.</param>
-    public LoteJanela(EstoqueView estoque, AreaInternaView area, EstoqueService servico, Produto produto, Lote? lote, bool pelaCaixa = false)
+    /// <param name="pedido">Pedido pendente com este produto: a janela sugere registrar a entrega dele.</param>
+    public LoteJanela(EstoqueView estoque, AreaInternaView area, EstoqueService servico, Produto produto, Lote? lote, bool pelaCaixa = false,
+        Pedido? pedido = null, string? fornecedor = null, Action? registrarEntrega = null)
     {
         InitializeComponent();
         _estoque = estoque;
@@ -49,6 +51,18 @@ public partial class LoteJanela : UserControl
 
         Formulario.EnterVaiParaProximo(Caixas);
         Formulario.EnterVaiParaProximo(Inicial);
+
+        // Chegou mercadoria de um pedido: melhor registrar a entrega (dá baixa no pedido e cria os lotes de uma vez)
+        if (pedido is not null && registrarEntrega is not null && lote is null)
+        {
+            var item = pedido.Itens.First(i => i.ProdutoId == produto.Id);
+            AvisoPedidoTexto.Text = $"Há um pedido pendente com {(string.IsNullOrEmpty(fornecedor) ? "o fornecedor" : fornecedor)} " +
+                                    $"(de {pedido.Data:dd/MM/yyyy}, {item.QuantidadeCurta(item.Quantidade)} de {produto.Nome}" +
+                                    (pedido.Itens.Count > 1 ? $" e mais {pedido.Itens.Count - 1} {(pedido.Itens.Count == 2 ? "item" : "itens")}" : "") +
+                                    "). Se a mercadoria é desse pedido, registre a entrega: o pedido fica como entregue e os lotes entram juntos.";
+            BotaoEntregaPedido.Click += (_, _) => registrarEntrega();
+            AvisoPedido.Visibility = Visibility.Visible;
+        }
 
         if (pelaCaixa && lote is null)
         {

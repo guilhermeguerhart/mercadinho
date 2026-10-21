@@ -1,0 +1,83 @@
+<UserControl x:Class="MercadinhoSeuZe.Views.PedidoJanela"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Width="640">
+    <!-- Novo pedido de reposição (igual ao modal-pedido de fornecedores.html, com vários itens) -->
+    <Border Style="{StaticResource CartaoBorda}" CornerRadius="16" Padding="24,24,24,20" Effect="{StaticResource SombraJanela}">
+        <StackPanel>
+            <DockPanel Margin="0,0,0,18">
+                <Button DockPanel.Dock="Right" Content="×" Style="{StaticResource LinkSuave}" FontSize="24" FontWeight="Normal"
+                        VerticalAlignment="Top" Click="Cancelar_Click" ToolTip="Fechar" AutomationProperties.Name="Fechar" />
+                <StackPanel>
+                    <TextBlock Text="Novo pedido de reposição" FontSize="22" FontWeight="Bold" Margin="0,0,0,2" />
+                    <TextBlock Text="Depois de criar, o pedido abre pronto para enviar pelo WhatsApp ou e-mail." FontSize="14" Style="{StaticResource TextoSuave}" />
+                </StackPanel>
+            </DockPanel>
+
+            <Border x:Name="AvisoErro" Style="{StaticResource Aviso}" Background="{StaticResource Vermelho50}" BorderBrush="#F2C4BE" Visibility="Collapsed">
+                <TextBlock x:Name="AvisoErroTexto" Foreground="{StaticResource Vermelho600}" FontSize="14" />
+            </Border>
+
+            <TextBlock Text="Fornecedor" Style="{StaticResource Rotulo}" />
+            <ComboBox x:Name="EscolhaFornecedor" SelectionChanged="Fornecedor_SelectionChanged" AutomationProperties.Name="Fornecedor" />
+            <TextBlock x:Name="FornecedorErro" Style="{StaticResource ErroCampo}" />
+
+            <!-- Itens -->
+            <DockPanel Margin="0,18,0,8">
+                <Button x:Name="BotaoOQueFalta" DockPanel.Dock="Right" Style="{StaticResource BotaoLink}" FontSize="13" VerticalAlignment="Bottom"
+                        Click="AdicionarOQueFalta_Click" />
+                <TextBlock Text="Itens do pedido" FontSize="16" FontWeight="Bold" />
+            </DockPanel>
+            <Border BorderBrush="{StaticResource Linha}" BorderThickness="1" CornerRadius="10" Padding="14,4">
+                <StackPanel>
+                    <StackPanel x:Name="Itens" />
+                    <TextBlock x:Name="SemItens" Text="Nenhum produto ainda. Busque abaixo para adicionar." FontSize="14"
+                               Style="{StaticResource TextoSuave}" Margin="0,10" />
+                </StackPanel>
+            </Border>
+            <TextBlock x:Name="ItensErro" Style="{StaticResource ErroCampo}" />
+
+            <Grid Margin="0,12,0,0">
+                <TextBox x:Name="Busca" Padding="42,0,14,0" MaxLength="80" TextChanged="Busca_TextChanged" PreviewKeyDown="Busca_PreviewKeyDown"
+                         AutomationProperties.Name="Buscar produto para adicionar" />
+                <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeBusca}" Foreground="{StaticResource Suave}"
+                                Width="18" HorizontalAlignment="Left" Margin="14,0,0,0" IsHitTestVisible="False" />
+                <TextBlock x:Name="DicaBusca" Text="Buscar produto ou passar o leitor na caixa..." Foreground="{StaticResource Placeholder}" FontSize="15"
+                           VerticalAlignment="Center" Margin="43,0,0,0" IsHitTestVisible="False" />
+            </Grid>
+            <TextBlock x:Name="TituloResultados" FontSize="12" FontWeight="SemiBold" Style="{StaticResource TextoSuave}" Margin="2,8,0,4" />
+            <StackPanel x:Name="Resultados" />
+
+            <Grid Margin="0,16,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="2*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="Previsão de entrega" Style="{StaticResource Rotulo}" />
+                    <TextBox x:Name="Previsao" MaxLength="10" AutomationProperties.Name="Previsão de entrega" ToolTip="dd/mm/aaaa" />
+                    <TextBlock x:Name="PrevisaoErro" Style="{StaticResource ErroCampo}" />
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="Observação (opcional)" Style="{StaticResource Rotulo}" />
+                    <TextBox x:Name="Observacao" MaxLength="300" AutomationProperties.Name="Observação" />
+                </StackPanel>
+            </Grid>
+            <TextBlock x:Name="DicaPrevisao" FontSize="12" Foreground="{StaticResource Verde700}" Margin="0,6,0,0" />
+
+            <!-- Prévia da mensagem -->
+            <TextBlock Text="Mensagem que vai para o fornecedor" Style="{StaticResource Rotulo}" Margin="0,16,0,6" />
+            <Border Background="{StaticResource Fundo}" CornerRadius="10" Padding="14,10">
+                <TextBlock x:Name="Previa" FontSize="14" />
+            </Border>
+            <TextBlock FontSize="12" Style="{StaticResource TextoSuave}" Margin="0,6,0,0"
+                       Text="O texto vem do cadastro do fornecedor (Mensagem de pedido). Você ainda pode mudar antes de enviar." />
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,22,0,0">
+                <Button Content="Cancelar" Style="{StaticResource BotaoFantasma}" Margin="0,0,10,0" Click="Cancelar_Click" />
+                <Button x:Name="BotaoSalvar" Content="Criar pedido" Style="{StaticResource BotaoPrimario}" Click="Salvar_Click" />
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</UserControl>

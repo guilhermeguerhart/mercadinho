@@ -17,10 +17,13 @@ public partial class EstoqueView : UserControl
 
     private readonly AreaInternaView _area;
     private readonly EstoqueService? _servico;
+    private readonly FornecedorService? _fornecedores;
     private readonly OpenFoodFactsService _bancoAberto = new();
     private bool _procurandoCodigo;
     private readonly HashSet<long> _abertos = [];   // produtos com os lotes à mostra
     private List<Produto> _produtos = [];
+    private List<Fornecedor>? _listaFornecedores;   // null = tabela de fornecedores ainda não existe
+    private List<Pedido> _pendentes = [];
     private string _filtro = "todos";
     private string? _categoria;          // null = todas
     private string _tipo = "todos";      // todos, un (por unidade) ou kg (por quilo)
@@ -28,11 +31,12 @@ public partial class EstoqueView : UserControl
     private bool _compacta;
     private bool _carregou;
 
-    public EstoqueView(AreaInternaView area, EstoqueService? servico)
+    public EstoqueView(AreaInternaView area, EstoqueService? servico, FornecedorService? fornecedores)
     {
         InitializeComponent();
         _area = area;
         _servico = servico;
+        _fornecedores = fornecedores;
         AjustarColunas(CabecalhoTabela);
         IniciarAtalhosDesenvolvimento();
         Loaded += async (_, _) => { if (!_carregou) await CarregarAsync(); };
@@ -59,8 +63,32 @@ public partial class EstoqueView : UserControl
             MostrarErro(ex.Message);
             return;
         }
+        await CarregarFornecedoresAsync();
         Mostrar();
         Leitor.Focus();
+    }
+
+    /// <summary>
+    /// Fornecedores (campo do cadastro) e pedidos pendentes (aviso na entrada de lote). Sem o script 004 rodado,
+    /// o estoque funciona como antes, só sem essas partes.
+    /// </summary>
+    private async Task CarregarFornecedoresAsync()
+    {
+        if (_fornecedores is null || _servico is not { TemFornecedores: true }) { _listaFornecedores = null; return; }
+        try
+        {
+            var lista = _fornecedores.ListarAsync();
+            var pendentes = _fornecedores.ListarPendentesAsync();
+            await Task.WhenAll(lista, pendentes);
+            _listaFornecedores = lista.Result;
+            _pendentes = pendentes.Result;
+            Fornecedor.AplicarPrazos(_produtos, _listaFornecedores);
+        }
+        catch (ConexaoException)
+        {
+            _listaFornecedores = null;
+            _pendentes = [];
+        }
     }
 
     private void MostrarErro(string texto)
@@ -266,7 +294,16 @@ public partial class EstoqueView : UserControl
         resumo.Children.Add(Detalhe("Já vendido", p.Formatar(p.Vendido)));
         resumo.Children.Add(DetalheValidade("Próxima validade", p.ProximaValidade, p.Situacao));
         resumo.Children.Add(Detalhe("Estoque mínimo", p.Formatar(p.EstoqueMinimo)));
-        resumo.Children.Add(Detalhe("Aviso antecipado em", p.Formatar(p.LimiteAviso)));
+        resumo.Children.Add(Detalhe("Aviso antecipado em", p.Formatar(p.LimiteAviso) + (p.PontoDePedido is null ? "" : " (calculado)")));
+        if (_listaFornecedores is not null)
+        {
+            var fornecedor = _listaFornecedores.FirstOrDefault(f => f.Id == p.FornecedorId);
+            var daCategoria = fornecedor is null ? _listaFornecedores.Where(f => f.Ativo && f.Fornece(p)).Select(f => f.Nome).ToList() : [];
+            resumo.Children.Add(Detalhe("Fornecedor", fornecedor?.Nome
+                ?? (daCategoria.Count > 0 ? string.Join(", ", daCategoria) + " (pela categoria)" : "nenhum")));
+            resumo.Children.Add(Detalhe("Prazo de entrega", p.PrazoEntregaDias is { } prazo
+                ? Plural(prazo, "dia", "dias") : "padrão do fornecedor"));
+        }
         var porCaixa = $"{p.Numero(p.UnidadesPorCaixa)} {p.Sigla}";
         resumo.Children.Add(Detalhe("Caixa", p.CodigoBarrasCaixa is null ? $"{porCaixa} (sem código)" : $"{p.CodigoBarrasCaixa} · {porCaixa}"));
         topo.Children.Add(resumo);
@@ -404,7 +441,9 @@ public partial class EstoqueView : UserControl
                     TextWrapping = TextWrapping.Wrap,
                     Text = $"Aviso antecipado: restam {p.Formatar(p.Quantidade)} de {p.Nome}. " +
                            $"O mínimo é {p.Formatar(p.EstoqueMinimo)} e o aviso começa em {p.Formatar(p.LimiteAviso)}" +
-                           (p.EstoqueAviso is null ? " (automático: mínimo + 50%)" : "") +
+                           (p.PontoDePedido is not null
+                               ? $" (pedir antes de acabar: sai {p.Formatar(Math.Round(p.ConsumoDiario!.Value, 1))} por dia e a entrega leva {p.PrazoReposicao} dias)"
+                               : p.EstoqueAviso is null ? " (automático: mínimo + 50%)" : "") +
                            ". Faça o pedido agora para a mercadoria chegar antes de faltar, principalmente se o fornecedor demora para entregar."
                 }
             }
@@ -500,14 +539,18 @@ public partial class EstoqueView : UserControl
         UserControl janela;
         if (produto is not null)
         {
-            janela = new LoteJanela(this, _area, _servico, produto, null, pelaCaixa: true);
+            var pedido = _pendentes.FirstOrDefault(o => o.Itens.Any(i => i.ProdutoId == produto.Id));
+            var fornecedorPedido = pedido is null ? null : _listaFornecedores?.FirstOrDefault(f => f.Id == pedido.FornecedorId);
+            janela = new LoteJanela(this, _area, _servico, produto, null, pelaCaixa: true, pedido, fornecedorPedido?.Nome,
+                pedido is null || _fornecedores is null ? null : () => _area.AbrirJanela(
+                    new EntregaJanela(_area, _fornecedores, pedido, fornecedorPedido?.Nome ?? "", _produtos, RecarregarAsync)));
         }
         else
         {
             _area.MostrarToast(encontrado is null
                 ? $"O código {codigo} ainda não é de nenhum produto. Cadastre o produto desta caixa."
                 : $"Produto novo: {encontrado.Nome}. Confira o cadastro.");
-            janela = new ProdutoJanela(this, _area, _servico, null, _produtos, codigo, encontrado);
+            janela = new ProdutoJanela(this, _area, _servico, null, _produtos, codigo, encontrado, _listaFornecedores);
         }
         _area.AbrirJanela(janela);
         return janela;
@@ -541,7 +584,7 @@ public partial class EstoqueView : UserControl
     private void AbrirProduto(Produto? produto)
     {
         if (_servico is null) { _area.MostrarToast("Sistema sem configuração do banco de dados."); return; }
-        _area.AbrirJanela(new ProdutoJanela(this, _area, _servico, produto, _produtos));
+        _area.AbrirJanela(new ProdutoJanela(this, _area, _servico, produto, _produtos, fornecedores: _listaFornecedores));
     }
 
     private void AbrirLote(Produto produto, Lote? lote) =>

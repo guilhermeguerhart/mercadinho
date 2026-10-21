@@ -98,7 +98,7 @@
                         <TextBlock Text="Pedidos pendentes" Style="{StaticResource KpiRotulo}" />
                     </DockPanel>
                     <TextBlock x:Name="KpiPedidos" Style="{StaticResource KpiValor}" Text="—" />
-                    <TextBlock Text="Aguardando entrega do fornecedor" Style="{StaticResource KpiSub}" />
+                    <TextBlock x:Name="KpiPedidosSub" Text="Aguardando entrega do fornecedor" Style="{StaticResource KpiSub}" />
                 </StackPanel>
             </Border>
             <Border Style="{StaticResource Kpi}">

@@ -22,20 +22,27 @@ database/                  Scripts SQL, numerados, para rodar no SQL Editor do S
   001_semana1_perfis.sql   Tabelas perfis, auditoria_login, pedidos_senha, contatos e as regras (RLS).
   002_usuarios_teste.sql   Cria 5 usuários de teste (lista em USUARIOS_TESTE.md).
   003_semana3_estoque.sql  Tabelas produtos e lotes, com RLS (todos leem, só o gerente altera).
+  004_semana4_fornecedores.sql  Tabelas fornecedores, pedidos e pedido_itens, coluna produtos.fornecedor_id e as
+                           funções criar_pedido e registrar_entrega (tudo ou nada). RLS: só o gerente.
 src/MercadinhoSeuZe/
-  App.xaml                 Cores, ícones (Geometry) e estilos de botões/campos. Reutilize, não duplique.
+  App.xaml                 Cores, ícones (Geometry) e estilos de botões/campos/listas de escolha, indicadores
+                           quadrados (Kpi), chips e cabeçalho de tabela. Reutilize, não duplique.
   MainWindow.xaml(.cs)     Janela única; troca as telas com MostrarInicio/MostrarLogin/MostrarAreaDoUsuario.
-  Models/                  Perfil (Gerente/Operador), Sessao (usuário logado), Painel, Estoque (Produto, Lote).
+  Models/                  Perfil (Gerente/Operador), Sessao (usuário logado), Painel, Estoque (Produto, Lote),
+                           Fornecedores (Fornecedor, Pedido, ItemPedido, MensagemPedido).
   Services/                Configuracao (lê appsettings.json embutido), SupabaseApi (HTTP; ListarAsync,
-                           InserirAsync, AtualizarAsync, ExcluirAsync com o token do usuário logado),
-                           AuthService (login, bloqueio, auditoria), PreferenciasLocais, EstoqueService.
+                           InserirAsync, AtualizarAsync, ExcluirAsync, ChamarAsync (funções rpc) com o token
+                           do usuário logado), AuthService (login, bloqueio, auditoria), PreferenciasLocais,
+                           EstoqueService, FornecedorService, ContatoRapido (abre WhatsApp/e-mail).
   Views/                   Uma UserControl por tela: LandingView, LoginView, AreaInternaView, PainelView,
-                           CaixaView, EstoqueView. Janelas por cima da tela (ProdutoJanela, LoteJanela,
-                           ConfirmacaoJanela) abrem com AreaInternaView.AbrirJanela; Esc fecha.
+                           CaixaView, EstoqueView, FornecedoresView. Janelas por cima da tela (ProdutoJanela,
+                           LoteJanela, ConfirmacaoJanela, FornecedorJanela, PedidoJanela, EnvioPedidoJanela,
+                           EntregaJanela) abrem com AreaInternaView.AbrirJanela; Esc fecha.
                            Formulario.cs: leitura de preço, inteiro e data (dd/mm/aaaa) e erros de campo.
   Assets/mercado.ico       Ícone do programa.
 publicar.ps1               Gera publish/MercadinhoSeuZe.exe (feche o .exe aberto antes).
-                           Com -Desenvolvimento gera publish-dev/ com o atalho Alt+1 (usuários de teste).
+                           Com -Desenvolvimento gera publish-dev/ com os atalhos de teste (Alt+1 no login,
+                           Alt+2 no Estoque e em Fornecedores).
 
 3. O QUE JÁ FOI FEITO (SEMANA 1)
 --------------------------------
@@ -131,8 +138,66 @@ publicar.ps1               Gera publish/MercadinhoSeuZe.exe (feche o .exe aberto
   é só sair e entrar de novo. Renovar o token sozinho fica para depois, se o dono pedir.
 - Painel (pedido do Guilherme): o indicador "Estoque baixo" e os avisos de estoque (sem estoque, estoque
   baixo, lote vencido/vencendo, aviso antecipado; no máximo 8) vêm do banco pelo EstoqueService, a cada
-  30 s. Vendas, pedidos e caixa continuam em DadosExemplo até as tabelas das semanas 4 e 5 existirem;
-  a faixa amarela do Painel diz isso.
+  30 s. Vendas e caixa continuam em DadosExemplo até as tabelas da semana 5 existirem; a faixa amarela
+  do Painel diz isso. Os pedidos pendentes já vêm do banco (semana 4).
+
+3d. SEMANA 4 - FORNECEDORES (LIGADO AO BANCO)
+---------------------------------------------
+- Antes de usar: rodar database/004_semana4_fornecedores.sql no SQL Editor do Supabase. Sem isso a tela
+  Fornecedores mostra o aviso de tabelas não criadas; o Estoque continua funcionando (sem o campo Fornecedor)
+  e o Painel diz que não conseguiu ler os pedidos.
+- Tabelas: fornecedores (nome único, telefone, whatsapp opcional, email, contato, categorias = "o que entrega"
+  separado por vírgula, prazo_entrega_dias = prazo padrão, envio_preferido whatsapp/email, modelo_mensagem,
+  observacao, ativo), pedidos (fornecedor, data,
+  previsão, situacao pendente/entregue/cancelado, entregue_em) e pedido_itens (produto, nome e unidade
+  guardados para o histórico, quantidade, quantidade_recebida). produtos.fornecedor_id = fornecedor principal.
+- Prazo de entrega por produto (pedido do Guilherme): produtos.prazo_entrega_dias (campo ao lado do Fornecedor
+  no cadastro do produto). Vazio = prazo padrão do fornecedor (Fornecedor.PrazoDe). A previsão do pedido usa o
+  maior prazo entre os itens.
+- "Pedir antes de acabar" (ideia do Guilherme): produtos.pedir_antes (caixa no cadastro do produto). Ligado, o
+  aviso antecipado vira o ponto de pedido = mínimo + o que sai por dia x prazo de entrega (Produto.PontoDePedido;
+  prazo = do produto ou do fornecedor, preenchido por Fornecedor.AplicarPrazos). "Sai por dia" = o que saiu dos
+  lotes comprados nos últimos 60 dias / dias desde a compra mais antiga (Produto.ConsumoDiario). Enquanto nada
+  sai (as vendas dão baixa a partir da semana 5) vale o aviso digitado. Produto no ponto de pedido entra nas
+  sugestões de reposição e no "Pedir o que falta". O pedido sair sozinho é da semana 7.
+- Meio de envio (pedido do Guilherme): fornecedores.envio_preferido escolhe o botão principal da janela de envio
+  (WhatsApp ou e-mail; e-mail exige o e-mail cadastrado). O outro meio continua disponível.
+  Só o gerente lê e altera (o operador não vê a tela, igual ao site).
+- Produtos de um fornecedor (Fornecedor.Fornece): os ligados a ele no cadastro do produto ou, sem ligação, os
+  da categoria que ele entrega (regra do site). Para sugestão de reposição, um produto sem ligação vai para o
+  primeiro fornecedor (A-Z) da categoria.
+- Tela (Views/FornecedoresView, modelo fornecedores.html): indicadores (fornecedores, pedidos pendentes,
+  atrasados, com produto em falta), sugestões de reposição por fornecedor ("Criar pedido" / "Ignorar hoje",
+  guardado em PreferenciasLocais), busca (nome, categoria, contato, telefone, produto), chips Todos /
+  Pendentes / Atrasados / Com produto em falta / Desativados, linha com contato, produtos fornecidos com
+  bolinha vermelha (sem estoque/baixo) e triângulo amarelo (aviso antecipado), último pedido e situação
+  (Em dia, Pendente, Atrasado, Sem pedidos). A seta abre: Pedir o que falta, Novo pedido, Editar,
+  Desativar/Excluir/Reativar, dados de contato, contato rápido, produtos e histórico de pedidos.
+- Excluir: fornecedor com pedidos não é apagado, fica desativado (ativo = false) e o histórico continua;
+  sem pedidos, é excluído. O banco não deixa apagar fornecedor com pedidos (on delete restrict).
+- Pedido pelo WhatsApp/e-mail (pedido do Guilherme): cada fornecedor tem um modelo de mensagem (vazio = padrão,
+  MensagemPedido.ModeloPadrao) com {contato}, {, contato}, {fornecedor}, {itens}, {previsao} e {usuario}.
+  Os itens saem como "- 20 un. Café 500g (2 caixas)". Depois de criar o pedido abre EnvioPedidoJanela com a
+  mensagem (editável) e os botões "Enviar pelo WhatsApp" (abre https://wa.me/55... com o texto) e "Enviar por
+  e-mail" (mailto). A pessoa só aperta enviar: enviar sem clique precisaria da API paga do WhatsApp Business,
+  e o pedido automático com IA é da semana 7. "Reenviar" no histórico abre a mesma janela.
+- "Pedir o que falta": monta o pedido com os produtos do fornecedor sem estoque, abaixo do mínimo ou no aviso
+  antecipado que ainda não estão em pedido pendente. Quantidade sugerida (Produto.QuantidadeSugerida) = regra
+  do site (2 x mínimo - atual, pelo menos o mínimo), arredondada para caixas inteiras por unidade.
+- Pedido (PedidoJanela): vários itens; busca por nome, categoria ou código da caixa (o leitor funciona: Enter
+  adiciona); produtos do fornecedor aparecem primeiro; previsão = hoje + maior prazo dos itens (padrão 3 dias).
+  Gravado pela função criar_pedido (pedido e itens juntos).
+- Registrar entrega (EntregaJanela): confere o que chegou (0 = não veio) e a validade (já vem pela validade
+  padrão do produto); a função registrar_entrega cria um lote por item recebido, com data de compra = data da
+  entrega, e marca o pedido como entregue. O histórico mostra o que veio diferente do pedido.
+  No Estoque, quando o leitor lê a caixa de um produto que está num pedido pendente, a janela de lote avisa e
+  oferece "Registrar a entrega do pedido". Pedido pendente também pode ser cancelado (fica no histórico).
+- Cadastro de produto (Estoque): campo "Fornecedor (opcional)"; o drop-down do produto mostra o fornecedor.
+- Painel: "Pedidos pendentes" e os avisos de pedido (atrasado em vermelho) vêm do banco; o atalho "Novo
+  pedido" abre Fornecedores com a janela de pedido.
+- Atalho de desenvolvimento Alt+2 em Fornecedores (Views/FornecedoresView.Desenvolvimento.cs, mesma regra
+  dos outros): cadastra 6 fornecedores de teste que cobrem as categorias do leitor simulado. Telefones e
+  e-mails fictícios (.example); para testar o WhatsApp, edite um e coloque um número seu.
 
 4. O QUE AINDA DEVE SER FEITO (UMA SEMANA POR VEZ, NESTA ORDEM)
 --------------------------------------------------------------
@@ -142,14 +207,22 @@ Semana 2 - Painel (feito em modo de teste; falta ligar ao banco): tela pós-logi
            com botões para as outras telas. Trocar o destino em MainWindow.MostrarAreaDoUsuario.
 Semana 3 - Estoque (feito, ligado ao banco): cadastro de produtos; lotes com quantidade restante e validade; filtros
            (perto da validade, estoque baixo, sem estoque, ordem alfabética); indicadores visuais.
-Semana 4 - Fornecedores: cadastro; produtos de cada fornecedor; indicadores de estoque;
+Semana 4 - Fornecedores (feito, ligado ao banco): cadastro; produtos de cada fornecedor; indicadores de estoque;
            contato rápido; histórico de pedidos (feitos, pendentes).
 Semana 5 - Caixa: tela padrão de caixa; pagamento; item na venda fica reservado e só dá baixa
            no estoque após o pagamento; bloquear venda de lote vencido.
 Semana 6 - Fechamento do dia: resumo de vendas; envio por e-mail; dados na nuvem para análise
            diária, semanal e mensal; integração com app de celular da gerência.
+           Também (pedido do Guilherme, 20/10): caixa de e-mail de pedidos; as respostas dos fornecedores por
+           e-mail chegam ao sistema (Edge Function do Supabase recebe e grava numa tabela; senhas só lá, nunca
+           no .exe). Ícone de mensagens ao lado de cada fornecedor abre uma janela com o pedido, a conversa
+           e o campo para responder. Cada mensagem de pedido leva o número do pedido ("Pedido nº 42") para
+           ligar a resposta ao pedido; aviso no Painel quando chega resposta.
 Semana 7 - Previsão de compras: previsão pelo histórico de vendas; sugestões para períodos
            e eventos; pedido automático com IA quando o estoque baixar ou a previsão indicar.
+           Também (pedido do Guilherme, 20/10): WhatsApp oficial (API do WhatsApp Business da Meta, número
+           próprio e conta Meta Business verificada; cobrança por conversa) para receber e responder na mesma
+           janela de mensagens, e pedido enviado sem clique pelo WhatsApp ou e-mail.
 Para cada tela nova, use como modelo a tela equivalente do projeto de referência
 (painel.html, estoque.html, fornecedores.html, caixa.html e os SVG da pasta figma/).
 

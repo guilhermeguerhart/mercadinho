@@ -75,6 +75,12 @@
         <Geometry x:Key="IconeBolhas">M4 15a5 5 0 1 0 10 0a5 5 0 1 0 -10 0 M14 6a3 3 0 1 0 6 0a3 3 0 1 0 -6 0 M15 15a2 2 0 1 0 4 0a2 2 0 1 0 -4 0</Geometry>
         <Geometry x:Key="IconeGota">M12 3c4 5 6 8 6 11a6 6 0 0 1 -12 0c0-3 2-6 6-11z</Geometry>
         <Geometry x:Key="IconePata">M8 16c0-2 2-4 4-4s4 2 4 4-2 4-4 4-4-2-4-4z M4.5 10a1.5 2 0 1 0 3 0a1.5 2 0 1 0 -3 0 M8.5 6a1.5 2 0 1 0 3 0a1.5 2 0 1 0 -3 0 M12.5 6a1.5 2 0 1 0 3 0a1.5 2 0 1 0 -3 0 M16.5 10a1.5 2 0 1 0 3 0a1.5 2 0 1 0 -3 0</Geometry>
+        <Geometry x:Key="IconeMensagem">M21 11.5a8.4 8.4 0 0 1 -12.4 7.4L3 21l2.1 -5.6A8.4 8.4 0 1 1 21 11.5z M8.5 11.5h.01 M12 11.5h.01 M15.5 11.5h.01</Geometry>
+        <Geometry x:Key="IconeEmail">M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2H4a2 2 0 0 1 -2 -2V7a2 2 0 0 1 2 -2z M22 7l-10 7L2 7</Geometry>
+        <Geometry x:Key="IconeCopiar">M9 9h10a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2H9a2 2 0 0 1 -2 -2v-8a2 2 0 0 1 2 -2z M5 15H4a2 2 0 0 1 -2 -2V4a2 2 0 0 1 2 -2h9a2 2 0 0 1 2 2v1</Geometry>
+        <Geometry x:Key="IconeTelefone">M22 16.9v3a2 2 0 0 1 -2.2 2 19.8 19.8 0 0 1 -8.6 -3.1 19.5 19.5 0 0 1 -6 -6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 .9 .4 1.9 .7 2.8a2 2 0 0 1 -.5 2.1L8 9.9a16 16 0 0 0 6 6l1.3 -1.3a2 2 0 0 1 2.1 -.4c.9 .3 1.8 .6 2.8 .7a2 2 0 0 1 1.7 2z</Geometry>
+        <Geometry x:Key="IconeEnviar">M22 2L11 13 M22 2l-7 20-4-9-9-4z</Geometry>
+        <Geometry x:Key="IconeCheck">M20 6L9 17l-5-5</Geometry>
         <Geometry x:Key="IconeFerramenta">M14.7 6.3a4 4 0 0 0 -5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z</Geometry>
 
         <!-- Ícone reutilizável: <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeCadeado}" Foreground="..." Width="20" /> -->
@@ -302,6 +308,152 @@
             <Setter Property="Padding" Value="14,11" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Margin" Value="0,0,0,18" />
+        </Style>
+
+        <!-- Indicador quadrado clicável (Estoque e Fornecedores): filtra a lista. O Painel tem o seu próprio "Kpi". -->
+        <Style x:Key="Kpi" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Margin" Value="0,0,12,0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Width" Value="140" />
+            <Setter Property="Height" Value="140" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Borda" Background="{StaticResource Cartao}" BorderBrush="{StaticResource Linha}"
+                                BorderThickness="1" CornerRadius="12" Padding="12,10">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Borda" Property="BorderBrush" Value="{StaticResource Verde600}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Borda" Property="BorderBrush" Value="{StaticResource Verde600}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="KpiRotulo" TargetType="TextBlock" BasedOn="{StaticResource TextoSuave}">
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="LineHeight" Value="15" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style x:Key="KpiValor" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="24" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+            <Setter Property="Text" Value="—" />
+        </Style>
+        <Style x:Key="KpiSub" TargetType="TextBlock" BasedOn="{StaticResource TextoSuave}">
+            <Setter Property="FontSize" Value="13" />
+        </Style>
+
+        <!-- Filtro (igual a .chip do site); Tag="ativo" marca o selecionado -->
+        <Style x:Key="Chip" TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource Suave}" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Margin" Value="0,0,8,8" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Borda" Background="White" BorderBrush="{StaticResource Linha}" BorderThickness="1"
+                                CornerRadius="17" Padding="14,6">
+                            <ContentPresenter VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Borda" Property="BorderBrush" Value="{StaticResource Verde600}" />
+                            </Trigger>
+                            <Trigger Property="Tag" Value="ativo">
+                                <Setter TargetName="Borda" Property="Background" Value="{StaticResource Verde50}" />
+                                <Setter TargetName="Borda" Property="BorderBrush" Value="{StaticResource Verde600}" />
+                                <Setter Property="Foreground" Value="{StaticResource Verde700}" />
+                                <Setter Property="FontWeight" Value="SemiBold" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="Cabecalho" TargetType="TextBlock" BasedOn="{StaticResource TextoSuave}">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+
+        <!-- Lista de escolha (mesmo visual dos campos de texto) -->
+        <Style TargetType="ComboBox">
+            <Setter Property="FontFamily" Value="Segoe UI" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="Foreground" Value="{StaticResource Tinta}" />
+            <Setter Property="MinHeight" Value="46" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="MaxDropDownHeight" Value="320" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton Focusable="False" ClickMode="Press"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="Borda" Background="White" BorderBrush="{StaticResource Linha}" BorderThickness="1" CornerRadius="8">
+                                            <Path Data="M0 0l5 5 5-5" Stroke="{StaticResource Suave}" StrokeThickness="1.8" StrokeStartLineCap="Round"
+                                                  StrokeEndLineCap="Round" StrokeLineJoin="Round" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,16,0" />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Borda" Property="BorderBrush" Value="{StaticResource Verde600}" />
+                                            </Trigger>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter TargetName="Borda" Property="BorderBrush" Value="{StaticResource Verde600}" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <ContentPresenter IsHitTestVisible="False" Margin="14,0,38,0" VerticalAlignment="Center"
+                                              Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" />
+                            <Popup IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom" AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
+                                <Border Background="White" BorderBrush="{StaticResource Linha}" BorderThickness="1" CornerRadius="8" Margin="0,4,0,0" Padding="0,4"
+                                        MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}" MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained" />
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Padding" Value="14,8" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="Fundo" Background="Transparent" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Fundo" Property="Background" Value="{StaticResource Verde50}" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Foreground" Value="{StaticResource Verde700}" />
+                                <Setter Property="FontWeight" Value="SemiBold" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <Style TargetType="CheckBox">

@@ -14,9 +14,12 @@ public partial class ProdutoJanela : UserControl
     private readonly EstoqueService _servico;
     private readonly Produto? _produto;
     private readonly IReadOnlyList<Produto> _todos;
+    private readonly bool _escolheFornecedor;
+    private readonly IReadOnlyList<Fornecedor> _fornecedores = [];
 
     public ProdutoJanela(EstoqueView estoque, AreaInternaView area, EstoqueService servico, Produto? produto, IReadOnlyList<Produto> todos,
-        string? codigoLido = null, ProdutoEncontrado? encontrado = null)
+        string? codigoLido = null, ProdutoEncontrado? encontrado = null,
+        IReadOnlyList<Fornecedor>? fornecedores = null)
     {
         InitializeComponent();
         _estoque = estoque;
@@ -76,10 +79,85 @@ public partial class ProdutoJanela : UserControl
         Formulario.LimparAoDigitar(Compra, CompraErro);
         Formulario.LimparAoDigitar(Validade, ValidadeErro);
 
+        // Fornecedor principal: os ativos (e o atual, mesmo desativado)
+        if (fornecedores is not null)
+        {
+            _escolheFornecedor = true;
+            CampoFornecedor.Visibility = Visibility.Visible;
+            EscolhaFornecedor.Items.Add(new ComboBoxItem { Content = "Pela categoria (nenhum escolhido)" });
+            foreach (var f in fornecedores.Where(f => f.Ativo || f.Id == produto?.FornecedorId).OrderBy(f => f.Nome, StringComparer.CurrentCultureIgnoreCase))
+            {
+                var item = new ComboBoxItem { Content = f.Ativo ? f.Nome : f.Nome + " (desativado)", Tag = f.Id };
+                EscolhaFornecedor.Items.Add(item);
+                if (f.Id == produto?.FornecedorId) EscolhaFornecedor.SelectedItem = item;
+            }
+            if (EscolhaFornecedor.SelectedIndex < 0) EscolhaFornecedor.SelectedIndex = 0;
+            _fornecedores = fornecedores;
+            PrazoEntrega.Text = produto?.PrazoEntregaDias?.ToString(CultureInfo.InvariantCulture) ?? "";
+            Formulario.LimparAoDigitar(PrazoEntrega, PrazoEntregaErro);
+            PrazoEntrega.TextChanged += (_, _) => AtualizarDicaPrazo();
+            EscolhaFornecedor.SelectionChanged += (_, _) => AtualizarDicaPrazo();
+            Categoria.TextChanged += (_, _) => AtualizarDicaPrazo();
+            AtualizarDicaPrazo();
+
+            CampoPedirAntes.Visibility = Visibility.Visible;
+            PedirAntes.IsChecked = produto?.PedirAntes ?? false;
+            PedirAntes.Checked += (_, _) => AtualizarDicaPedirAntes();
+            PedirAntes.Unchecked += (_, _) => AtualizarDicaPedirAntes();
+            Minimo.TextChanged += (_, _) => AtualizarDicaPedirAntes();
+            PrazoEntrega.TextChanged += (_, _) => AtualizarDicaPedirAntes();
+            EscolhaFornecedor.SelectionChanged += (_, _) => AtualizarDicaPedirAntes();
+            AtualizarDicaPedirAntes();
+        }
+
         Loaded += (_, _) => Nome.Focus();
     }
 
     private bool EmQuilos => PorPeso.IsChecked == true;
+
+    /// <summary>Explica o ponto de pedido: quanto sai por dia × prazo de entrega, ou por que ainda não dá para calcular.</summary>
+    private void AtualizarDicaPedirAntes()
+    {
+        if (PedirAntes.IsChecked != true)
+        {
+            DicaPedirAntes.Text = "Desligado: o aviso amarelo usa o número digitado acima.";
+            return;
+        }
+        var prazo = Formulario.LerInteiro(PrazoEntrega.Text) ?? FornecedorEscolhido()?.Prazo ?? Fornecedor.PrazoPadrao;
+        var porDia = _produto?.ConsumoDiario;
+        var minimo = Formulario.LerQuantidade(Minimo.Text, EmQuilos);
+        if (porDia is null || minimo is null)
+        {
+            DicaPedirAntes.Text = "Ponto de pedido = mínimo + o que sai por dia × prazo de entrega. Ainda não há saídas registradas " +
+                                  "(as vendas dão baixa a partir da semana 5); até lá vale o aviso digitado acima.";
+            return;
+        }
+        var ponto = minimo.Value + porDia.Value * prazo;
+        ponto = EmQuilos ? Math.Ceiling(ponto * 10) / 10 : Math.Ceiling(ponto);
+        var un = EmQuilos ? " kg" : " un";
+        DicaPedirAntes.Text = $"Sai {Formulario.Quantidade(Math.Round(porDia.Value, 1))}{un} por dia × {prazo} dias de entrega + mínimo " +
+                              $"{Formulario.Quantidade(minimo.Value)} = aviso em {Formulario.Quantidade(ponto)}{un}. Recalcula sozinho conforme as vendas.";
+    }
+
+    private Fornecedor? FornecedorEscolhido()
+    {
+        var id = (EscolhaFornecedor.SelectedItem as ComboBoxItem)?.Tag as long?;
+        return id is null
+            ? _fornecedores.Where(x => x.Ativo).OrderBy(x => x.Nome, StringComparer.CurrentCultureIgnoreCase)
+                .FirstOrDefault(x => x.ListaCategorias.Any(c => Fornecedor.MesmoTexto(c, Categoria.Text)))
+            : _fornecedores.FirstOrDefault(x => x.Id == id);
+    }
+
+    /// <summary>No prazo vazio, mostra o prazo padrão do fornecedor que será usado.</summary>
+    private void AtualizarDicaPrazo()
+    {
+        var id = (EscolhaFornecedor.SelectedItem as ComboBoxItem)?.Tag as long?;
+        var f = id is null
+            ? _fornecedores.Where(x => x.Ativo).OrderBy(x => x.Nome, StringComparer.CurrentCultureIgnoreCase)
+                .FirstOrDefault(x => x.ListaCategorias.Any(c => Fornecedor.MesmoTexto(c, Categoria.Text)))
+            : _fornecedores.FirstOrDefault(x => x.Id == id);
+        DicaPrazoEntrega.Text = PrazoEntrega.Text.Length > 0 ? "" : $"{f?.Prazo ?? Fornecedor.PrazoPadrao} (padrão)";
+    }
 
     /// <summary>Mostra no campo de aviso vazio qual valor será usado.</summary>
     private void AtualizarDica()
@@ -150,6 +228,11 @@ public partial class ProdutoJanela : UserControl
         var diasValidade = diasVazio ? null : Formulario.LerInteiro(DiasValidade.Text);
         Checar(DiasValidade, DiasValidadeErro, diasVazio || diasValidade is > 0 and <= 3650, "Use um número de dias (1 a 3650) ou deixe vazio.");
 
+        var prazoVazio = PrazoEntrega.Text.Trim().Length == 0;
+        var prazoEntrega = prazoVazio ? null : Formulario.LerInteiro(PrazoEntrega.Text);
+        if (_escolheFornecedor)
+            Checar(PrazoEntrega, PrazoEntregaErro, prazoVazio || prazoEntrega is >= 0 and <= 90, "Use 0 a 90 dias ou deixe vazio.");
+
         var unidades = Formulario.LerQuantidade(UnidadesCaixa.Text, kg);
         Checar(UnidadesCaixa, UnidadesCaixaErro, unidades > 0, kg ? "Use um peso maior que 0, ex: 20." : "Use um número inteiro maior que 0.");
 
@@ -175,7 +258,10 @@ public partial class ProdutoJanela : UserControl
             return;
         }
 
-        var dados = new DadosProduto(nome, categoria, preco!.Value, minimo!.Value, aviso, codigo.Length > 0 ? codigo : null, unidades!.Value, kg, diasValidade);
+        var dados = new DadosProduto(nome, categoria, preco!.Value, minimo!.Value, aviso, codigo.Length > 0 ? codigo : null, unidades!.Value, kg, diasValidade,
+            _escolheFornecedor ? (EscolhaFornecedor.SelectedItem as ComboBoxItem)?.Tag as long? : _produto?.FornecedorId,
+            _escolheFornecedor ? prazoEntrega : _produto?.PrazoEntregaDias,
+            _escolheFornecedor ? PedirAntes.IsChecked == true : _produto?.PedirAntes ?? false);
         BotaoSalvar.IsEnabled = false;
         try
         {

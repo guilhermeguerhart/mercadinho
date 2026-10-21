@@ -33,6 +33,32 @@
             <TextBlock x:Name="CategoriaErro" Style="{StaticResource ErroCampo}" />
             <TextBlock x:Name="CategoriasExistentes" FontSize="12" Style="{StaticResource TextoSuave}" Margin="0,6,0,0" />
 
+            <!-- Fornecedor principal (semana 4); some se a tabela de fornecedores ainda não existir -->
+            <StackPanel x:Name="CampoFornecedor" Margin="0,14,0,0" Visibility="Collapsed">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="2*" />
+                        <ColumnDefinition Width="16" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="Fornecedor (opcional)" Style="{StaticResource Rotulo}" />
+                        <ComboBox x:Name="EscolhaFornecedor" AutomationProperties.Name="Fornecedor do produto" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="Prazo de entrega (dias)" Style="{StaticResource Rotulo}" />
+                        <Grid>
+                            <TextBox x:Name="PrazoEntrega" MaxLength="2" AutomationProperties.Name="Prazo de entrega em dias" />
+                            <TextBlock x:Name="DicaPrazoEntrega" Foreground="{StaticResource Placeholder}" FontSize="15"
+                                       VerticalAlignment="Center" Margin="15,0,0,0" IsHitTestVisible="False" />
+                        </Grid>
+                        <TextBlock x:Name="PrazoEntregaErro" Style="{StaticResource ErroCampo}" />
+                    </StackPanel>
+                </Grid>
+                <TextBlock FontSize="12" Style="{StaticResource TextoSuave}" Margin="0,6,0,0"
+                           Text="Sem fornecedor escolhido, o produto é de quem entrega a categoria dele. Prazo: quantos dias o fornecedor leva para entregar este produto (vazio = prazo padrão do fornecedor). Entra na previsão de entrega do pedido." />
+            </StackPanel>
+
             <!-- Açougue e outros a granel: preço, estoque e lotes em quilos -->
             <Border Background="{StaticResource Fundo}" CornerRadius="10" Padding="14,10" Margin="0,14,0,0">
                 <StackPanel>
@@ -77,6 +103,14 @@
                 <TextBlock Grid.Column="2" FontSize="12" Style="{StaticResource TextoSuave}" VerticalAlignment="Center" Margin="0,24,0,0"
                            Text="Com essa quantidade ou menos aparece o sinal amarelo, antes de chegar no mínimo. Use um número maior para produtos que demoram a ser entregues. Vazio = mínimo + 50%." />
             </Grid>
+
+            <!-- Pedir antes de acabar: ponto de pedido calculado (semana 4); some sem o script 004 -->
+            <Border x:Name="CampoPedirAntes" Background="{StaticResource Fundo}" CornerRadius="10" Padding="14,10" Margin="0,12,0,0" Visibility="Collapsed">
+                <StackPanel>
+                    <CheckBox x:Name="PedirAntes" Content="Pedir antes de acabar (calcular o aviso pelo prazo de entrega)" />
+                    <TextBlock x:Name="DicaPedirAntes" FontSize="12" Style="{StaticResource TextoSuave}" Margin="22,4,0,0" />
+                </StackPanel>
+            </Border>
 
             <Grid Margin="0,14,0,0">
                 <Grid.ColumnDefinitions>

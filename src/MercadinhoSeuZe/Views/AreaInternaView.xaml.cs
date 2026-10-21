@@ -20,7 +20,7 @@ public partial class AreaInternaView : UserControl
     [
         new("painel", "Painel", "IconePainel", true, [Perfil.Gerente]),
         new("estoque", "Estoque", "IconeCaixaProduto", true, [Perfil.Gerente]),
-        new("fornecedores", "Fornecedores", "IconeCaminhao", false, [Perfil.Gerente]),
+        new("fornecedores", "Fornecedores", "IconeCaminhao", true, [Perfil.Gerente]),
         new("caixa", "Caixa", "IconeCaixaRegistradora", true, [Perfil.Gerente, Perfil.Operador]),
         new("fechamento", "Fechamento do dia", "IconeFechamento", false, [Perfil.Gerente, Perfil.Operador]),
     ];
@@ -68,21 +68,26 @@ public partial class AreaInternaView : UserControl
 
         UserControl tela = id switch
         {
-            "painel" => new PainelView(this, _sessao, _api is null ? null : new EstoqueService(_api, _sessao)),
-            "estoque" => new EstoqueView(this, _api is null ? null : new EstoqueService(_api, _sessao)),
+            "painel" => new PainelView(this, _sessao, Estoque(), Fornecedores()),
+            "estoque" => new EstoqueView(this, Estoque(), Fornecedores()),
+            "fornecedores" => new FornecedoresView(this, Fornecedores(), Estoque()),
             _ => new CaixaView(),
         };
         Pagina.Content = tela;
-        // Vendas, pedidos e caixa ainda são exemplos (semana 2); o estoque já lê do banco.
+        // Vendas e caixa ainda são exemplos (semana 2); estoque e pedidos já leem do banco.
         AvisoTeste.Visibility = id is "painel" or "caixa" ? Visibility.Visible : Visibility.Collapsed;
         AvisoTesteTexto.Text = id == "painel"
-            ? "Vendas, pedidos e caixa ainda são dados de exemplo. Os avisos de estoque já vêm do banco."
+            ? "Vendas e caixa ainda são dados de exemplo. Os avisos de estoque e de pedidos já vêm do banco."
             : "Os números de vendas são dados de exemplo; nada é lido nem gravado no banco.";
         MontarMenu(id);
         Rolagem.ScrollToTop();
         if (_compacta) MostrarMenuCompacto(false);
         return tela;
     }
+
+    private EstoqueService? Estoque() => _api is null ? null : new EstoqueService(_api, _sessao);
+
+    private FornecedorService? Fornecedores() => _api is null ? null : new FornecedorService(_api, _sessao);
 
     /// <summary>Mostra uma janela (cadastro, confirmação) por cima de tudo.</summary>
     public void AbrirJanela(FrameworkElement conteudo)

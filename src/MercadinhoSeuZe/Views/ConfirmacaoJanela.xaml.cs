@@ -4,15 +4,18 @@ using MercadinhoSeuZe.Services;
 
 namespace MercadinhoSeuZe.Views;
 
-/// <summary>Pergunta antes de excluir. A ação só roda depois de clicar em "Excluir".</summary>
+/// <summary>Pergunta antes de excluir (ou cancelar, desativar). A ação só roda depois de clicar no botão vermelho.</summary>
 public partial class ConfirmacaoJanela : UserControl
 {
     private readonly AreaInternaView _area;
     private readonly Func<Task> _acao;
 
-    public ConfirmacaoJanela(AreaInternaView area, string titulo, string texto, Func<Task> acao)
+    public ConfirmacaoJanela(AreaInternaView area, string titulo, string texto, Func<Task> acao,
+        string textoConfirmar = "Excluir", string textoCancelar = "Cancelar")
     {
         InitializeComponent();
+        BotaoConfirmar.Content = textoConfirmar;
+        BotaoCancelar.Content = textoCancelar;
         _area = area;
         _acao = acao;
         Titulo.Text = titulo;

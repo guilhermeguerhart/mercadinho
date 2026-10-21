@@ -5,7 +5,7 @@ namespace MercadinhoSeuZe.Services;
 
 /// <summary>
 /// Dados guardados só neste computador (%LocalAppData%\Mercado\preferencias.json):
-/// o usuário lembrado e os bloqueios por senha errada.
+/// o usuário lembrado, os bloqueios por senha errada e as sugestões de reposição ignoradas hoje.
 /// </summary>
 public sealed class PreferenciasLocais
 {
@@ -14,6 +14,8 @@ public sealed class PreferenciasLocais
 
     public string? UltimoUsuario { get; set; }
     public Dictionary<string, BloqueioUsuario> Bloqueios { get; set; } = [];
+    /// <summary>Id do fornecedor → dia (aaaa-mm-dd) em que a sugestão de reposição foi ignorada.</summary>
+    public Dictionary<string, string> SugestoesIgnoradas { get; set; } = [];
 
     public static PreferenciasLocais Carregar()
     {

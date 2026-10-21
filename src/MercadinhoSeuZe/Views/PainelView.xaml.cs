@@ -10,8 +10,8 @@ using MercadinhoSeuZe.Services;
 namespace MercadinhoSeuZe.Views;
 
 /// <summary>
-/// Painel do gerente (igual a painel.html do site). Os avisos de estoque vêm do banco (tabelas produtos e lotes);
-/// vendas, pedidos e caixa ainda são dados de exemplo até as semanas 4 e 5.
+/// Painel do gerente (igual a painel.html do site). Os avisos de estoque e os pedidos pendentes vêm do banco
+/// (semanas 3 e 4); vendas e caixa ainda são dados de exemplo até a semana 5.
 /// </summary>
 public partial class PainelView : UserControl
 {
@@ -20,15 +20,17 @@ public partial class PainelView : UserControl
     private readonly AreaInternaView _area;
     private readonly Sessao _sessao;
     private readonly EstoqueService? _estoque;
+    private readonly FornecedorService? _fornecedores;
     private bool _atualizando;
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(30) };
 
-    public PainelView(AreaInternaView area, Sessao sessao, EstoqueService? estoque)
+    public PainelView(AreaInternaView area, Sessao sessao, EstoqueService? estoque, FornecedorService? fornecedores)
     {
         InitializeComponent();
         _area = area;
         _sessao = sessao;
         _estoque = estoque;
+        _fornecedores = fornecedores;
 
         _timer.Tick += async (_, _) => await AtualizarAsync();
         Loaded += async (_, _) => { _timer.Start(); await AtualizarAsync(); };
@@ -61,6 +63,24 @@ public partial class PainelView : UserControl
             try { produtos = await _estoque.ListarAsync(); }
             catch (ConexaoException ex) { erroEstoque = ex.Message; }
         }
+        // Pedidos pendentes do banco (semana 4)
+        List<Pedido>? pedidos = null;
+        Dictionary<long, string> nomesFornecedores = [];
+        string? erroPedidos = null;
+        if (_fornecedores is not null)
+        {
+            try
+            {
+                var lista = _fornecedores.ListarAsync();
+                var pendentes = _fornecedores.ListarPendentesAsync();
+                await Task.WhenAll(lista, pendentes);
+                nomesFornecedores = lista.Result.ToDictionary(f => f.Id, f => f.Nome);
+                if (produtos is not null) Fornecedor.AplicarPrazos(produtos, lista.Result);
+                pedidos = pendentes.Result;
+            }
+            catch (ConexaoException ex) { erroPedidos = ex.Message; }
+        }
+
         var porNome = StringComparer.Create(PtBr, CompareOptions.IgnoreCase);
         var semEstoque = produtos?.Where(p => p.SemEstoque).OrderBy(p => p.Nome, porNome).ToList() ?? [];
         var baixos = produtos?.Where(p => p.EstoqueBaixo).OrderBy(p => p.Quantidade).ThenBy(p => p.Nome, porNome).ToList() ?? [];
@@ -73,7 +93,10 @@ public partial class PainelView : UserControl
         KpiEstoqueSub.Text = produtos is null ? "Não foi possível ler o estoque"
             : antecipados.Count > 0 ? $"Abaixo do mínimo ou zerados · +{antecipados.Count} perto do mínimo"
             : "Abaixo do mínimo ou zerados";
-        KpiPedidos.Text = Plural(dados.PedidosPendentes.Count, "pedido", "pedidos");
+        KpiPedidos.Text = pedidos is null ? "—" : Plural(pedidos.Count, "pedido", "pedidos");
+        KpiPedidosSub.Text = pedidos is null ? "Não foi possível ler os pedidos"
+            : pedidos.Count(p => p.Atrasado) is > 0 and var atrasados ? $"Aguardando entrega · {atrasados} com atraso"
+            : "Aguardando entrega do fornecedor";
         KpiTicket.Text = Moeda(dados.Resumo.TicketMedio);
         AtalhoCaixa.Text = dados.Caixa.Aberto ? "Ir para o caixa" : "Abrir caixa";
 
@@ -101,12 +124,17 @@ public partial class PainelView : UserControl
             AdicionarAviso("IconeCaixaProduto", "Verde50", "Verde700",
                 [new Run($"E mais {avisosEstoque.Count - 8} avisos de estoque. Abra o Estoque para ver todos.")], "Estoque");
 
-        foreach (var p in dados.PedidosPendentes)
-            AdicionarAviso("IconeCaminhao", "Azul50", "Azul600",
+        if (erroPedidos is not null)
+            AdicionarAviso("IconeAlerta", "Vermelho50", "Vermelho600", [new Run("Não foi possível ler os pedidos: " + erroPedidos)], "Fornecedores");
+        foreach (var p in pedidos?.OrderByDescending(p => p.Atrasado).ThenBy(p => p.Previsao) ?? Enumerable.Empty<Pedido>())
+        {
+            var fornecedor = nomesFornecedores.GetValueOrDefault(p.FornecedorId, "fornecedor");
+            AdicionarAviso("IconeCaminhao", p.Atrasado ? "Vermelho50" : "Azul50", p.Atrasado ? "Vermelho600" : "Azul600",
                 p.Atrasado
-                    ? [new Run("Pedido para "), Negrito(p.Fornecedor), new Run($" está atrasado (previsto para {p.Previsao:dd/MM/yyyy}).")]
-                    : [new Run("Pedido para "), Negrito(p.Fornecedor), new Run(" ainda não foi entregue.")],
+                    ? [new Run("Pedido para "), Negrito(fornecedor), new Run($" está atrasado (previsto para {p.Previsao:dd/MM/yyyy}).")]
+                    : [new Run("Pedido para "), Negrito(fornecedor), new Run(p.Previsao is { } prev ? $" chega até {prev:dd/MM/yyyy}." : " ainda não foi entregue.")],
                 $"Pedido de {p.Data:dd/MM/yyyy}");
+        }
         if (dados.Caixa.Aberto)
             AdicionarAviso("IconeCaixaRegistradora", "Verde50", "Verde700",
                 [new Run("Caixa aberto por "), Negrito(dados.Caixa.AbertoPor ?? ""), new Run($" às {dados.Caixa.AbertoAs}.")], "Hoje");
@@ -146,6 +174,7 @@ public partial class PainelView : UserControl
         if (destino == "caixa") _area.Abrir("caixa");
         else if (destino == "estoque") _area.Abrir("estoque");
         else if (destino == "Estoque") (_area.Abrir("estoque") as EstoqueView)?.NovoProduto();
+        else if (destino == "Fornecedores") (_area.Abrir("fornecedores") as FornecedoresView)?.NovoPedido();
         else _area.EmBreve(destino);
     }
 

@@ -18,6 +18,19 @@
                 <TextBlock x:Name="AvisoErroTexto" Foreground="{StaticResource Vermelho600}" FontSize="14" />
             </Border>
 
+            <!-- Produto com pedido pendente: sugere registrar a entrega do pedido -->
+            <Border x:Name="AvisoPedido" Style="{StaticResource Aviso}" Background="{StaticResource Azul50}" BorderBrush="#C9DCF1" Visibility="Collapsed">
+                <StackPanel>
+                    <DockPanel>
+                        <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeCaminhao}" Foreground="{StaticResource Azul600}"
+                                        Width="18" VerticalAlignment="Top" Margin="0,1,10,0" />
+                        <TextBlock x:Name="AvisoPedidoTexto" Foreground="{StaticResource Azul600}" FontSize="14" />
+                    </DockPanel>
+                    <Button x:Name="BotaoEntregaPedido" Content="Registrar a entrega do pedido" Style="{StaticResource BotaoLink}" Foreground="{StaticResource Azul600}"
+                            HorizontalAlignment="Left" Margin="28,8,0,0" />
+                </StackPanel>
+            </Border>
+
             <!-- Entrada pelo código de barras: caixas x unidades por caixa -->
             <Border x:Name="CampoCaixas" Background="{StaticResource Verde50}" CornerRadius="10" Padding="16,12" Margin="0,0,0,16" Visibility="Collapsed">
                 <StackPanel>

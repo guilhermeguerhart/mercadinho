@@ -1,0 +1,132 @@
+<UserControl x:Class="MercadinhoSeuZe.Views.FornecedoresView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             SizeChanged="AoRedimensionar">
+    <StackPanel>
+        <!-- Cabeçalho (igual a fornecedores.html) -->
+        <DockPanel Margin="0,0,0,28">
+            <StackPanel x:Name="BotoesTopo" DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Bottom">
+                <Button Style="{StaticResource BotaoFantasma}" Margin="0,0,10,0" Click="NovoPedido_Click" AutomationProperties.Name="Novo pedido">
+                    <StackPanel Orientation="Horizontal">
+                        <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeCaminhao}" Foreground="{StaticResource Verde700}" Width="18" Margin="0,0,8,0" />
+                        <TextBlock Text="Novo pedido" />
+                    </StackPanel>
+                </Button>
+                <Button Style="{StaticResource BotaoPrimario}" Click="NovoFornecedor_Click" AutomationProperties.Name="Novo fornecedor">
+                    <StackPanel Orientation="Horizontal">
+                        <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeMais}" Foreground="White" Width="18" Margin="0,0,8,0" />
+                        <TextBlock Text="Novo fornecedor" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+            <StackPanel Margin="0,0,16,0">
+                <TextBlock Text="Fornecedores cadastrados" FontSize="28" FontWeight="Bold" Margin="0,0,0,4" />
+                <TextBlock x:Name="Resumo" Text="Carregando…" Style="{StaticResource TextoSuave}" />
+            </StackPanel>
+        </DockPanel>
+
+        <!-- Erro ao ler o banco -->
+        <Border x:Name="AvisoErro" Style="{StaticResource Aviso}" Background="{StaticResource Vermelho50}" BorderBrush="#F2C4BE"
+                Margin="0,0,0,24" Visibility="Collapsed">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="Tentar de novo" Style="{StaticResource BotaoLink}" Foreground="{StaticResource Vermelho600}"
+                        VerticalAlignment="Center" Margin="16,0,0,0" Click="TentarDeNovo_Click" />
+                <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeAlerta}" Foreground="{StaticResource Vermelho600}"
+                                Width="18" VerticalAlignment="Top" Margin="0,1,10,0" />
+                <TextBlock x:Name="AvisoErroTexto" Foreground="{StaticResource Vermelho600}" FontSize="14" />
+            </DockPanel>
+        </Border>
+
+        <!-- Sugestões de reposição (produtos em falta sem pedido pendente), por fornecedor -->
+        <StackPanel x:Name="Sugestoes" />
+
+        <!-- Indicadores (clicar filtra a lista) -->
+        <UniformGrid x:Name="Kpis" Rows="1" Columns="4" HorizontalAlignment="Left" Margin="0,0,0,20">
+            <Button Style="{StaticResource Kpi}" Uid="todos" Click="Filtro_Click" AutomationProperties.Name="Mostrar todos os fornecedores">
+                <Button.ToolTip><TextBlock Text="Fornecedores ativos" /></Button.ToolTip>
+                <StackPanel>
+                    <Border Width="26" Height="26" CornerRadius="7" Background="{StaticResource Verde50}" HorizontalAlignment="Left">
+                        <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeCaminhao}" Foreground="{StaticResource Verde700}" Width="16" />
+                    </Border>
+                    <TextBlock x:Name="KpiTotal" Style="{StaticResource KpiValor}" />
+                    <TextBlock Text="Fornecedores" Style="{StaticResource KpiRotulo}" />
+                </StackPanel>
+            </Button>
+            <Button Style="{StaticResource Kpi}" Uid="pendente" Click="Filtro_Click" AutomationProperties.Name="Filtrar fornecedores com pedido pendente">
+                <Button.ToolTip><TextBlock x:Name="KpiPendentesSub" Text="Pedidos aguardando entrega" /></Button.ToolTip>
+                <StackPanel>
+                    <Border Width="26" Height="26" CornerRadius="7" Background="{StaticResource Azul50}" HorizontalAlignment="Left">
+                        <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeRelogio}" Foreground="{StaticResource Azul600}" Width="16" />
+                    </Border>
+                    <TextBlock x:Name="KpiPendentes" Style="{StaticResource KpiValor}" />
+                    <TextBlock Text="Pedidos pendentes" Style="{StaticResource KpiRotulo}" />
+                </StackPanel>
+            </Button>
+            <Button Style="{StaticResource Kpi}" Uid="atrasado" Click="Filtro_Click" AutomationProperties.Name="Filtrar pedidos atrasados">
+                <Button.ToolTip><TextBlock Text="Pedidos com a previsão de entrega já passada" /></Button.ToolTip>
+                <StackPanel>
+                    <Border Width="26" Height="26" CornerRadius="7" Background="{StaticResource Vermelho50}" HorizontalAlignment="Left">
+                        <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeTriangulo}" Foreground="{StaticResource Vermelho600}" Width="16" />
+                    </Border>
+                    <TextBlock x:Name="KpiAtrasados" Style="{StaticResource KpiValor}" />
+                    <TextBlock Text="Atrasados" Style="{StaticResource KpiRotulo}" />
+                </StackPanel>
+            </Button>
+            <Button Style="{StaticResource Kpi}" Uid="falta" Click="Filtro_Click" AutomationProperties.Name="Filtrar fornecedores com produto em falta">
+                <Button.ToolTip><TextBlock Text="Fornecedores com produto sem estoque ou abaixo do mínimo" /></Button.ToolTip>
+                <StackPanel>
+                    <Border Width="26" Height="26" CornerRadius="7" Background="{StaticResource Ambar50}" HorizontalAlignment="Left">
+                        <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeCaixaProduto}" Foreground="{StaticResource Ambar700}" Width="16" />
+                    </Border>
+                    <TextBlock x:Name="KpiFalta" Style="{StaticResource KpiValor}" />
+                    <TextBlock Text="Com produto em falta" Style="{StaticResource KpiRotulo}" />
+                </StackPanel>
+            </Button>
+        </UniformGrid>
+
+        <!-- Lista -->
+        <Border Style="{StaticResource CartaoBorda}" Padding="24,22">
+            <StackPanel>
+                <Grid Margin="0,0,0,14">
+                    <TextBox x:Name="Busca" Padding="42,0,14,0" MaxLength="80" TextChanged="Busca_TextChanged"
+                             AutomationProperties.Name="Buscar fornecedor, produto ou categoria" />
+                    <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeBusca}" Foreground="{StaticResource Suave}"
+                                    Width="18" HorizontalAlignment="Left" Margin="14,0,0,0" IsHitTestVisible="False" />
+                    <TextBlock x:Name="DicaBusca" Text="Buscar fornecedor, produto ou categoria..." Foreground="{StaticResource Placeholder}" FontSize="15"
+                               VerticalAlignment="Center" Margin="43,0,0,0" IsHitTestVisible="False" />
+                </Grid>
+
+                <!-- Filtros (igual aos chips do site): Todos, Pendentes, Atrasados... -->
+                <WrapPanel x:Name="Chips" Margin="0,0,0,6" />
+
+                <!-- Cabeçalho da tabela -->
+                <Border BorderBrush="{StaticResource Linha}" BorderThickness="0,0,0,1" Padding="0,8">
+                    <Grid x:Name="CabecalhoTabela">
+                        <TextBlock Grid.Column="0" Text="Fornecedor" Style="{StaticResource Cabecalho}" />
+                        <TextBlock Grid.Column="1" Text="Contato" Style="{StaticResource Cabecalho}" />
+                        <TextBlock Grid.Column="2" Text="Produtos fornecidos" Style="{StaticResource Cabecalho}" />
+                        <TextBlock Grid.Column="3" Text="Último pedido" Style="{StaticResource Cabecalho}" />
+                        <TextBlock Grid.Column="4" Text="Situação" Style="{StaticResource Cabecalho}" />
+                    </Grid>
+                </Border>
+
+                <StackPanel x:Name="Lista" />
+                <TextBlock x:Name="Vazio" Style="{StaticResource TextoSuave}" FontSize="15" HorizontalAlignment="Center" TextAlignment="Center"
+                           Margin="0,28,0,20" Visibility="Collapsed" />
+
+                <WrapPanel Margin="0,16,0,0">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,24,4">
+                        <Ellipse Width="8" Height="8" Fill="{StaticResource Vermelho600}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <TextBlock Text="produto sem estoque ou abaixo do mínimo" FontSize="13" Style="{StaticResource TextoSuave}" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,24,4">
+                        <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeTriangulo}" Foreground="{StaticResource Ambar700}" Width="15" Margin="0,0,6,0" />
+                        <TextBlock Text="chegando no mínimo, hora de pedir" FontSize="13" Style="{StaticResource TextoSuave}" />
+                    </StackPanel>
+                    <TextBlock Text="Clique na seta (à direita) para ver os produtos, o histórico de pedidos e pedir o que falta."
+                               FontSize="13" Style="{StaticResource TextoSuave}" Margin="0,0,0,4" />
+                </WrapPanel>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

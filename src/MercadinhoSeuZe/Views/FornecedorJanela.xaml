@@ -1,0 +1,116 @@
+<UserControl x:Class="MercadinhoSeuZe.Views.FornecedorJanela"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Width="600">
+    <!-- Cadastro / edição de fornecedor (igual ao modal-fornecedor de fornecedores.html) -->
+    <Border Style="{StaticResource CartaoBorda}" CornerRadius="16" Padding="24,24,24,20" Effect="{StaticResource SombraJanela}">
+        <StackPanel>
+            <DockPanel Margin="0,0,0,18">
+                <Button DockPanel.Dock="Right" Content="×" Style="{StaticResource LinkSuave}" FontSize="24" FontWeight="Normal"
+                        VerticalAlignment="Top" Click="Cancelar_Click" ToolTip="Fechar" AutomationProperties.Name="Fechar" />
+                <TextBlock x:Name="Titulo" Text="Novo fornecedor" FontSize="22" FontWeight="Bold" />
+            </DockPanel>
+
+            <Border x:Name="AvisoErro" Style="{StaticResource Aviso}" Background="{StaticResource Vermelho50}" BorderBrush="#F2C4BE" Visibility="Collapsed">
+                <TextBlock x:Name="AvisoErroTexto" Foreground="{StaticResource Vermelho600}" FontSize="14" />
+            </Border>
+
+            <TextBlock Text="Nome do fornecedor" Style="{StaticResource Rotulo}" />
+            <TextBox x:Name="Nome" MaxLength="80" AutomationProperties.Name="Nome do fornecedor" />
+            <TextBlock x:Name="NomeErro" Style="{StaticResource ErroCampo}" />
+
+            <Grid Margin="0,14,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="Telefone" Style="{StaticResource Rotulo}" />
+                    <TextBox x:Name="Telefone" MaxLength="15" AutomationProperties.Name="Telefone" ToolTip="Com DDD, ex.: (11) 4002-1122" />
+                    <TextBlock x:Name="TelefoneErro" Style="{StaticResource ErroCampo}" />
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="WhatsApp (opcional)" Style="{StaticResource Rotulo}" />
+                    <Grid>
+                        <TextBox x:Name="Whatsapp" MaxLength="15" AutomationProperties.Name="WhatsApp" />
+                        <TextBlock x:Name="DicaWhatsapp" Text="vazio = o mesmo telefone" Foreground="{StaticResource Placeholder}" FontSize="15"
+                                   VerticalAlignment="Center" Margin="15,0,0,0" IsHitTestVisible="False" />
+                    </Grid>
+                    <TextBlock x:Name="WhatsappErro" Style="{StaticResource ErroCampo}" />
+                </StackPanel>
+            </Grid>
+
+            <Grid Margin="0,14,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="E-mail (opcional)" Style="{StaticResource Rotulo}" />
+                    <TextBox x:Name="Email" MaxLength="120" AutomationProperties.Name="E-mail" />
+                    <TextBlock x:Name="EmailErro" Style="{StaticResource ErroCampo}" />
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="Falar com (opcional)" Style="{StaticResource Rotulo}" />
+                    <TextBox x:Name="Contato" MaxLength="60" AutomationProperties.Name="Nome do contato" ToolTip="Nome do vendedor ou de quem atende os pedidos" />
+                    <TextBlock x:Name="ContatoErro" Style="{StaticResource ErroCampo}" />
+                </StackPanel>
+            </Grid>
+
+            <TextBlock Text="O que entrega" Style="{StaticResource Rotulo}" Margin="0,14,0,6" />
+            <TextBox x:Name="Categorias" MaxLength="200" AutomationProperties.Name="O que entrega" />
+            <TextBlock x:Name="CategoriasErro" Style="{StaticResource ErroCampo}" />
+            <TextBlock FontSize="12" Style="{StaticResource TextoSuave}" Margin="0,6,0,6"
+                       Text="Separe por vírgula. Use as categorias do estoque: os produtos delas aparecem neste fornecedor e nas sugestões de reposição. Clique para adicionar:" />
+            <WrapPanel x:Name="CategoriasExistentes" />
+
+            <Grid Margin="0,12,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="Prazo padrão de entrega (dias)" Style="{StaticResource Rotulo}" />
+                    <Grid>
+                        <TextBox x:Name="Prazo" MaxLength="2" AutomationProperties.Name="Prazo de entrega em dias" />
+                        <TextBlock x:Name="DicaPrazo" Text="3 (padrão)" Foreground="{StaticResource Placeholder}" FontSize="15"
+                                   VerticalAlignment="Center" Margin="15,0,0,0" IsHitTestVisible="False" />
+                    </Grid>
+                    <TextBlock x:Name="PrazoErro" Style="{StaticResource ErroCampo}" />
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="Enviar pedidos por" Style="{StaticResource Rotulo}" />
+                    <ComboBox x:Name="Envio" AutomationProperties.Name="Enviar pedidos por">
+                        <ComboBoxItem Content="WhatsApp" Tag="whatsapp" />
+                        <ComboBoxItem Content="E-mail" Tag="email" />
+                    </ComboBox>
+                    <TextBlock x:Name="EnvioErro" Style="{StaticResource ErroCampo}" />
+                </StackPanel>
+            </Grid>
+            <TextBlock FontSize="12" Style="{StaticResource TextoSuave}" Margin="0,6,0,0"
+                       Text="O prazo padrão vale para os produtos sem prazo próprio (o prazo de cada produto fica no cadastro do produto, no Estoque). Na hora de enviar, o outro meio continua disponível." />
+
+            <!-- Mensagem do pedido (WhatsApp e e-mail) -->
+            <DockPanel Margin="0,16,0,6">
+                <Button x:Name="BotaoModeloPadrao" DockPanel.Dock="Right" Content="Voltar ao modelo padrão" Style="{StaticResource BotaoLink}" FontSize="13"
+                        VerticalAlignment="Bottom" Click="ModeloPadrao_Click" />
+                <TextBlock Text="Mensagem de pedido" Style="{StaticResource Rotulo}" Margin="0" />
+            </DockPanel>
+            <TextBox x:Name="Modelo" MaxLength="1000" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="120" VerticalContentAlignment="Top"
+                     Padding="14,10" AutomationProperties.Name="Mensagem de pedido" />
+            <TextBlock x:Name="ModeloErro" Style="{StaticResource ErroCampo}" />
+            <TextBlock x:Name="CamposModelo" FontSize="12" Style="{StaticResource TextoSuave}" Margin="0,6,0,0" />
+
+            <TextBlock Text="Observação (opcional)" Style="{StaticResource Rotulo}" Margin="0,14,0,6" />
+            <TextBox x:Name="Observacao" MaxLength="300" AutomationProperties.Name="Observação" ToolTip="Ex.: entrega só às terças; pedido mínimo R$ 300" />
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,22,0,0">
+                <Button Content="Cancelar" Style="{StaticResource BotaoFantasma}" Margin="0,0,10,0" Click="Cancelar_Click" />
+                <Button x:Name="BotaoSalvar" Content="Cadastrar fornecedor" Style="{StaticResource BotaoPrimario}" IsDefault="True" Click="Salvar_Click" />
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</UserControl>

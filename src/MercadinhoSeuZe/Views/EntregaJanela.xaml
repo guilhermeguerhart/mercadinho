@@ -1,0 +1,60 @@
+<UserControl x:Class="MercadinhoSeuZe.Views.EntregaJanela"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Width="620">
+    <!-- Registrar a entrega de um pedido: confere o que chegou e cria os lotes no estoque -->
+    <Border Style="{StaticResource CartaoBorda}" CornerRadius="16" Padding="24,24,24,20" Effect="{StaticResource SombraJanela}">
+        <StackPanel>
+            <DockPanel Margin="0,0,0,18">
+                <Button DockPanel.Dock="Right" Content="×" Style="{StaticResource LinkSuave}" FontSize="24" FontWeight="Normal"
+                        VerticalAlignment="Top" Click="Cancelar_Click" ToolTip="Fechar" AutomationProperties.Name="Fechar" />
+                <StackPanel>
+                    <TextBlock Text="Registrar entrega" FontSize="22" FontWeight="Bold" Margin="0,0,0,2" />
+                    <TextBlock x:Name="Subtitulo" FontSize="14" Style="{StaticResource TextoSuave}" />
+                </StackPanel>
+            </DockPanel>
+
+            <Border x:Name="AvisoErro" Style="{StaticResource Aviso}" Background="{StaticResource Vermelho50}" BorderBrush="#F2C4BE" Visibility="Collapsed">
+                <TextBlock x:Name="AvisoErroTexto" Foreground="{StaticResource Vermelho600}" FontSize="14" />
+            </Border>
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="180" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="Data da entrega" Style="{StaticResource Rotulo}" />
+                    <TextBox x:Name="DataEntrega" MaxLength="10" AutomationProperties.Name="Data da entrega" ToolTip="dd/mm/aaaa" />
+                    <TextBlock x:Name="DataEntregaErro" Style="{StaticResource ErroCampo}" />
+                </StackPanel>
+                <TextBlock Grid.Column="2" FontSize="12" Style="{StaticResource TextoSuave}" VerticalAlignment="Center" Margin="0,24,0,0"
+                           Text="Vira a data de compra dos lotes. Confira a quantidade que chegou de cada produto (0 = não veio) e a validade na embalagem." />
+            </Grid>
+
+            <!-- Cabeçalho dos itens -->
+            <Grid Margin="0,18,0,6">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="130" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="130" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Produto" Style="{StaticResource Cabecalho}" />
+                <TextBlock Grid.Column="1" Text="Chegou" Style="{StaticResource Cabecalho}" />
+                <TextBlock Grid.Column="3" Text="Validade" Style="{StaticResource Cabecalho}" />
+            </Grid>
+            <Border BorderBrush="{StaticResource Linha}" BorderThickness="0,1,0,0">
+                <StackPanel x:Name="Itens" />
+            </Border>
+            <TextBlock FontSize="12" Style="{StaticResource TextoSuave}" Margin="0,8,0,0"
+                       Text="A validade já vem pela validade padrão de cada produto. Deixe vazia se o produto não vence." />
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,22,0,0">
+                <Button Content="Cancelar" Style="{StaticResource BotaoFantasma}" Margin="0,0,10,0" Click="Cancelar_Click" />
+                <Button x:Name="BotaoSalvar" Content="Registrar entrega" Style="{StaticResource BotaoPrimario}" IsDefault="True" Click="Salvar_Click" />
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</UserControl>

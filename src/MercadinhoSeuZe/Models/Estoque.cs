@@ -38,6 +38,21 @@ public sealed class Produto
     [JsonPropertyName("unidade_medida")] public string UnidadeMedida { get; set; } = "un";
     /// <summary>Validade padrão: dias depois da compra. Preenche a validade dos lotes novos.</summary>
     [JsonPropertyName("dias_validade")] public int? DiasValidade { get; set; }
+    /// <summary>Fornecedor principal (semana 4); null = o que entrega a categoria.</summary>
+    [JsonPropertyName("fornecedor_id")] public long? FornecedorId { get; set; }
+    /// <summary>Dias que o fornecedor leva para entregar este produto; null = prazo padrão do fornecedor.</summary>
+    [JsonPropertyName("prazo_entrega_dias")] public int? PrazoEntregaDias { get; set; }
+    /// <summary>"Pedir antes de acabar": o aviso antecipado vira o ponto de pedido calculado (PontoDePedido).</summary>
+    [JsonPropertyName("pedir_antes")] public bool PedirAntes { get; set; }
+
+    /// <summary>
+    /// Prazo padrão do fornecedor deste produto (não vem do banco; as telas preenchem com
+    /// Fornecedor.AplicarPrazos). Usado quando o produto não tem prazo próprio.
+    /// </summary>
+    [JsonIgnore] public int PrazoDoFornecedor { get; set; } = Fornecedor.PrazoPadrao;
+
+    /// <summary>Dias que leva para chegar: o prazo do produto ou o do fornecedor.</summary>
+    public int PrazoReposicao => PrazoEntregaDias ?? PrazoDoFornecedor;
 
     /// <summary>
     /// Dias de validade para preencher um lote novo: a validade padrão cadastrada ou, se não tiver,
@@ -75,7 +90,41 @@ public sealed class Produto
     public bool EstoqueBaixo => !SemEstoque && Quantidade < EstoqueMinimo;
 
     /// <summary>Com esta quantidade ou menos (e ainda acima do mínimo) aparece o aviso amarelo antecipado.</summary>
-    public decimal LimiteAviso => EstoqueAviso ?? AvisoPadrao(EstoqueMinimo, PorPeso);
+    public decimal LimiteAviso => PontoDePedido ?? EstoqueAviso ?? AvisoPadrao(EstoqueMinimo, PorPeso);
+
+    /// <summary>Quantos dias para trás entram na conta do que sai por dia.</summary>
+    public const int DiasConsumo = 60;
+
+    /// <summary>
+    /// Quanto sai por dia, em média: o que já saiu dos lotes comprados nos últimos 60 dias dividido pelos dias
+    /// desde a compra mais antiga deles. null enquanto nada saiu (as vendas dão baixa a partir da semana 5).
+    /// </summary>
+    public decimal? ConsumoDiario
+    {
+        get
+        {
+            var hoje = DateOnly.FromDateTime(DateTime.Today);
+            var recentes = Lotes.Where(l => l.DataCompra.DayNumber >= hoje.DayNumber - DiasConsumo).ToList();
+            var saiu = recentes.Sum(l => l.Vendido);
+            if (saiu <= 0) return null;
+            var dias = Math.Max(1, hoje.DayNumber - recentes.Min(l => l.DataCompra).DayNumber);
+            return saiu / dias;
+        }
+    }
+
+    /// <summary>
+    /// Ponto de pedido do "Pedir antes de acabar": mínimo + o que sai por dia × prazo de entrega (arredondado
+    /// para cima). null quando o switch está desligado ou ainda não há saídas para calcular.
+    /// </summary>
+    public decimal? PontoDePedido
+    {
+        get
+        {
+            if (!PedirAntes || ConsumoDiario is not { } porDia) return null;
+            var ponto = EstoqueMinimo + porDia * PrazoReposicao;
+            return PorPeso ? Math.Ceiling(ponto * 10) / 10 : Math.Ceiling(ponto);
+        }
+    }
 
     /// <summary>Mínimo + 50% (arredondado para cima: inteiro por unidade, 0,1 kg por quilo).</summary>
     public static decimal AvisoPadrao(decimal minimo, bool porPeso) => porPeso
@@ -86,6 +135,23 @@ public sealed class Produto
     public bool AvisoAntecipado => !SemEstoque && !EstoqueBaixo && Quantidade <= LimiteAviso && LimiteAviso > EstoqueMinimo;
 
     public decimal Vendido => Lotes.Sum(l => l.Vendido);
+
+    /// <summary>Precisa repor: sem estoque, abaixo do mínimo ou no aviso antecipado.</summary>
+    public bool PrecisaRepor => SemEstoque || EstoqueBaixo || AvisoAntecipado;
+
+    /// <summary>
+    /// Quanto pedir (regra do site: o dobro do mínimo menos o que tem, e pelo menos o mínimo). Por unidade,
+    /// arredonda para caixas inteiras.
+    /// </summary>
+    public decimal QuantidadeSugerida
+    {
+        get
+        {
+            var q = Math.Max(Math.Max(EstoqueMinimo * 2 - Quantidade, EstoqueMinimo), PorPeso ? 1 : UnidadesPorCaixa);
+            if (PorPeso) return Math.Ceiling(q * 10) / 10;
+            return UnidadesPorCaixa > 1 ? Math.Ceiling(q / UnidadesPorCaixa) * UnidadesPorCaixa : Math.Ceiling(q);
+        }
+    }
 
     /// <summary>Validade mais próxima entre os lotes que ainda têm unidades.</summary>
     public DateOnly? ProximaValidade => Lotes.Where(l => !l.Esgotado && l.Validade is not null).Min(l => l.Validade);
