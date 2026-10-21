@@ -17,6 +17,8 @@ public partial class EstoqueView : UserControl
 
     private readonly AreaInternaView _area;
     private readonly EstoqueService? _servico;
+    private readonly OpenFoodFactsService _bancoAberto = new();
+    private bool _procurandoCodigo;
     private readonly HashSet<long> _abertos = [];   // produtos com os lotes à mostra
     private List<Produto> _produtos = [];
     private string _filtro = "todos";
@@ -452,14 +454,44 @@ public partial class EstoqueView : UserControl
         e.Handled = true;
         var codigo = Leitor.Text.Trim();
         Leitor.Clear();
-        if (codigo.Length > 0) ProcessarCodigo(codigo);
+        if (codigo.Length > 0) _ = LerCodigoAsync(codigo);
+    }
+
+    /// <summary>
+    /// Código desconhecido: antes de abrir o cadastro, procura o produto no Open Food Facts para já vir com
+    /// nome e categoria. Sem internet ou sem resultado, abre o cadastro como antes.
+    /// </summary>
+    private async Task LerCodigoAsync(string codigo)
+    {
+        if (_procurandoCodigo) return;
+        var conhecido = _produtos.Any(p => p.CodigoBarrasCaixa?.Trim() == codigo);
+        if (conhecido || _servico is null || !_carregou || AvisoErro.Visibility == Visibility.Visible)
+        {
+            ProcessarCodigo(codigo);
+            return;
+        }
+
+        _procurandoCodigo = true;
+        Leitor.IsEnabled = false;
+        DicaLeitor.Text = "Procurando o produto pelo código…";
+        try
+        {
+            var encontrado = await _bancoAberto.ProcurarAsync(codigo);
+            ProcessarCodigo(codigo, encontrado);
+        }
+        finally
+        {
+            _procurandoCodigo = false;
+            Leitor.IsEnabled = true;
+            DicaLeitor.Text = "Código de barras da caixa";
+        }
     }
 
     /// <summary>
     /// Caixa conhecida abre a entrada de lote; desconhecida abre o cadastro com o código preenchido.
     /// Devolve a janela aberta (ou null).
     /// </summary>
-    private UserControl? ProcessarCodigo(string codigo)
+    private UserControl? ProcessarCodigo(string codigo, ProdutoEncontrado? encontrado = null)
     {
         if (_servico is null) { _area.MostrarToast("Sistema sem configuração do banco de dados."); return null; }
         if (!_carregou || AvisoErro.Visibility == Visibility.Visible) { _area.MostrarToast("O estoque ainda não foi carregado."); return null; }
@@ -472,8 +504,10 @@ public partial class EstoqueView : UserControl
         }
         else
         {
-            _area.MostrarToast($"O código {codigo} ainda não é de nenhum produto. Cadastre o produto desta caixa.");
-            janela = new ProdutoJanela(this, _area, _servico, null, _produtos, codigo);
+            _area.MostrarToast(encontrado is null
+                ? $"O código {codigo} ainda não é de nenhum produto. Cadastre o produto desta caixa."
+                : $"Produto novo: {encontrado.Nome}. Confira o cadastro.");
+            janela = new ProdutoJanela(this, _area, _servico, null, _produtos, codigo, encontrado);
         }
         _area.AbrirJanela(janela);
         return janela;

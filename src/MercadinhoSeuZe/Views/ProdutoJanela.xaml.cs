@@ -16,7 +16,7 @@ public partial class ProdutoJanela : UserControl
     private readonly IReadOnlyList<Produto> _todos;
 
     public ProdutoJanela(EstoqueView estoque, AreaInternaView area, EstoqueService servico, Produto? produto, IReadOnlyList<Produto> todos,
-        string? codigoLido = null)
+        string? codigoLido = null, ProdutoEncontrado? encontrado = null)
     {
         InitializeComponent();
         _estoque = estoque;
@@ -36,6 +36,15 @@ public partial class ProdutoJanela : UserControl
         Minimo.Text = produto is null ? "" : Formulario.Quantidade(produto.EstoqueMinimo);
         Aviso.Text = produto?.EstoqueAviso is { } av ? Formulario.Quantidade(av) : "";
         CodigoCaixa.Text = produto?.CodigoBarrasCaixa ?? codigoLido ?? "";
+        if (produto is null && encontrado is not null)
+        {
+            // Sugestão do banco aberto: a pessoa confere e completa preço, mínimo e unidades por caixa
+            Nome.Text = encontrado.Nome;
+            if (encontrado.Categoria is { } categoriaSugerida) Categoria.Text = categoriaSugerida;
+            AvisoEncontradoTexto.Text = $"Achamos este código no {encontrado.Fonte}: nome" +
+                (encontrado.Categoria is null ? "" : " e categoria") + " já preenchidos. Confira e complete o preço e o estoque.";
+            AvisoEncontrado.Visibility = Visibility.Visible;
+        }
         UnidadesCaixa.Text = Formulario.Quantidade(produto?.UnidadesPorCaixa ?? 1);
         Quantidade.Text = "0";
         DiasValidade.Text = produto?.DiasValidade?.ToString(CultureInfo.InvariantCulture) ?? "";

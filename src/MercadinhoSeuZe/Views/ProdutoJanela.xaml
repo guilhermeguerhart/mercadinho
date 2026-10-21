@@ -11,6 +11,15 @@
                 <TextBlock x:Name="Titulo" Text="Novo produto" FontSize="22" FontWeight="Bold" />
             </DockPanel>
 
+            <!-- Dados achados pelo código de barras num banco aberto (Open Food Facts) -->
+            <Border x:Name="AvisoEncontrado" Style="{StaticResource Aviso}" Background="{StaticResource Verde50}" BorderBrush="#BFE0CB" Visibility="Collapsed">
+                <DockPanel>
+                    <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeCodigoBarras}" Foreground="{StaticResource Verde700}"
+                                    Width="18" VerticalAlignment="Top" Margin="0,1,10,0" />
+                    <TextBlock x:Name="AvisoEncontradoTexto" Foreground="{StaticResource Verde700}" FontSize="14" />
+                </DockPanel>
+            </Border>
+
             <Border x:Name="AvisoErro" Style="{StaticResource Aviso}" Background="{StaticResource Vermelho50}" BorderBrush="#F2C4BE" Visibility="Collapsed">
                 <TextBlock x:Name="AvisoErroTexto" Foreground="{StaticResource Vermelho600}" FontSize="14" />
             </Border>

@@ -114,6 +114,12 @@ publicar.ps1               Gera publish/MercadinhoSeuZe.exe (feche o .exe aberto
   Açougue, Frios, Grãos, Mercearia, Padaria, Laticínios, Bebidas, Congelados, Hortifrúti, Limpeza,
   Higiene e Pet têm ícone próprio; outras usam etiqueta com cor fixa pelo nome. Ícone e nome sempre
   aparecem juntos (não depende só da cor).
+- Código desconhecido no leitor (pedido do Guilherme): antes de abrir o cadastro, o programa procura o
+  código no Open Food Facts, Open Beauty Facts e Open Products Facts (bancos abertos, grátis, sem chave;
+  Services/OpenFoodFactsService.cs). Código de caixa de 14 dígitos vira o da unidade (13) para a busca.
+  Achou: nome (com marca e tamanho) e categoria já vêm preenchidos, com aviso verde para conferir.
+  Sem internet ou sem resultado (6 s), abre o cadastro vazio como antes. Não usar a API paga do Cosmos sem
+  conta/contrato próprio.
 - O leitor de código de barras real funciona como teclado (o aparelho digita o código e manda Enter);
   aceita qualquer código de até 40 caracteres (EAN-13, DUN-14, Code 128...). O leitor precisa estar
   configurado para enviar Enter no fim (padrão da maioria).
