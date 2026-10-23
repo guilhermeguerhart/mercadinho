@@ -16,6 +16,7 @@ public partial class ProdutoJanela : UserControl
     private readonly IReadOnlyList<Produto> _todos;
     private readonly bool _escolheFornecedor;
     private readonly IReadOnlyList<Fornecedor> _fornecedores = [];
+    private readonly HashSet<long> _outros = [];
 
     public ProdutoJanela(EstoqueView estoque, AreaInternaView area, EstoqueService servico, Produto? produto, IReadOnlyList<Produto> todos,
         string? codigoLido = null, ProdutoEncontrado? encontrado = null,
@@ -101,6 +102,15 @@ public partial class ProdutoJanela : UserControl
             AtualizarDicaPrazo();
 
             CampoPedirAntes.Visibility = Visibility.Visible;
+
+            // Outros fornecedores (script 005): botões para marcar, com o último custo de cada um
+            if (servico.TemAjustes)
+            {
+                CampoOutros.Visibility = Visibility.Visible;
+                foreach (var v in produto?.Vinculos ?? []) _outros.Add(v.FornecedorId);
+                MontarOutros();
+                EscolhaFornecedor.SelectionChanged += (_, _) => MontarOutros();
+            }
             PedirAntes.IsChecked = produto?.PedirAntes ?? false;
             PedirAntes.Checked += (_, _) => AtualizarDicaPedirAntes();
             PedirAntes.Unchecked += (_, _) => AtualizarDicaPedirAntes();
@@ -110,7 +120,58 @@ public partial class ProdutoJanela : UserControl
             AtualizarDicaPedirAntes();
         }
 
+        // Preço de custo e margem (script 005)
+        if (servico.TemAjustes)
+        {
+            CampoCusto.Visibility = Visibility.Visible;
+            Custo.Text = produto?.PrecoCusto is { } custo ? Formulario.Preco(custo) : "";
+            Formulario.LimparAoDigitar(Custo, CustoErro);
+            Custo.TextChanged += (_, _) => AtualizarMargem();
+            Preco.TextChanged += (_, _) => AtualizarMargem();
+            AtualizarMargem();
+        }
+
         Loaded += (_, _) => Nome.Focus();
+    }
+
+    /// <summary>"Margem de 32% (lucro de R$ 2,40 por unidade)."</summary>
+    private void AtualizarMargem()
+    {
+        var venda = Formulario.LerPreco(Preco.Text);
+        var custo = Formulario.LerPreco(Custo.Text);
+        var por = EmQuilos ? "kg" : "unidade";
+        DicaMargem.Text = custo is null
+            ? "Quanto você paga ao fornecedor. Vazio = não informado; a entrega com custo atualiza sozinho."
+            : venda is null or 0 ? "Coloque o preço de venda para ver a margem."
+            : custo >= venda
+                ? $"Atenção: o custo é igual ou maior que o preço de venda (prejuízo de {(custo.Value - venda.Value).ToString("C", new CultureInfo("pt-BR"))} por {por})."
+                : $"Margem de {(venda.Value - custo.Value) / venda.Value:P0} (lucro de {(venda.Value - custo.Value).ToString("C", new CultureInfo("pt-BR"))} por {por}).";
+    }
+
+    /// <summary>Botões dos outros fornecedores (o principal escolhido acima não aparece).</summary>
+    private void MontarOutros()
+    {
+        OutrosFornecedores.Children.Clear();
+        var principal = (EscolhaFornecedor.SelectedItem as ComboBoxItem)?.Tag as long?;
+        foreach (var f in _fornecedores.Where(f => (f.Ativo || _outros.Contains(f.Id)) && f.Id != principal)
+                     .OrderBy(f => f.Nome, StringComparer.CurrentCultureIgnoreCase))
+        {
+            var custo = _produto?.Vinculos.FirstOrDefault(v => v.FornecedorId == f.Id)?.UltimoCusto;
+            var chip = new Button
+            {
+                Style = (Style)FindResource("Chip"),
+                Tag = _outros.Contains(f.Id) ? "ativo" : null,
+                Content = f.Nome + (custo is { } c ? $" · {c.ToString("C", new CultureInfo("pt-BR"))}" : ""),
+                ToolTip = custo is null ? "Clique para marcar ou desmarcar" : "Último custo com este fornecedor"
+            };
+            System.Windows.Automation.AutomationProperties.SetName(chip, $"Também compro de {f.Nome}");
+            chip.Click += (_, _) =>
+            {
+                if (!_outros.Remove(f.Id)) _outros.Add(f.Id);
+                MontarOutros();
+            };
+            OutrosFornecedores.Children.Add(chip);
+        }
     }
 
     private bool EmQuilos => PorPeso.IsChecked == true;
@@ -207,6 +268,10 @@ public partial class ProdutoJanela : UserControl
         Checar(Nome, NomeErro, nome.Length > 0 && !duplicado, duplicado ? "Já existe um produto com esse nome." : "Informe o nome do produto.");
         Checar(Categoria, CategoriaErro, categoria.Length > 0, "Informe a categoria.");
         Checar(Preco, PrecoErro, preco > 0, "Informe um preço válido, ex: 8,50.");
+        var custoVazio = Custo.Text.Trim().Length == 0;
+        var precoCusto = custoVazio ? null : Formulario.LerPreco(Custo.Text);
+        if (CampoCusto.Visibility == Visibility.Visible)
+            Checar(Custo, CustoErro, custoVazio || precoCusto is not null, "Informe um custo válido, ex: 5,90. Ou deixe vazio.");
         Checar(Minimo, MinimoErro, minimo is not null, numero);
 
         var avisoVazio = Aviso.Text.Trim().Length == 0;
@@ -261,18 +326,25 @@ public partial class ProdutoJanela : UserControl
         var dados = new DadosProduto(nome, categoria, preco!.Value, minimo!.Value, aviso, codigo.Length > 0 ? codigo : null, unidades!.Value, kg, diasValidade,
             _escolheFornecedor ? (EscolhaFornecedor.SelectedItem as ComboBoxItem)?.Tag as long? : _produto?.FornecedorId,
             _escolheFornecedor ? prazoEntrega : _produto?.PrazoEntregaDias,
-            _escolheFornecedor ? PedirAntes.IsChecked == true : _produto?.PedirAntes ?? false);
+            _escolheFornecedor ? PedirAntes.IsChecked == true : _produto?.PedirAntes ?? false,
+            CampoCusto.Visibility == Visibility.Visible ? precoCusto : _produto?.PrecoCusto);
+        var principalEscolhido = (EscolhaFornecedor.SelectedItem as ComboBoxItem)?.Tag as long?;
+        var outros = _outros.Where(id => id != principalEscolhido).ToList();
+        var mudouOutros = CampoOutros.Visibility == Visibility.Visible &&
+                          !outros.ToHashSet().SetEquals(_produto?.Vinculos.Select(v => v.FornecedorId) ?? []);
         BotaoSalvar.IsEnabled = false;
         try
         {
             if (_produto is null)
             {
-                await _servico.CriarProdutoAsync(dados, quantidade!.Value, compra!.Value, validade);
+                var id = await _servico.CriarProdutoAsync(dados, quantidade!.Value, compra!.Value, validade);
+                if (mudouOutros) await _servico.DefinirFornecedoresAsync(id, outros);
                 await _estoque.RecarregarAsync($"“{nome}” foi cadastrado.");
             }
             else
             {
                 await _servico.AtualizarProdutoAsync(_produto.Id, dados);
+                if (mudouOutros) await _servico.DefinirFornecedoresAsync(_produto.Id, outros);
                 await _estoque.RecarregarAsync($"“{nome}” foi atualizado.");
             }
         }

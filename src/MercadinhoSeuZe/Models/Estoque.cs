@@ -12,6 +12,8 @@ public sealed class Lote
     [JsonPropertyName("quantidade_restante")] public decimal QuantidadeRestante { get; set; }
     [JsonPropertyName("data_compra")] public DateOnly DataCompra { get; set; }
     [JsonPropertyName("validade")] public DateOnly? Validade { get; set; }
+    /// <summary>Custo por unidade (ou por kg) desta compra; null = não informado.</summary>
+    [JsonPropertyName("preco_custo")] public decimal? PrecoCusto { get; set; }
 
     public bool Esgotado => QuantidadeRestante == 0;
 
@@ -44,6 +46,17 @@ public sealed class Produto
     [JsonPropertyName("prazo_entrega_dias")] public int? PrazoEntregaDias { get; set; }
     /// <summary>"Pedir antes de acabar": o aviso antecipado vira o ponto de pedido calculado (PontoDePedido).</summary>
     [JsonPropertyName("pedir_antes")] public bool PedirAntes { get; set; }
+    /// <summary>Último preço de custo (por unidade ou por kg); atualizado a cada entrega com custo.</summary>
+    [JsonPropertyName("preco_custo")] public decimal? PrecoCusto { get; set; }
+    /// <summary>Outros fornecedores de quem o produto é comprado, com o último custo de cada um.</summary>
+    [JsonPropertyName("produto_fornecedores")] public List<ProdutoFornecedor> Vinculos { get; set; } = [];
+
+    /// <summary>Margem sobre o preço de venda: (venda - custo) / venda. null sem custo.</summary>
+    public decimal? Margem => PrecoCusto is { } c && Preco > 0 ? (Preco - c) / Preco : null;
+
+    /// <summary>Último custo deste produto com o fornecedor (ou o custo geral do produto).</summary>
+    public decimal? CustoCom(long fornecedorId) =>
+        Vinculos.FirstOrDefault(v => v.FornecedorId == fornecedorId)?.UltimoCusto ?? PrecoCusto;
 
     /// <summary>
     /// Prazo padrão do fornecedor deste produto (não vem do banco; as telas preenchem com

@@ -24,6 +24,44 @@ public sealed class Fornecedor
     [JsonPropertyName("modelo_mensagem")] public string? ModeloMensagem { get; set; }
     [JsonPropertyName("observacao")] public string? Observacao { get; set; }
     [JsonPropertyName("ativo")] public bool Ativo { get; set; } = true;
+    /// <summary>Dias da semana em que entrega: "1,3" = segunda e quarta (0 = domingo); null = qualquer dia.</summary>
+    [JsonPropertyName("dias_entrega")] public string? DiasEntrega { get; set; }
+    /// <summary>Valor mínimo do pedido em R$; null = sem mínimo.</summary>
+    [JsonPropertyName("pedido_minimo")] public decimal? PedidoMinimo { get; set; }
+
+    public static readonly string[] NomesDias = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+
+    public IReadOnlyList<DayOfWeek> ListaDiasEntrega =>
+        (DiasEntrega ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).Select(d => (DayOfWeek)int.Parse(d, CultureInfo.InvariantCulture)).ToList();
+
+    /// <summary>"seg, qua" ou "qualquer dia".</summary>
+    public string TextoDiasEntrega => ListaDiasEntrega.Count == 0 ? "qualquer dia" : string.Join(", ", ListaDiasEntrega.Select(d => NomesDias[(int)d]));
+
+    /// <summary>Primeiro dia de entrega do fornecedor a partir da data (a própria data se ele entrega qualquer dia).</summary>
+    public DateOnly ProximaEntrega(DateOnly aPartirDe)
+    {
+        var dias = ListaDiasEntrega;
+        if (dias.Count == 0) return aPartirDe;
+        var d = aPartirDe;
+        while (!dias.Contains(d.DayOfWeek)) d = d.AddDays(1);
+        return d;
+    }
+
+    /// <summary>Entrega de um pedido feito hoje com este prazo: hoje + prazo, no próximo dia de entrega.</summary>
+    public DateOnly PrevisaoParaPrazo(int prazo) => ProximaEntrega(DateOnly.FromDateTime(DateTime.Today).AddDays(prazo));
+
+    /// <summary>
+    /// Hoje é o último dia para pedir e ainda pegar a próxima entrega? (o caminhão vem em dias certos; amanhã já
+    /// cairia na entrega seguinte). Só vale para quem tem dias de entrega cadastrados.
+    /// </summary>
+    public DateOnly? UltimoDiaHoje()
+    {
+        if (ListaDiasEntrega.Count == 0) return null;
+        var hoje = DateOnly.FromDateTime(DateTime.Today);
+        var entregaHoje = PrevisaoParaPrazo(Prazo);
+        var entregaAmanha = ProximaEntrega(hoje.AddDays(1 + Prazo));
+        return entregaAmanha > entregaHoje ? entregaHoje : null;
+    }
 
     /// <summary>Prazo usado na previsão do pedido quando não há um cadastrado.</summary>
     public const int PrazoPadrao = 3;
@@ -69,7 +107,8 @@ public sealed class Fornecedor
     /// entrega (mesma regra do site de referência).
     /// </summary>
     public bool Fornece(Produto p) =>
-        p.FornecedorId == Id || (p.FornecedorId is null && ListaCategorias.Any(c => MesmoTexto(c, p.Categoria)));
+        p.FornecedorId == Id || p.Vinculos.Any(v => v.FornecedorId == Id) ||
+        (p.FornecedorId is null && ListaCategorias.Any(c => MesmoTexto(c, p.Categoria)));
 
     public static string SoDigitos(string texto) => new(texto.Where(char.IsDigit).ToArray());
 
@@ -97,6 +136,14 @@ public sealed class ItemPedido
     [JsonPropertyName("unidade_medida")] public string UnidadeMedida { get; set; } = "un";
     [JsonPropertyName("quantidade")] public decimal Quantidade { get; set; }
     [JsonPropertyName("quantidade_recebida")] public decimal? QuantidadeRecebida { get; set; }
+    [JsonPropertyName("preco_custo")] public decimal? PrecoCusto { get; set; }
+    /// <summary>Por que chegou diferente: faltou, avariado, vencido, errado ou outro.</summary>
+    [JsonPropertyName("motivo_diferenca")] public string? MotivoDiferenca { get; set; }
+
+    public static readonly (string Id, string Nome)[] Motivos =
+        [("faltou", "Faltou"), ("avariado", "Avariado"), ("vencido", "Vencido"), ("errado", "Produto errado"), ("outro", "Outro motivo")];
+
+    public string? NomeMotivo => Motivos.FirstOrDefault(m => m.Id == MotivoDiferenca).Nome;
 
     public bool PorPeso => UnidadeMedida == "kg";
 
@@ -117,6 +164,14 @@ public sealed class Pedido
     [JsonPropertyName("entregue_em")] public DateOnly? EntregueEm { get; set; }
     [JsonPropertyName("observacao")] public string? Observacao { get; set; }
     [JsonPropertyName("itens")] public List<ItemPedido> Itens { get; set; } = [];
+    [JsonPropertyName("numero_nota")] public string? NumeroNota { get; set; }
+    /// <summary>Pedido criado com o que faltou deste outro pedido.</summary>
+    [JsonPropertyName("pedido_origem_id")] public long? PedidoOrigemId { get; set; }
+
+    /// <summary>Soma de quantidade × custo; null se algum item está sem custo.</summary>
+    public decimal? Total => Itens.Count > 0 && Itens.All(i => i.PrecoCusto is not null)
+        ? Itens.Sum(i => (i.QuantidadeRecebida ?? i.Quantidade) * i.PrecoCusto!.Value)
+        : null;
 
     public bool Pendente => Situacao == "pendente";
     public bool Entregue => Situacao == "entregue";
@@ -174,4 +229,12 @@ public static class MensagemPedido
     /// <summary>Mensagem do contato rápido (sem pedido).</summary>
     public static string Saudacao(Fornecedor f, string usuario) =>
         $"Olá{(string.IsNullOrWhiteSpace(f.Contato) ? "" : ", " + f.Contato.Trim())}! Aqui é {usuario}, do Mercado.";
+}
+
+/// <summary>Produto também comprado deste fornecedor (tabela produto_fornecedores).</summary>
+public sealed class ProdutoFornecedor
+{
+    [JsonPropertyName("fornecedor_id")] public long FornecedorId { get; set; }
+    [JsonPropertyName("ultimo_custo")] public decimal? UltimoCusto { get; set; }
+    [JsonPropertyName("ultima_compra")] public DateOnly? UltimaCompra { get; set; }
 }

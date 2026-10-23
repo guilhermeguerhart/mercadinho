@@ -295,6 +295,12 @@ public partial class EstoqueView : UserControl
         resumo.Children.Add(DetalheValidade("Próxima validade", p.ProximaValidade, p.Situacao));
         resumo.Children.Add(Detalhe("Estoque mínimo", p.Formatar(p.EstoqueMinimo)));
         resumo.Children.Add(Detalhe("Aviso antecipado em", p.Formatar(p.LimiteAviso) + (p.PontoDePedido is null ? "" : " (calculado)")));
+        if (_servico is { TemAjustes: true })
+        {
+            resumo.Children.Add(Detalhe("Preço de custo", p.PrecoCusto is { } custo ? custo.ToString("C", PtBr) + (p.PorPeso ? "/kg" : "") : "não informado"));
+            if (p.Margem is { } margem)
+                resumo.Children.Add(Detalhe("Margem", margem.ToString("P0", PtBr)));
+        }
         if (_listaFornecedores is not null)
         {
             var fornecedor = _listaFornecedores.FirstOrDefault(f => f.Id == p.FornecedorId);
@@ -342,6 +348,8 @@ public partial class EstoqueView : UserControl
             info.Children.Add(BarraLote(p, l));
             info.Children.Add(Detalhe("Vendido", p.PorPeso ? p.Formatar(l.Vendido) : p.Numero(l.Vendido), menor: true));
             info.Children.Add(Detalhe("Compra", l.DataCompra.ToString("dd/MM/yyyy", PtBr), menor: true));
+            if (l.PrecoCusto is { } custoLote)
+                info.Children.Add(Detalhe("Custo", custoLote.ToString("C", PtBr) + (p.PorPeso ? "/kg" : ""), menor: true));
             info.Children.Add(DetalheValidade("Validade", l.Validade, l.Esgotado ? null : l.Situacao, menor: true));
             linha.Children.Add(info);
             painel.Children.Add(caixa);
@@ -543,7 +551,7 @@ public partial class EstoqueView : UserControl
             var fornecedorPedido = pedido is null ? null : _listaFornecedores?.FirstOrDefault(f => f.Id == pedido.FornecedorId);
             janela = new LoteJanela(this, _area, _servico, produto, null, pelaCaixa: true, pedido, fornecedorPedido?.Nome,
                 pedido is null || _fornecedores is null ? null : () => _area.AbrirJanela(
-                    new EntregaJanela(_area, _fornecedores, pedido, fornecedorPedido?.Nome ?? "", _produtos, RecarregarAsync)));
+                    new EntregaJanela(_area, _fornecedores, pedido, fornecedorPedido, _produtos, RecarregarAsync)));
         }
         else
         {

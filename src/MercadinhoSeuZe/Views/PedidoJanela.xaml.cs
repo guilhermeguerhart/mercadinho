@@ -8,14 +8,15 @@ using MercadinhoSeuZe.Services;
 namespace MercadinhoSeuZe.Views;
 
 /// <summary>
-/// Novo pedido de reposição com vários itens. Produtos do fornecedor que precisam de reposição aparecem primeiro,
-/// com a quantidade sugerida. Depois de criar, abre a janela de envio com a mensagem pronta.
+/// Novo pedido de reposição com vários itens, ou edição de um pedido pendente (o fornecedor não tinha um item,
+/// mudou a quantidade...). Produtos do fornecedor que precisam de reposição aparecem primeiro, com a quantidade
+/// sugerida. Depois de gravar, abre a janela de envio com a mensagem pronta.
 /// </summary>
 public partial class PedidoJanela : UserControl
 {
     private static readonly CultureInfo PtBr = new("pt-BR");
 
-    private sealed record Item(Produto Produto, TextBox Quantidade, TextBlock Erro);
+    private sealed record Item(Produto Produto, TextBox Quantidade, TextBlock Erro, TextBox Custo, TextBlock CustoErro);
 
     private readonly AreaInternaView _area;
     private readonly FornecedorService _servico;
@@ -24,13 +25,16 @@ public partial class PedidoJanela : UserControl
     private readonly Func<Produto, bool> _jaPedido;
     private readonly Func<string, Fornecedor, string, Task> _aoCriar;
     private readonly List<Item> _itens = [];
+    private readonly Pedido? _editando;
     private string? _previsaoAutomatica;
     private bool _preenchendoPrevisao;
 
     /// <param name="jaPedido">Produto que já está num pedido pendente.</param>
     /// <param name="aoCriar">Recebe a mensagem do aviso, o fornecedor e o texto do pedido para enviar.</param>
+    /// <param name="editando">Pedido pendente a alterar (null = pedido novo).</param>
     public PedidoJanela(AreaInternaView area, FornecedorService servico, IReadOnlyList<Fornecedor> fornecedores, IReadOnlyList<Produto> produtos,
-        Fornecedor? fornecedor, IReadOnlyList<Produto> itensIniciais, Func<Produto, bool> jaPedido, Func<string, Fornecedor, string, Task> aoCriar)
+        Fornecedor? fornecedor, IReadOnlyList<Produto> itensIniciais, Func<Produto, bool> jaPedido, Func<string, Fornecedor, string, Task> aoCriar,
+        Pedido? editando = null)
     {
         InitializeComponent();
         _area = area;
@@ -47,6 +51,29 @@ public partial class PedidoJanela : UserControl
 
         foreach (var p in itensIniciais)
             Adicionar(p, focar: false);
+
+        // Edição: fornecedor fixo, itens e datas do pedido
+        _editando = editando;
+        if (editando is not null)
+        {
+            Titulo.Text = "Editar pedido";
+            Subtitulo.Text = $"Pedido de {editando.Data:dd/MM/yyyy}. Depois de salvar, dá para reenviar a mensagem com as mudanças.";
+            BotaoSalvar.Content = "Salvar alterações";
+            EscolhaFornecedor.IsEnabled = false;
+            foreach (var i in editando.Itens)
+                if (produtos.FirstOrDefault(p => p.Id == i.ProdutoId) is { } p)
+                    Adicionar(p, focar: false, quantidadeInicial: i.Quantidade);
+            var semProduto = editando.Itens.Where(i => produtos.All(p => p.Id != i.ProdutoId)).Select(i => i.NomeProduto).ToList();
+            if (semProduto.Count > 0)
+            {
+                AvisoErroTexto.Text = $"Saiu do pedido porque o produto foi excluído do estoque: {string.Join(", ", semProduto)}.";
+                AvisoErro.Visibility = Visibility.Visible;
+            }
+            Previsao.Text = Formulario.Data(editando.Previsao);
+            _previsaoAutomatica = null;
+            DicaPrevisao.Text = "";
+            Observacao.Text = editando.Observacao ?? "";
+        }
 
         Previsao.TextChanged += (_, _) =>
         {
@@ -93,21 +120,24 @@ public partial class PedidoJanela : UserControl
         var maior = _itens.Select(i => (i.Produto, Prazo: i.Produto.PrazoEntregaDias ?? padrao)).OrderByDescending(x => x.Prazo).FirstOrDefault();
         var prazo = maior.Produto is null ? padrao : maior.Prazo;
         _preenchendoPrevisao = true;
-        Previsao.Text = _previsaoAutomatica = Formulario.Data(DateOnly.FromDateTime(DateTime.Today).AddDays(prazo));
+        // No próximo dia em que o fornecedor entrega (se ele tem dias certos)
+        var previsao = f?.PrevisaoParaPrazo(prazo) ?? DateOnly.FromDateTime(DateTime.Today).AddDays(prazo);
+        Previsao.Text = _previsaoAutomatica = Formulario.Data(previsao);
         _preenchendoPrevisao = false;
-        DicaPrevisao.Text = maior.Produto?.PrazoEntregaDias is not null
+        var dia = f is not null && f.ListaDiasEntrega.Count > 0 ? $" Ele entrega {f.TextoDiasEntrega}: chega {Models.Fornecedor.NomesDias[(int)previsao.DayOfWeek]}, {previsao:dd/MM}." : "";
+        DicaPrevisao.Text = (maior.Produto?.PrazoEntregaDias is not null
             ? $"Hoje + {Dias(prazo)} (maior prazo dos itens: {maior.Produto.Nome})."
             : f is null ? ""
             : f.PrazoEntregaDias is null
                 ? $"Hoje + {Dias(prazo)} (prazo padrão; cadastre o prazo no produto ou no fornecedor para acertar)."
-                : $"Hoje + {Dias(prazo)} (prazo padrão de {f.Nome}).";
+                : $"Hoje + {Dias(prazo)} (prazo padrão de {f.Nome}).") + dia;
     }
 
     private static string Dias(int n) => n == 1 ? "1 dia" : $"{n} dias";
 
     // ------------------------------------------------------------ Itens
 
-    private void Adicionar(Produto p, bool focar = true)
+    private void Adicionar(Produto p, bool focar = true, decimal? quantidadeInicial = null)
     {
         var existente = _itens.FirstOrDefault(i => i.Produto.Id == p.Id);
         if (existente is not null)
@@ -116,12 +146,21 @@ public partial class PedidoJanela : UserControl
             return;
         }
 
-        var quantidade = new TextBox { Width = 110, MaxLength = 10, Text = Formulario.Quantidade(p.QuantidadeSugerida), HorizontalContentAlignment = HorizontalAlignment.Right };
+        var quantidade = new TextBox { Width = 110, MaxLength = 10, Text = Formulario.Quantidade(quantidadeInicial ?? p.QuantidadeSugerida), HorizontalContentAlignment = HorizontalAlignment.Right };
         System.Windows.Automation.AutomationProperties.SetName(quantidade, $"Quantidade de {p.Nome}");
         var erro = new TextBlock { Style = (Style)FindResource("ErroCampo") };
         Formulario.LimparAoDigitar(quantidade, erro);
         quantidade.TextChanged += (_, _) => AtualizarPrevia();
-        var item = new Item(p, quantidade, erro);
+
+        // Custo por unidade (ou kg): o último deste fornecedor, ou o do produto
+        var custoInicial = Selecionado is { } fornecedor ? p.CustoCom(fornecedor.Id) : p.PrecoCusto;
+        var custo = new TextBox { Width = 96, MaxLength = 10, Text = custoInicial is { } c ? Formulario.Preco(c) : "", HorizontalContentAlignment = HorizontalAlignment.Right,
+                                  ToolTip = p.PorPeso ? "Custo por kg (opcional)" : "Custo por unidade (opcional)" };
+        System.Windows.Automation.AutomationProperties.SetName(custo, $"Custo de {p.Nome}");
+        var custoErro = new TextBlock { Style = (Style)FindResource("ErroCampo") };
+        Formulario.LimparAoDigitar(custo, custoErro);
+        custo.TextChanged += (_, _) => AtualizarPrevia();
+        var item = new Item(p, quantidade, erro, custo, custoErro);
         _itens.Add(item);
         ItensErro.Text = "";
 
@@ -139,6 +178,18 @@ public partial class PedidoJanela : UserControl
         campo.Children.Add(erro);
         DockPanel.SetDock(campo, Dock.Right);
         linha.Children.Add(campo);
+
+        if (_servico.TemAjustes)
+        {
+            var colCusto = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0) };
+            var gradeCusto = new Grid();
+            gradeCusto.Children.Add(custo);
+            gradeCusto.Children.Add(new TextBlock { Text = "R$", FontSize = 13, Foreground = (Brush)FindResource("Suave"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 0), IsHitTestVisible = false });
+            colCusto.Children.Add(gradeCusto);
+            colCusto.Children.Add(custoErro);
+            DockPanel.SetDock(colCusto, Dock.Right);
+            linha.Children.Add(colCusto);
+        }
 
         var nome = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };
         nome.Children.Add(new TextBlock { Text = p.Nome, FontWeight = FontWeights.SemiBold, FontSize = 14 });
@@ -179,10 +230,23 @@ public partial class PedidoJanela : UserControl
         return new TextBlock
         {
             Text = $"Estoque: {p.Formatar(p.Quantidade)} (mín. {p.Numero(p.EstoqueMinimo)}){caixa}" + (texto.Length > 0 ? " · " + texto : "") +
-                   (_jaPedido(p) ? " · já tem pedido pendente" : ""),
+                   (_jaPedido(p) ? " · já tem pedido pendente" : "") + Comparacao(p),
             FontSize = 12.5,
             Foreground = (Brush)FindResource(cor)
         };
+    }
+
+    /// <summary>" · mais barato em Laticínios Real: R$ 3,90" quando outro fornecedor vendeu por menos da última vez.</summary>
+    private string Comparacao(Produto p)
+    {
+        var f = Selecionado;
+        if (f is null) return "";
+        var aqui = p.Vinculos.FirstOrDefault(v => v.FornecedorId == f.Id)?.UltimoCusto;
+        var outro = p.Vinculos.Where(v => v.FornecedorId != f.Id && v.UltimoCusto is not null)
+            .OrderBy(v => v.UltimoCusto).FirstOrDefault();
+        if (outro is null || (aqui is not null && outro.UltimoCusto >= aqui)) return "";
+        var nome = _fornecedores.FirstOrDefault(x => x.Id == outro.FornecedorId)?.Nome ?? "outro fornecedor";
+        return $" · {(aqui is null ? "último custo" : "mais barato")} em {nome}: {outro.UltimoCusto!.Value.ToString("C", PtBr)}";
     }
 
     private void AdicionarOQueFalta_Click(object sender, RoutedEventArgs e)
@@ -308,10 +372,32 @@ public partial class PedidoJanela : UserControl
     private void AtualizarPrevia()
     {
         if (Previa is null) return;
+        AtualizarTotal();
         Previa.Text = Selecionado is { } f
             ? (_itens.Count == 0 ? "Adicione os produtos para ver a mensagem." : Mensagem(f))
             : "Escolha o fornecedor para ver a mensagem.";
         Previa.Foreground = (Brush)FindResource(Selecionado is not null && _itens.Count > 0 ? "Tinta" : "Suave");
+    }
+
+    /// <summary>Total pelo custo dos itens e aviso quando não chega no pedido mínimo do fornecedor.</summary>
+    private void AtualizarTotal()
+    {
+        if (!_servico.TemAjustes || CampoTotal is null) return;
+        decimal total = 0;
+        var semCusto = 0;
+        foreach (var i in _itens)
+        {
+            var q = Formulario.LerQuantidade(i.Quantidade.Text, i.Produto.PorPeso);
+            if (Formulario.LerPreco(i.Custo.Text) is { } c && q is not null) total += c * q.Value;
+            else semCusto++;
+        }
+        CampoTotal.Visibility = _itens.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        TotalPedido.Text = $"Total: {total.ToString("C", PtBr)}" + (semCusto > 0 ? $" ({semCusto} sem custo)" : "");
+        var minimo = Selecionado?.PedidoMinimo;
+        AvisoMinimo.Text = minimo is > 0 && total < minimo
+            ? $"Abaixo do pedido mínimo de {minimo.Value.ToString("C", PtBr)} (faltam {(minimo.Value - total).ToString("C", PtBr)})." +
+              (semCusto > 0 ? " Coloque o custo de todos os itens para conferir." : "")
+            : "";
     }
 
     private void Cancelar_Click(object sender, RoutedEventArgs e) => _area.FecharJanela();
@@ -333,9 +419,14 @@ public partial class PedidoJanela : UserControl
             var q = Formulario.LerQuantidade(i.Quantidade.Text, i.Produto.PorPeso);
             if (!Formulario.Validar(i.Quantidade, i.Erro, q > 0, i.Produto.PorPeso ? "Peso maior que 0, ex: 25,5." : "Número inteiro maior que 0."))
                 erros.Add(i.Quantidade);
+            var semCusto = i.Custo.Text.Trim().Length == 0;
+            if (!Formulario.Validar(i.Custo, i.CustoErro, semCusto || Formulario.LerPreco(i.Custo.Text) is not null, "Ex: 4,50."))
+                erros.Add(i.Custo);
         }
-        if (!Formulario.Validar(Previsao, PrevisaoErro, previsao is not null && previsao >= hoje,
-                previsao is null ? "Use o formato dd/mm/aaaa." : "A previsão não pode ser no passado."))
+        // Pedido já feito pode manter uma previsão que passou (está atrasado); só não pode ser antes do pedido
+        var minimo = _editando?.Data ?? hoje;
+        if (!Formulario.Validar(Previsao, PrevisaoErro, previsao is not null && previsao >= minimo,
+                previsao is null ? "Use o formato dd/mm/aaaa." : _editando is null ? "A previsão não pode ser no passado." : "A previsão não pode ser antes do pedido."))
             erros.Add(Previsao);
 
         if (erros.Count > 0)
@@ -348,9 +439,18 @@ public partial class PedidoJanela : UserControl
         BotaoSalvar.IsEnabled = false;
         try
         {
-            await _servico.CriarPedidoAsync(f!.Id, previsao, Observacao.Text.Trim(),
-                _itens.Select(i => new ItemNovoPedido(i.Produto.Id, Formulario.LerQuantidade(i.Quantidade.Text, i.Produto.PorPeso)!.Value)).ToList());
-            await _aoCriar($"Pedido para {f.Nome} criado ({Plural(_itens.Count, "item", "itens")}).", f, texto);
+            var itens = _itens.Select(i => new ItemNovoPedido(i.Produto.Id, Formulario.LerQuantidade(i.Quantidade.Text, i.Produto.PorPeso)!.Value,
+                Formulario.LerPreco(i.Custo.Text))).ToList();
+            if (_editando is null)
+            {
+                await _servico.CriarPedidoAsync(f!.Id, previsao, Observacao.Text.Trim(), itens);
+                await _aoCriar($"Pedido para {f.Nome} criado ({Plural(_itens.Count, "item", "itens")}).", f, texto);
+            }
+            else
+            {
+                await _servico.EditarPedidoAsync(_editando.Id, previsao, Observacao.Text.Trim(), itens);
+                await _aoCriar($"Pedido para {f!.Nome} alterado ({Plural(_itens.Count, "item", "itens")}).", f, texto);
+            }
         }
         catch (ConexaoException ex)
         {

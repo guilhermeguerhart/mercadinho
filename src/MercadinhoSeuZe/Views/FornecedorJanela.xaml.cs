@@ -39,6 +39,16 @@ public partial class FornecedorJanela : UserControl
         Modelo.Text = fornecedor?.Modelo ?? MensagemPedido.ModeloPadrao;
         Observacao.Text = fornecedor?.Observacao ?? "";
         Envio.SelectedIndex = fornecedor?.EnvioPreferido == "email" ? 1 : 0;
+
+        // Dias de entrega (botões de seg a dom) e pedido mínimo, se o banco já tem o script 005
+        if (servico.TemAjustes)
+        {
+            CampoRota.Visibility = Visibility.Visible;
+            foreach (var d in fornecedor?.ListaDiasEntrega ?? []) _dias.Add(d);
+            MontarDias();
+            PedidoMinimo.Text = fornecedor?.PedidoMinimo is { } minimo ? Formulario.Preco(minimo) : "";
+            Formulario.LimparAoDigitar(PedidoMinimo, PedidoMinimoErro);
+        }
         Envio.SelectionChanged += (_, _) => { EnvioErro.Text = ""; Email.Tag = null; EmailErro.Text = ""; };
         CamposModelo.Text = "Campos que o programa troca: " + MensagemPedido.Campos;
 
@@ -78,6 +88,25 @@ public partial class FornecedorJanela : UserControl
         Formulario.LimparAoDigitar(Modelo, ModeloErro);
 
         Loaded += (_, _) => Nome.Focus();
+    }
+
+    private readonly HashSet<DayOfWeek> _dias = [];
+
+    private void MontarDias()
+    {
+        DiasEntrega.Children.Clear();
+        // Segunda primeiro, domingo no fim (como no calendário de quem trabalha no mercado)
+        foreach (var d in new[] { DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday })
+        {
+            var chip = new Button { Style = (Style)FindResource("Chip"), Tag = _dias.Contains(d) ? "ativo" : null, Content = Fornecedor.NomesDias[(int)d] };
+            System.Windows.Automation.AutomationProperties.SetName(chip, $"Entrega às {Fornecedor.NomesDias[(int)d]}");
+            chip.Click += (_, _) =>
+            {
+                if (!_dias.Remove(d)) _dias.Add(d);
+                MontarDias();
+            };
+            DiasEntrega.Children.Add(chip);
+        }
     }
 
     private static void Mascarar(TextBox campo) =>
@@ -129,6 +158,10 @@ public partial class FornecedorJanela : UserControl
         Checar(Contato, ContatoErro, true, "");
         Checar(Categorias, CategoriasErro, categorias.Length > 0, "Informe o que esse fornecedor entrega.");
         Checar(Prazo, PrazoErro, prazoVazio || prazo is >= 0 and <= 90, "Use um número de dias (0 a 90) ou deixe vazio.");
+        var minimoVazio = PedidoMinimo.Text.Trim().Length == 0;
+        var pedidoMinimo = minimoVazio ? null : Formulario.LerPreco(PedidoMinimo.Text);
+        if (CampoRota.Visibility == Visibility.Visible)
+            Checar(PedidoMinimo, PedidoMinimoErro, minimoVazio || pedidoMinimo is not null, "Ex: 300,00. Ou deixe vazio.");
         Checar(Modelo, ModeloErro, modelo.Contains("{itens}"), "A mensagem precisa ter {itens}, para a lista de produtos entrar nela.");
 
         if (erros.Count > 0)
@@ -140,7 +173,9 @@ public partial class FornecedorJanela : UserControl
         var dados = new DadosFornecedor(nome, telefone, whatsapp.Length > 0 ? whatsapp : null, email.Length > 0 ? email : null,
             contato.Length > 0 ? contato : null, categorias, prazo,
             modelo == MensagemPedido.ModeloPadrao.Trim() ? null : modelo,
-            Observacao.Text.Trim() is { Length: > 0 } obs ? obs : null, porEmail ? "email" : "whatsapp");
+            Observacao.Text.Trim() is { Length: > 0 } obs ? obs : null, porEmail ? "email" : "whatsapp",
+            _dias.Count == 0 ? null : string.Join(",", _dias.Select(d => (int)d).Order()),
+            pedidoMinimo);
         BotaoSalvar.IsEnabled = false;
         try
         {

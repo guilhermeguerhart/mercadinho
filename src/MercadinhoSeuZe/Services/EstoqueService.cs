@@ -5,38 +5,55 @@ namespace MercadinhoSeuZe.Services;
 /// <summary>Campos do formulário de produto.</summary>
 public sealed record DadosProduto(string Nome, string Categoria, decimal Preco, decimal Minimo, decimal? Aviso,
     string? CodigoBarrasCaixa, decimal UnidadesPorCaixa, bool PorPeso, int? DiasValidade, long? FornecedorId = null,
-    int? PrazoEntregaDias = null, bool PedirAntes = false);
+    int? PrazoEntregaDias = null, bool PedirAntes = false, decimal? PrecoCusto = null);
 
 /// <summary>Produtos e lotes do estoque no Supabase (tabelas do script database/003_semana3_estoque.sql).</summary>
 public sealed class EstoqueService(SupabaseApi api, Sessao sessao)
 {
-    private const string Campos = "id,nome,categoria,preco,estoque_minimo,codigo_barras_caixa,unidades_por_caixa,estoque_aviso,unidade_medida,dias_validade," +
-                                  "lotes(id,produto_id,quantidade_inicial,quantidade_restante,data_compra,validade)";
+    private const string Campos = "id,nome,categoria,preco,estoque_minimo,codigo_barras_caixa,unidades_por_caixa,estoque_aviso,unidade_medida,dias_validade";
+    private const string CamposLote = "id,produto_id,quantidade_inicial,quantidade_restante,data_compra,validade";
 
     /// <summary>false enquanto o script 004 (fornecedores) não foi rodado: o estoque funciona sem o fornecedor do produto.</summary>
     public bool TemFornecedores { get; private set; } = true;
 
+    /// <summary>false enquanto o script 005 (custo, vários fornecedores) não foi rodado.</summary>
+    public bool TemAjustes { get; private set; } = true;
+
+    /// <summary>Lê os produtos com os lotes, usando as colunas que o banco já tem (scripts 003, 004 e 005).</summary>
     public async Task<List<Produto>> ListarAsync()
     {
+        if (TemAjustes)
+        {
+            try
+            {
+                return await api.ListarAsync<Produto>(
+                    $"produtos?select={Campos},fornecedor_id,prazo_entrega_dias,pedir_antes,preco_custo," +
+                    $"lotes({CamposLote},preco_custo),produto_fornecedores(fornecedor_id,ultimo_custo,ultima_compra)", sessao.Token);
+            }
+            catch (BancoDesatualizadoException)
+            {
+                TemAjustes = false;
+            }
+        }
         if (TemFornecedores)
         {
             try
             {
-                return await api.ListarAsync<Produto>("produtos?select=fornecedor_id,prazo_entrega_dias,pedir_antes," + Campos, sessao.Token);
+                return await api.ListarAsync<Produto>($"produtos?select={Campos},fornecedor_id,prazo_entrega_dias,pedir_antes,lotes({CamposLote})", sessao.Token);
             }
             catch (BancoDesatualizadoException)
             {
                 TemFornecedores = false;
             }
         }
-        return await api.ListarAsync<Produto>("produtos?select=" + Campos, sessao.Token);
+        return await api.ListarAsync<Produto>($"produtos?select={Campos},lotes({CamposLote})", sessao.Token);
     }
 
     /// <summary>Cadastra o produto e, se houver quantidade, o primeiro lote dele.</summary>
-    public async Task CriarProdutoAsync(DadosProduto dados, decimal quantidade, DateOnly compra, DateOnly? validade)
+    public async Task<long> CriarProdutoAsync(DadosProduto dados, decimal quantidade, DateOnly compra, DateOnly? validade)
     {
         var produto = await api.InserirAsync<Produto>("produtos", Linha(dados), sessao.Token);
-        if (quantidade <= 0) return;
+        if (quantidade <= 0) return produto.Id;
         try
         {
             await CriarLoteAsync(produto.Id, quantidade, compra, validade);
@@ -47,7 +64,12 @@ public sealed class EstoqueService(SupabaseApi api, Sessao sessao)
             try { await ExcluirProdutoAsync(produto.Id); } catch (ConexaoException) { }
             throw;
         }
+        return produto.Id;
     }
+
+    /// <summary>Outros fornecedores do produto (além do principal), pela função definir_fornecedores_produto.</summary>
+    public Task DefinirFornecedoresAsync(long produtoId, IEnumerable<long> fornecedores) =>
+        api.ChamarAsync<object>("definir_fornecedores_produto", new { p_produto_id = produtoId, p_fornecedores = fornecedores.ToArray() }, sessao.Token);
 
     public Task AtualizarProdutoAsync(long id, DadosProduto dados) =>
         api.AtualizarAsync("produtos", $"id=eq.{id}", Linha(dados), sessao.Token);
@@ -71,6 +93,10 @@ public sealed class EstoqueService(SupabaseApi api, Sessao sessao)
             linha["fornecedor_id"] = d.FornecedorId;
             linha["prazo_entrega_dias"] = d.PrazoEntregaDias;
             linha["pedir_antes"] = d.PedirAntes;
+        }
+        if (TemAjustes)
+        {
+            linha["preco_custo"] = d.PrecoCusto;
         }
         return linha;
     }

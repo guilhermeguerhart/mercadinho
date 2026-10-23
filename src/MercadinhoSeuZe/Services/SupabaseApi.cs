@@ -114,7 +114,7 @@ public sealed class SupabaseApi
         if (resposta.IsSuccessStatusCode) return resposta;
 
         var corpo = await resposta.Content.ReadAsStringAsync();
-        if (resposta.StatusCode == HttpStatusCode.BadRequest && corpo.Contains("\"42703\""))
+        if (resposta.StatusCode == HttpStatusCode.BadRequest && (corpo.Contains("\"42703\"") || corpo.Contains("\"PGRST200\"")))
             throw new BancoDesatualizadoException("O banco ainda não tem as colunas novas. Rode o script SQL da semana no Supabase.");
         // Mensagens escritas nas funções do banco (raise exception), já em português
         if (corpo.Contains("\"22023\"") && MensagemDoBanco(corpo) is { } mensagem)

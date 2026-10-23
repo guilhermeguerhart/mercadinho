@@ -66,6 +66,7 @@ public partial class PainelView : UserControl
         // Pedidos pendentes do banco (semana 4)
         List<Pedido>? pedidos = null;
         Dictionary<long, string> nomesFornecedores = [];
+        List<Fornecedor> fornecedores = [];
         string? erroPedidos = null;
         if (_fornecedores is not null)
         {
@@ -74,6 +75,7 @@ public partial class PainelView : UserControl
                 var lista = _fornecedores.ListarAsync();
                 var pendentes = _fornecedores.ListarPendentesAsync();
                 await Task.WhenAll(lista, pendentes);
+                fornecedores = lista.Result;
                 nomesFornecedores = lista.Result.ToDictionary(f => f.Id, f => f.Nome);
                 if (produtos is not null) Fornecedor.AplicarPrazos(produtos, lista.Result);
                 pedidos = pendentes.Result;
@@ -126,6 +128,19 @@ public partial class PainelView : UserControl
 
         if (erroPedidos is not null)
             AdicionarAviso("IconeAlerta", "Vermelho50", "Vermelho600", [new Run("Não foi possível ler os pedidos: " + erroPedidos)], "Fornecedores");
+        // Fornecedor com dias certos de entrega: hoje é o último dia para pedir e ainda pegar a próxima entrega
+        if (produtos is not null && pedidos is not null)
+            foreach (var f in fornecedores.Where(f => f.Ativo))
+            {
+                if (f.UltimoDiaHoje() is not { } chega) continue;
+                var faltam = produtos.Count(p => f.Fornece(p) && p.PrecisaRepor && !pedidos.Any(o => o.Itens.Any(i => i.ProdutoId == p.Id)));
+                if (faltam == 0) continue;
+                AdicionarAviso("IconeRelogio", "Ambar50", "Ambar700",
+                    [new Run("Hoje é o último dia para pedir para "), Negrito(f.Nome),
+                     new Run($" e pegar a entrega de {Fornecedor.NomesDias[(int)chega.DayOfWeek]}, {chega:dd/MM}: {Plural(faltam, "produto precisa", "produtos precisam")} de reposição.")],
+                    "Fornecedores");
+            }
+
         foreach (var p in pedidos?.OrderByDescending(p => p.Atrasado).ThenBy(p => p.Previsao) ?? Enumerable.Empty<Pedido>())
         {
             var fornecedor = nomesFornecedores.GetValueOrDefault(p.FornecedorId, "fornecedor");

@@ -22,6 +22,8 @@ database/                  Scripts SQL, numerados, para rodar no SQL Editor do S
   001_semana1_perfis.sql   Tabelas perfis, auditoria_login, pedidos_senha, contatos e as regras (RLS).
   002_usuarios_teste.sql   Cria 5 usuários de teste (lista em USUARIOS_TESTE.md).
   003_semana3_estoque.sql  Tabelas produtos e lotes, com RLS (todos leem, só o gerente altera).
+  005_semana4_ajustes.sql  Ajustes da semana 4: editar pedido, entrega parcial e nota, custo, dias de entrega,
+                           pedido mínimo e vários fornecedores por produto.
   004_semana4_fornecedores.sql  Tabelas fornecedores, pedidos e pedido_itens, coluna produtos.fornecedor_id e as
                            funções criar_pedido e registrar_entrega (tudo ou nada). RLS: só o gerente.
 src/MercadinhoSeuZe/
@@ -198,6 +200,34 @@ publicar.ps1               Gera publish/MercadinhoSeuZe.exe (feche o .exe aberto
 - Atalho de desenvolvimento Alt+2 em Fornecedores (Views/FornecedoresView.Desenvolvimento.cs, mesma regra
   dos outros): cadastra 6 fornecedores de teste que cobrem as categorias do leitor simulado. Telefones e
   e-mails fictícios (.example); para testar o WhatsApp, edite um e coloque um número seu.
+
+3e. SEMANA 4 - AJUSTES (PEDIDO DO GUILHERME EM 22/10)
+---------------------------------------------------
+- Script database/005_semana4_ajustes.sql (rodar depois do 004; pode rodar de novo). Sem ele, as telas
+  funcionam como antes: EstoqueService.TemAjustes e FornecedorService.TemAjustes ficam false e os campos novos
+  somem (consultas com fallback; o banco responde 42703/PGRST200 = BancoDesatualizadoException).
+- Editar pedido pendente: "Editar" no histórico abre PedidoJanela em modo edição; função editar_pedido. Depois
+  abre o envio com "Atualização do pedido de dd/mm/aaaa (substitui o anterior)".
+- Entrega parcial (EntregaJanela): nº da nota fiscal, custo e motivo da diferença por item (faltou, avariado,
+  vencido, produto errado, outro). "O que faltou continua pendente" cria um pedido novo com o resto
+  (pedidos.pedido_origem_id). Função registrar_recebimento (a registrar_entrega do 004 só é usada sem o 005).
+- XML da NF-e (Services/NotaFiscalXml.cs): "Importar XML da nota" lê nNF, emitente e det/prod; liga cada item
+  do pedido pelo código de barras da caixa (cEAN/cEANTrib) ou, sem código, pelo nome parecido (metade das
+  palavras). Caixa (uCom CX, FD, PCT...) vira unidades pela unidade tributável ou por unidades_por_caixa; custo
+  = valor total / unidades; validade do grupo rastro/dVal. Item do pedido fora da nota fica com 0 (faltou).
+  Só lê o arquivo: não consulta a SEFAZ.
+- Preço de custo: produtos.preco_custo (campo no cadastro, com a margem), pedido_itens.preco_custo (campo R$ em
+  cada item do pedido, já preenchido pelo último custo com o fornecedor) e lotes.preco_custo. A entrega com
+  custo atualiza o custo do produto. Pedido mostra o total; histórico mostra o total e a nota.
+- Dias de entrega e pedido mínimo: fornecedores.dias_entrega ("1,3" = seg e qua; 0 = domingo) e
+  pedido_minimo. Previsão do pedido = hoje + prazo, no próximo dia de entrega (Fornecedor.PrevisaoParaPrazo).
+  Pedido abaixo do mínimo mostra aviso (não bloqueia). Fornecedor.UltimoDiaHoje: hoje é o último dia para
+  pegar a próxima entrega; aparece no Painel (se há produto para repor) e na sugestão de reposição.
+- Vários fornecedores por produto: tabela produto_fornecedores (último custo e última compra de cada um),
+  gravada ao pedir/receber e pelos botões "Também compro de" no cadastro do produto (função
+  definir_fornecedores_produto). Fornecedor.Fornece inclui esses vínculos. No pedido aparece "mais barato em X".
+- Ficam para depois: contas a pagar (semana 6), trocas e devoluções (depois da semana 5) e desempenho do
+  fornecedor.
 
 4. O QUE AINDA DEVE SER FEITO (UMA SEMANA POR VEZ, NESTA ORDEM)
 --------------------------------------------------------------

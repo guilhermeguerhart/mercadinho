@@ -93,6 +93,26 @@
             <TextBlock FontSize="12" Style="{StaticResource TextoSuave}" Margin="0,6,0,0"
                        Text="O prazo padrão vale para os produtos sem prazo próprio (o prazo de cada produto fica no cadastro do produto, no Estoque). Na hora de enviar, o outro meio continua disponível." />
 
+            <!-- Dias de entrega e pedido mínimo (script 005) -->
+            <Grid x:Name="CampoRota" Margin="0,14,0,0" Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="180" />
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="Dias em que entrega" Style="{StaticResource Rotulo}" />
+                    <WrapPanel x:Name="DiasEntrega" />
+                    <TextBlock FontSize="12" Style="{StaticResource TextoSuave}" Margin="0,2,0,0"
+                               Text="Nenhum marcado = entrega em qualquer dia. Com dias marcados, a previsão cai no dia certo e o Painel avisa o último dia para pedir." />
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="Pedido mínimo (R$)" Style="{StaticResource Rotulo}" />
+                    <TextBox x:Name="PedidoMinimo" MaxLength="12" AutomationProperties.Name="Pedido mínimo em reais" />
+                    <TextBlock x:Name="PedidoMinimoErro" Style="{StaticResource ErroCampo}" />
+                </StackPanel>
+            </Grid>
+
             <!-- Mensagem do pedido (WhatsApp e e-mail) -->
             <DockPanel Margin="0,16,0,6">
                 <Button x:Name="BotaoModeloPadrao" DockPanel.Dock="Right" Content="Voltar ao modelo padrão" Style="{StaticResource BotaoLink}" FontSize="13"

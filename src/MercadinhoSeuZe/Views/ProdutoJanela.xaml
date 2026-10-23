@@ -57,6 +57,12 @@
                 </Grid>
                 <TextBlock FontSize="12" Style="{StaticResource TextoSuave}" Margin="0,6,0,0"
                            Text="Sem fornecedor escolhido, o produto é de quem entrega a categoria dele. Prazo: quantos dias o fornecedor leva para entregar este produto (vazio = prazo padrão do fornecedor). Entra na previsão de entrega do pedido." />
+                <StackPanel x:Name="CampoOutros" Margin="0,12,0,0" Visibility="Collapsed">
+                    <TextBlock Text="Também compro de (opcional)" Style="{StaticResource Rotulo}" />
+                    <WrapPanel x:Name="OutrosFornecedores" />
+                    <TextBlock FontSize="12" Style="{StaticResource TextoSuave}" Margin="0,2,0,0"
+                               Text="Clique para marcar. O produto aparece nesses fornecedores e, no pedido, o programa compara o último custo de cada um." />
+                </StackPanel>
             </StackPanel>
 
             <!-- Açougue e outros a granel: preço, estoque e lotes em quilos -->
@@ -83,6 +89,21 @@
                     <TextBox x:Name="Minimo" MaxLength="10" AutomationProperties.Name="Estoque mínimo" />
                     <TextBlock x:Name="MinimoErro" Style="{StaticResource ErroCampo}" />
                 </StackPanel>
+            </Grid>
+
+            <!-- Preço de custo (script 005): mostra a margem sobre o preço de venda -->
+            <Grid x:Name="CampoCusto" Margin="0,14,0,0" Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock x:Name="RotuloCusto" Text="Preço de custo (R$)" Style="{StaticResource Rotulo}" />
+                    <TextBox x:Name="Custo" MaxLength="12" AutomationProperties.Name="Preço de custo" />
+                    <TextBlock x:Name="CustoErro" Style="{StaticResource ErroCampo}" />
+                </StackPanel>
+                <TextBlock x:Name="DicaMargem" Grid.Column="2" FontSize="12" Style="{StaticResource TextoSuave}" VerticalAlignment="Center" Margin="0,24,0,0" />
             </Grid>
 
             <Grid Margin="0,14,0,0">

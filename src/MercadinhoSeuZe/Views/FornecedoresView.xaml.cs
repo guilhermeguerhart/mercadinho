@@ -405,6 +405,11 @@ public partial class FornecedoresView : UserControl
         dados.Children.Add(Detalhe("E-mail", string.IsNullOrWhiteSpace(f.Email) ? "—" : f.Email));
         dados.Children.Add(Detalhe("Prazo padrão de entrega", f.PrazoEntregaDias is null ? $"{Fornecedor.PrazoPadrao} dias (padrão)" : Plural(f.Prazo, "dia", "dias")));
         dados.Children.Add(Detalhe("Pedidos por", f.PrefereEmail ? "E-mail" : "WhatsApp"));
+        if (_servico is { TemAjustes: true })
+        {
+            dados.Children.Add(Detalhe("Entrega", f.TextoDiasEntrega));
+            dados.Children.Add(Detalhe("Pedido mínimo", f.PedidoMinimo is { } minimo ? minimo.ToString("C", PtBr) : "sem mínimo"));
+        }
         painel.Children.Add(dados);
         if (!string.IsNullOrWhiteSpace(f.Observacao))
             painel.Children.Add(new TextBlock { Text = f.Observacao, FontSize = 14, Foreground = Recurso<Brush>("Suave"), Margin = new Thickness(0, 0, 0, 10) });
@@ -455,7 +460,8 @@ public partial class FornecedoresView : UserControl
                 qtd.Children.Add(new ContentControl { Style = Recurso<Style>("Icone"), Tag = Recurso<Geometry>("IconeTriangulo"), Foreground = Recurso<Brush>("Ambar700"), Width = 15, Margin = new Thickness(0, 0, 6, 0) });
             qtd.Children.Add(new TextBlock
             {
-                Text = $"{p.Formatar(p.Quantidade)} (mín. {p.Numero(p.EstoqueMinimo)}) · entrega em {Plural(f.PrazoDe(p), "dia", "dias")}",
+                Text = $"{p.Formatar(p.Quantidade)} (mín. {p.Numero(p.EstoqueMinimo)}) · entrega em {Plural(f.PrazoDe(p), "dia", "dias")}" +
+                       (p.Vinculos.FirstOrDefault(v => v.FornecedorId == f.Id)?.UltimoCusto is { } ultimo ? $" · último custo {ultimo.ToString("C", PtBr)}" : ""),
                 FontSize = 14,
                 FontWeight = alerta ? FontWeights.Bold : FontWeights.Normal,
                 Foreground = Recurso<Brush>(alerta ? "Vermelho600" : "Tinta")
@@ -522,6 +528,7 @@ public partial class FornecedoresView : UserControl
             if (p.Pendente)
             {
                 acoes.Children.Add(Link("Registrar entrega", () => AbrirEntrega(p)));
+                acoes.Children.Add(Link("Editar", () => AbrirEdicao(f, p)));
                 acoes.Children.Add(Link("Reenviar", () => AbrirEnvio(f, p)));
                 acoes.Children.Add(Link("Cancelar", () => ConfirmarCancelamento(f, p), perigo: true));
             }
@@ -536,15 +543,15 @@ public partial class FornecedoresView : UserControl
             var topo = new WrapPanel();
             topo.Children.Add(new TextBlock { Text = $"Pedido de {p.Data:dd/MM/yyyy}", FontSize = 14, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 10, 0), VerticalAlignment = VerticalAlignment.Center });
             topo.Children.Add(Etiqueta(sit, fundo, cor));
-            var entrega = p.Entregue ? $"Entregue em {p.EntregueEm:dd/MM/yyyy}"
+            var entrega = p.Entregue ? $"Entregue em {p.EntregueEm:dd/MM/yyyy}" + (p.NumeroNota is null ? "" : $" · nota {p.NumeroNota}")
                 : p.Cancelado ? "Cancelado"
                 : p.Previsao is null ? "Sem previsão de entrega" : $"Previsto para {p.Previsao:dd/MM/yyyy}";
             topo.Children.Add(new TextBlock { Text = entrega, FontSize = 13, Foreground = Recurso<Brush>("Suave"), Margin = new Thickness(10, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center });
             info.Children.Add(topo);
-            info.Children.Add(new TextBlock { Text = p.DescreverItens(), FontSize = 14, Margin = new Thickness(0, 4, 0, 0) });
-            // Na entrega, avisa o que veio diferente do pedido
+            info.Children.Add(new TextBlock { Text = p.DescreverItens() + (p.Total is { } total ? $" · total {total.ToString("C", PtBr)}" : ""), FontSize = 14, Margin = new Thickness(0, 4, 0, 0) });
+            // Na entrega, avisa o que veio diferente do pedido (e por quê)
             var diferentes = p.Itens.Where(i => i.QuantidadeRecebida is { } r && r != i.Quantidade)
-                .Select(i => $"{i.NomeProduto}: chegou {i.QuantidadeCurta(i.QuantidadeRecebida!.Value)}").ToList();
+                .Select(i => $"{i.NomeProduto}: chegou {i.QuantidadeCurta(i.QuantidadeRecebida!.Value)}" + (i.NomeMotivo is { } m ? $" ({m.ToLowerInvariant()})" : "")).ToList();
             if (p.Entregue && diferentes.Count > 0)
                 info.Children.Add(new TextBlock { Text = "Diferente do pedido · " + string.Join(" · ", diferentes), FontSize = 13, Foreground = Recurso<Brush>("Ambar700"), Margin = new Thickness(0, 2, 0, 0) });
             if (!string.IsNullOrWhiteSpace(p.Observacao))
@@ -596,6 +603,8 @@ public partial class FornecedoresView : UserControl
             texto.Inlines.Add(new System.Windows.Documents.Run(nomes.Count == 1 ? " precisa de reposição. Criar pedido para " : " precisam de reposição. Criar pedido para "));
             texto.Inlines.Add(Negrito(f.Nome));
             texto.Inlines.Add(new System.Windows.Documents.Run("?"));
+            if (f.UltimoDiaHoje() is { } chega)
+                texto.Inlines.Add(new System.Windows.Documents.Run($" Hoje é o último dia para pegar a entrega de {Fornecedor.NomesDias[(int)chega.DayOfWeek]}, {chega:dd/MM}.") { FontWeight = FontWeights.SemiBold });
 
             var acoes = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
             acoes.Children.Add(BotaoPequeno("Criar pedido", "IconeEnviar", "Verde700", () => AbrirPedido(f, ParaPedir(f)), primario: true));
@@ -691,6 +700,19 @@ public partial class FornecedoresView : UserControl
             }));
     }
 
+    /// <summary>Altera um pedido pendente e oferece reenviar a mensagem com as mudanças.</summary>
+    private void AbrirEdicao(Fornecedor f, Pedido p)
+    {
+        if (!Pronto()) return;
+        _area.AbrirJanela(new PedidoJanela(_area, _servico!, Ativos.Append(f).DistinctBy(x => x.Id).ToList(), _produtos, f, [],
+            produto => _pedidos.Any(o => o.Id != p.Id && o.Pendente && o.Itens.Any(i => i.ProdutoId == produto.Id)),
+            async (mensagem, fornecedor, texto) =>
+            {
+                await RecarregarAsync(mensagem);
+                _area.AbrirJanela(new EnvioPedidoJanela(_area, fornecedor, $"Atualização do pedido de {p.Data:dd/MM/yyyy} (substitui o anterior):\n\n" + texto, "Pedido alterado"));
+            }, p));
+    }
+
     private void AbrirEnvio(Fornecedor f, Pedido p) =>
         _area.AbrirJanela(new EnvioPedidoJanela(_area, f, MensagemDoPedido(f, p, _produtos, _servico!.Usuario), "Reenviar pedido"));
 
@@ -702,7 +724,7 @@ public partial class FornecedoresView : UserControl
     private void AbrirEntrega(Pedido p)
     {
         if (!Pronto()) return;
-        _area.AbrirJanela(new EntregaJanela(_area, _servico!, p, _fornecedores.FirstOrDefault(f => f.Id == p.FornecedorId)?.Nome ?? "", _produtos, RecarregarAsync));
+        _area.AbrirJanela(new EntregaJanela(_area, _servico!, p, _fornecedores.FirstOrDefault(f => f.Id == p.FornecedorId), _produtos, RecarregarAsync));
     }
 
     private void ConfirmarCancelamento(Fornecedor f, Pedido p) =>
