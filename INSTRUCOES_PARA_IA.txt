@@ -229,6 +229,23 @@ publicar.ps1               Gera publish/MercadinhoSeuZe.exe (feche o .exe aberto
 - Ficam para depois: contas a pagar (semana 6), trocas e devoluções (depois da semana 5) e desempenho do
   fornecedor.
 
+3f. VISUAL "MERCADINHO DE BAIRRO" (23/10, DA BRANCH MAIN DA KETH: css/tema.css)
+---------------------------------------------------------------------------
+- Só aparência; regras e telas continuam iguais. Cores em App.xaml: papel (Fundo #F5EFE3), cartão #FFFDF8,
+  tinta #24211C, toldo verde (Verde700 #1E5B38), etiqueta amarela (Etiqueta #F6CF3A), tomate (Vermelho600
+  #B5371C), LinhaForte (bordas de campo). Contrastes conferidos pela Keth (WCAG 2.1 AA).
+- Sombras chapadas (sem borrão), cantos menores (campos e botões 6, cartões 8, etiquetas 3-4).
+- Botão principal com "degrau" escuro embaixo; botão fantasma com borda forte e texto em tinta.
+- Menu lateral verde com o toldo listrado no topo (DrawingBrush "Toldo"), item ativo amarelo, logo "M" amarelo.
+- Estoque e Fornecedores: indicadores numa faixa (estilo FaixaKpis + Kpi; o filtro em uso fica amarelinho);
+  chips como etiquetinhas (o escolhido amarelo); cabeçalho de tabela em maiúsculas com linha preta.
+- Preço e vendas em etiqueta amarela (estilo EtiquetaPreco). Janelas com faixa verde no topo (estilo Janela).
+  Mensagem do pedido como bilhete amarelo. Toast com sombra amarela. Avisos com faixa forte à esquerda.
+- Fornecedores em cartões de visita (carimbo da situação, dados, o que entrega, pé com WhatsApp e "Mais");
+  aberto, o cartão ocupa a linha com os detalhes; pedidos do histórico como recibos.
+- Fontes: o site usa Bricolage Grotesque e Figtree; o programa continua com Segoe UI até o Guilherme
+  autorizar baixar e embutir as fontes.
+
 4. O QUE AINDA DEVE SER FEITO (UMA SEMANA POR VEZ, NESTA ORDEM)
 --------------------------------------------------------------
 Faça só a semana pedida. Cada semana é apresentada ao dono do mercado antes da próxima.

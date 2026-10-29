@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Width="540">
     <!-- Cadastro / edição de produto (igual ao modal-produto de estoque.html) -->
-    <Border Style="{StaticResource CartaoBorda}" CornerRadius="16" Padding="24,24,24,20" Effect="{StaticResource SombraJanela}">
+    <Border Style="{StaticResource Janela}" Padding="24,24,24,20">
         <StackPanel>
             <DockPanel Margin="0,0,0,18">
                 <Button DockPanel.Dock="Right" Content="×" Style="{StaticResource LinkSuave}" FontSize="24" FontWeight="Normal"
@@ -12,7 +12,7 @@
             </DockPanel>
 
             <!-- Dados achados pelo código de barras num banco aberto (Open Food Facts) -->
-            <Border x:Name="AvisoEncontrado" Style="{StaticResource Aviso}" Background="{StaticResource Verde50}" BorderBrush="#BFE0CB" Visibility="Collapsed">
+            <Border x:Name="AvisoEncontrado" Style="{StaticResource Aviso}" Background="{StaticResource Verde50}" BorderBrush="{StaticResource Verde700}" Visibility="Collapsed">
                 <DockPanel>
                     <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeCodigoBarras}" Foreground="{StaticResource Verde700}"
                                     Width="18" VerticalAlignment="Top" Margin="0,1,10,0" />
@@ -20,7 +20,7 @@
                 </DockPanel>
             </Border>
 
-            <Border x:Name="AvisoErro" Style="{StaticResource Aviso}" Background="{StaticResource Vermelho50}" BorderBrush="#F2C4BE" Visibility="Collapsed">
+            <Border x:Name="AvisoErro" Style="{StaticResource Aviso}" Background="{StaticResource Vermelho50}" BorderBrush="{StaticResource Vermelho600}" Visibility="Collapsed">
                 <TextBlock x:Name="AvisoErroTexto" Foreground="{StaticResource Vermelho600}" FontSize="14" />
             </Border>
 

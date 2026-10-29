@@ -3,12 +3,12 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Width="560">
     <!-- Envio do pedido: WhatsApp ou e-mail já com a mensagem escrita -->
-    <Border Style="{StaticResource CartaoBorda}" CornerRadius="16" Padding="24,24,24,20" Effect="{StaticResource SombraJanela}">
+    <Border Style="{StaticResource Janela}" Padding="24,24,24,20">
         <StackPanel>
             <DockPanel Margin="0,0,0,16">
                 <Button DockPanel.Dock="Right" Content="×" Style="{StaticResource LinkSuave}" FontSize="24" FontWeight="Normal"
                         VerticalAlignment="Top" Click="Fechar_Click" ToolTip="Fechar" AutomationProperties.Name="Fechar" />
-                <Border DockPanel.Dock="Left" Width="44" Height="44" CornerRadius="22" Background="{StaticResource Verde50}" Margin="0,0,14,0" VerticalAlignment="Top">
+                <Border DockPanel.Dock="Left" Width="44" Height="44" CornerRadius="4" Background="{StaticResource Verde50}" Margin="0,0,14,0" VerticalAlignment="Top">
                     <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeEnviar}" Foreground="{StaticResource Verde700}" Width="20" />
                 </Border>
                 <StackPanel>
@@ -19,7 +19,7 @@
 
             <TextBlock Text="Mensagem" Style="{StaticResource Rotulo}" />
             <TextBox x:Name="Mensagem" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="170" MaxHeight="340" VerticalContentAlignment="Top"
-                     Padding="14,10" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Mensagem do pedido" />
+                     Padding="14,10" VerticalScrollBarVisibility="Auto" Background="{StaticResource Bilhete}" AutomationProperties.Name="Mensagem do pedido" />
             <TextBlock FontSize="12" Style="{StaticResource TextoSuave}" Margin="0,6,0,0"
                        Text="Pode mudar o texto aqui. O WhatsApp (ou o e-mail) abre com a mensagem escrita: confira e aperte enviar. O programa não envia nada sozinho." />
 

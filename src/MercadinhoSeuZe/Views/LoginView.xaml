@@ -94,7 +94,7 @@
                 <DockPanel Margin="0,0,0,20">
                     <StackPanel x:Name="MarcaCompacta" Orientation="Horizontal" Visibility="Collapsed">
                         <Border Style="{StaticResource MarcaQuadrado}">
-                            <TextBlock Text="M" Foreground="White" FontWeight="Bold" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <TextBlock Text="M" Foreground="{StaticResource Tinta}" FontWeight="ExtraBold" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <TextBlock Text="Mercado" FontWeight="Bold" FontSize="18" Margin="10,0,0,0" VerticalAlignment="Center" />
                     </StackPanel>
@@ -102,7 +102,7 @@
                             VerticalAlignment="Center" Click="Voltar_Click" />
                 </DockPanel>
 
-                <Border Style="{StaticResource CartaoBorda}" CornerRadius="16" Padding="32,28,32,24" Effect="{StaticResource SombraCartao}">
+                <Border Style="{StaticResource CartaoBorda}" Padding="32,28,32,24" Effect="{StaticResource SombraCartao}">
                     <Grid>
                         <!-- Etapa 1: login -->
                         <StackPanel x:Name="EtapaLogin">
@@ -205,7 +205,7 @@
                                        Style="{StaticResource TextoSuave}" FontSize="14" Margin="0,0,0,24" />
 
                             <Border x:Name="AvisoRecuperar" Style="{StaticResource Aviso}" Visibility="Collapsed"
-                                    Background="{StaticResource Verde50}" BorderBrush="#BFE0CB">
+                                    Background="{StaticResource Verde50}" BorderBrush="{StaticResource Verde700}">
                                 <TextBlock x:Name="AvisoRecuperarTexto" Foreground="{StaticResource Verde700}" FontSize="14" />
                             </Border>
 

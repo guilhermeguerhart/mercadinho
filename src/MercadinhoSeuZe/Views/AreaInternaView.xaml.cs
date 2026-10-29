@@ -172,6 +172,8 @@ public partial class AreaInternaView : UserControl
         ColunaMenu.Width = compacta ? new GridLength(0) : new GridLength(264);
         BarraCompacta.Visibility = compacta ? Visibility.Visible : Visibility.Collapsed;
         MarcaMenu.Visibility = compacta ? Visibility.Collapsed : Visibility.Visible;
+        ToldoMenu.Visibility = compacta ? Visibility.Collapsed : Visibility.Visible;
+        MenuLateral.Padding = compacta ? new Thickness(14, 20, 14, 20) : new Thickness(14, 0, 14, 20);
         Grid.SetRow(MenuLateral, compacta ? 1 : 0);
         Grid.SetRowSpan(MenuLateral, compacta ? 1 : 2);
         AreaConteudo.Margin = compacta ? new Thickness(16, 24, 16, 40) : new Thickness(40, 32, 40, 48);

@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Width="540">
     <!-- Novo lote / edição de lote de um produto -->
-    <Border Style="{StaticResource CartaoBorda}" CornerRadius="16" Padding="24,24,24,20" Effect="{StaticResource SombraJanela}">
+    <Border Style="{StaticResource Janela}" Padding="24,24,24,20">
         <StackPanel>
             <DockPanel Margin="0,0,0,18">
                 <Button DockPanel.Dock="Right" Content="×" Style="{StaticResource LinkSuave}" FontSize="24" FontWeight="Normal"
@@ -14,12 +14,12 @@
                 </StackPanel>
             </DockPanel>
 
-            <Border x:Name="AvisoErro" Style="{StaticResource Aviso}" Background="{StaticResource Vermelho50}" BorderBrush="#F2C4BE" Visibility="Collapsed">
+            <Border x:Name="AvisoErro" Style="{StaticResource Aviso}" Background="{StaticResource Vermelho50}" BorderBrush="{StaticResource Vermelho600}" Visibility="Collapsed">
                 <TextBlock x:Name="AvisoErroTexto" Foreground="{StaticResource Vermelho600}" FontSize="14" />
             </Border>
 
             <!-- Produto com pedido pendente: sugere registrar a entrega do pedido -->
-            <Border x:Name="AvisoPedido" Style="{StaticResource Aviso}" Background="{StaticResource Azul50}" BorderBrush="#C9DCF1" Visibility="Collapsed">
+            <Border x:Name="AvisoPedido" Style="{StaticResource Aviso}" Background="{StaticResource Azul50}" BorderBrush="{StaticResource Azul600}" Visibility="Collapsed">
                 <StackPanel>
                     <DockPanel>
                         <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeCaminhao}" Foreground="{StaticResource Azul600}"

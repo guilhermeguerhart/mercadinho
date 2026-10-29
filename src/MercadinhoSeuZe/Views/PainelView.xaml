@@ -68,19 +68,19 @@
             <Border Style="{StaticResource Kpi}">
                 <StackPanel>
                     <DockPanel>
-                        <Border DockPanel.Dock="Right" Width="36" Height="36" CornerRadius="9" Background="{StaticResource Verde50}">
+                        <Border DockPanel.Dock="Right" Width="36" Height="36" CornerRadius="4" Background="Transparent">
                             <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeTendencia}" Foreground="{StaticResource Verde700}" Width="18" />
                         </Border>
                         <TextBlock Text="Vendas hoje" Style="{StaticResource KpiRotulo}" />
                     </DockPanel>
-                    <TextBlock x:Name="KpiVendas" Style="{StaticResource KpiValor}" Text="—" />
+                    <Border Style="{StaticResource EtiquetaPreco}" Margin="0,6,0,8" Padding="10,2,10,3"><TextBlock x:Name="KpiVendas" Style="{StaticResource KpiValor}" Text="—" Margin="0" /></Border>
                     <TextBlock x:Name="KpiVendasSub" Style="{StaticResource KpiSub}" />
                 </StackPanel>
             </Border>
             <Border Style="{StaticResource Kpi}">
                 <StackPanel>
                     <DockPanel>
-                        <Border DockPanel.Dock="Right" Width="36" Height="36" CornerRadius="9" Background="{StaticResource Ambar50}">
+                        <Border DockPanel.Dock="Right" Width="36" Height="36" CornerRadius="4" Background="Transparent">
                             <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeTriangulo}" Foreground="{StaticResource Ambar700}" Width="18" />
                         </Border>
                         <TextBlock Text="Estoque baixo" Style="{StaticResource KpiRotulo}" />
@@ -92,7 +92,7 @@
             <Border Style="{StaticResource Kpi}">
                 <StackPanel>
                     <DockPanel>
-                        <Border DockPanel.Dock="Right" Width="36" Height="36" CornerRadius="9" Background="{StaticResource Azul50}">
+                        <Border DockPanel.Dock="Right" Width="36" Height="36" CornerRadius="4" Background="Transparent">
                             <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeCaminhao}" Foreground="{StaticResource Azul600}" Width="18" />
                         </Border>
                         <TextBlock Text="Pedidos pendentes" Style="{StaticResource KpiRotulo}" />
@@ -104,12 +104,12 @@
             <Border Style="{StaticResource Kpi}">
                 <StackPanel>
                     <DockPanel>
-                        <Border DockPanel.Dock="Right" Width="36" Height="36" CornerRadius="9" Background="{StaticResource Verde50}">
+                        <Border DockPanel.Dock="Right" Width="36" Height="36" CornerRadius="4" Background="Transparent">
                             <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeCarteira}" Foreground="{StaticResource Verde700}" Width="18" />
                         </Border>
                         <TextBlock Text="Ticket médio" Style="{StaticResource KpiRotulo}" />
                     </DockPanel>
-                    <TextBlock x:Name="KpiTicket" Style="{StaticResource KpiValor}" Text="—" />
+                    <Border Style="{StaticResource EtiquetaPreco}" Margin="0,6,0,8" Padding="10,2,10,3"><TextBlock x:Name="KpiTicket" Style="{StaticResource KpiValor}" Text="—" Margin="0" /></Border>
                     <TextBlock Text="Nas vendas de hoje" Style="{StaticResource KpiSub}" />
                 </StackPanel>
             </Border>

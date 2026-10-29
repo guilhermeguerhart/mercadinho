@@ -6,7 +6,7 @@
             <DockPanel Margin="0,0,0,20">
                 <StackPanel Orientation="Horizontal">
                     <Border Style="{StaticResource MarcaQuadrado}">
-                        <TextBlock Text="M" Foreground="White" FontWeight="Bold" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <TextBlock Text="M" Foreground="{StaticResource Tinta}" FontWeight="ExtraBold" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
                     <TextBlock Text="Mercado" FontWeight="Bold" FontSize="18" Margin="10,0,0,0" VerticalAlignment="Center" />
                 </StackPanel>
@@ -14,9 +14,9 @@
                         VerticalAlignment="Center" Click="Sair_Click" />
             </DockPanel>
 
-            <Border Style="{StaticResource CartaoBorda}" CornerRadius="16" Padding="32,28,32,24" Effect="{StaticResource SombraCartao}">
+            <Border Style="{StaticResource CartaoBorda}" Padding="32,28,32,24" Effect="{StaticResource SombraCartao}">
                 <StackPanel>
-                    <Border Width="56" Height="56" CornerRadius="28" Background="{StaticResource Ambar50}" Margin="0,0,0,16">
+                    <Border Width="56" Height="56" CornerRadius="4" Background="{StaticResource Ambar50}" Margin="0,0,0,16">
                         <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeFerramenta}" Foreground="{StaticResource Ambar700}" Width="26" />
                     </Border>
                     <TextBlock x:Name="Ola" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Verde700}"

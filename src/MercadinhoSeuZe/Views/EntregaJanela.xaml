@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Width="760">
     <!-- Registrar a entrega de um pedido: confere o que chegou (ou importa o XML da nota) e cria os lotes no estoque -->
-    <Border Style="{StaticResource CartaoBorda}" CornerRadius="16" Padding="24,24,24,20" Effect="{StaticResource SombraJanela}">
+    <Border Style="{StaticResource Janela}" Padding="24,24,24,20">
         <StackPanel>
             <DockPanel Margin="0,0,0,18">
                 <Button DockPanel.Dock="Right" Content="×" Style="{StaticResource LinkSuave}" FontSize="24" FontWeight="Normal"
@@ -14,12 +14,12 @@
                 </StackPanel>
             </DockPanel>
 
-            <Border x:Name="AvisoErro" Style="{StaticResource Aviso}" Background="{StaticResource Vermelho50}" BorderBrush="#F2C4BE" Visibility="Collapsed">
+            <Border x:Name="AvisoErro" Style="{StaticResource Aviso}" Background="{StaticResource Vermelho50}" BorderBrush="{StaticResource Vermelho600}" Visibility="Collapsed">
                 <TextBlock x:Name="AvisoErroTexto" Foreground="{StaticResource Vermelho600}" FontSize="14" />
             </Border>
 
             <!-- Resultado da importação do XML da nota -->
-            <Border x:Name="AvisoNota" Style="{StaticResource Aviso}" Background="{StaticResource Verde50}" BorderBrush="#BFE0CB" Visibility="Collapsed">
+            <Border x:Name="AvisoNota" Style="{StaticResource Aviso}" Background="{StaticResource Verde50}" BorderBrush="{StaticResource Verde700}" Visibility="Collapsed">
                 <DockPanel>
                     <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeFechamento}" Foreground="{StaticResource Verde700}"
                                     Width="18" VerticalAlignment="Top" Margin="0,1,10,0" />
@@ -66,10 +66,10 @@
                     <ColumnDefinition Width="12" />
                     <ColumnDefinition Width="120" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="Produto" Style="{StaticResource Cabecalho}" />
-                <TextBlock Grid.Column="1" Text="Chegou" Style="{StaticResource Cabecalho}" />
-                <TextBlock x:Name="CabecalhoCusto" Grid.Column="3" Text="Custo (R$)" Style="{StaticResource Cabecalho}" />
-                <TextBlock Grid.Column="5" Text="Validade" Style="{StaticResource Cabecalho}" />
+                <TextBlock Text="PRODUTO" Style="{StaticResource Cabecalho}" />
+                <TextBlock Grid.Column="1" Text="CHEGOU" Style="{StaticResource Cabecalho}" />
+                <TextBlock x:Name="CabecalhoCusto" Grid.Column="3" Text="CUSTO (R$)" Style="{StaticResource Cabecalho}" />
+                <TextBlock Grid.Column="5" Text="VALIDADE" Style="{StaticResource Cabecalho}" />
             </Grid>
             <Border BorderBrush="{StaticResource Linha}" BorderThickness="0,1,0,0">
                 <StackPanel x:Name="Itens" />

@@ -118,6 +118,8 @@ public partial class EstoqueView : UserControl
         var nVencido = _produtos.Count(p => p.Vencido);
         var nAviso = _produtos.Count(p => p.AvisoAntecipado);
 
+        foreach (var kpi in Kpis.Children.OfType<Button>())
+            kpi.Tag = kpi.Uid == _filtro ? "ativo" : null;
         KpiTotal.Text = _produtos.Count.ToString(PtBr);
         var unidades = _produtos.Where(p => !p.PorPeso).Sum(p => p.Quantidade);
         var quilos = _produtos.Where(p => p.PorPeso).Sum(p => p.Quantidade);
@@ -256,8 +258,13 @@ public partial class EstoqueView : UserControl
         });
         Colocar(grade, qtd, 2);
 
-        var preco = Celula(p.Preco.ToString("C", PtBr) + (p.PorPeso ? "/kg" : ""));
-        preco.HorizontalAlignment = HorizontalAlignment.Right;
+        var preco = new Border
+        {
+            Style = Recurso<Style>("EtiquetaPreco"),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 0, 8, 0),
+            Child = new TextBlock { Text = p.Preco.ToString("C", PtBr) + (p.PorPeso ? "/kg" : ""), FontWeight = FontWeights.Bold, FontSize = 14, Foreground = Recurso<Brush>("Tinta") }
+        };
         Colocar(grade, preco, 3);
 
         // Clicar em qualquer parte da linha também abre e fecha
@@ -633,9 +640,8 @@ public partial class EstoqueView : UserControl
     private void AoRedimensionar(object sender, SizeChangedEventArgs e)
     {
         // Cinco quadrados numa fileira: diminuem junto com a janela (no máximo 140 px)
-        var lado = Math.Max(96, Math.Min(140, (e.NewSize.Width - 5 * 12) / 5));
-        foreach (var kpi in Kpis.Children.OfType<Button>())
-            kpi.Width = kpi.Height = lado;
+        // Janela estreita: os contadores da faixa vão para duas linhas
+        Kpis.Rows = e.NewSize.Width < 600 ? 2 : 1;
         var compacta = e.NewSize.Width < 760;
         if (compacta == _compacta) return;
         _compacta = compacta;

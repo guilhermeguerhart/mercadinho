@@ -5,26 +5,29 @@
     <Grid>
         <DockPanel>
             <!-- Topo -->
-            <Border DockPanel.Dock="Top" Background="White" BorderBrush="{StaticResource Linha}" BorderThickness="0,0,0,1">
+            <Border DockPanel.Dock="Top" Background="{StaticResource Verde700}">
                 <DockPanel x:Name="Topo" Height="64" MaxWidth="1120" Margin="24,0">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <Border Style="{StaticResource MarcaQuadrado}">
-                            <TextBlock Text="M" Foreground="White" FontWeight="Bold" FontSize="18"
+                            <TextBlock Text="M" Foreground="{StaticResource Tinta}" FontWeight="ExtraBold" FontSize="18"
                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
-                        <TextBlock Text="Mercado" FontWeight="Bold" FontSize="18" Margin="10,0,0,0" VerticalAlignment="Center" />
+                        <TextBlock Text="Mercado" FontWeight="ExtraBold" FontSize="18" Margin="10,0,0,0" VerticalAlignment="Center" Foreground="{StaticResource Creme}" />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                        <Button Content="Contato" Style="{StaticResource LinkSuave}" FontSize="15" VerticalAlignment="Center"
+                        <Button Content="Contato" Style="{StaticResource BotaoLink}" Foreground="{StaticResource Creme}" FontSize="15" VerticalAlignment="Center"
                                 Margin="0,0,20,0" Click="AbrirContato_Click" />
-                        <Button Content="Acessar sistema" Style="{StaticResource BotaoPrimario}" Height="38" Padding="16,0"
+                        <Button Content="Acessar sistema" Style="{StaticResource BotaoFantasma}" Background="{StaticResource Etiqueta}" BorderBrush="{StaticResource Tinta}" Height="38" Padding="16,0"
                                 FontSize="14" Click="AcessarSistema_Click" />
                     </StackPanel>
                 </DockPanel>
             </Border>
 
+            <!-- Toldo listrado embaixo do topo -->
+            <Border DockPanel.Dock="Top" Height="19" Background="{StaticResource Toldo}" />
+
             <!-- Rodapé -->
-            <Border DockPanel.Dock="Bottom" Background="White" BorderBrush="{StaticResource Linha}" BorderThickness="0,1,0,0" Padding="0,14">
+            <Border DockPanel.Dock="Bottom" Background="{StaticResource Cartao}" BorderBrush="{StaticResource Linha}" BorderThickness="0,1,0,0" Padding="0,14">
                 <TextBlock Text="Mercado · contato@mercado.com.br · (11) 4000-0000" Style="{StaticResource TextoSuave}"
                            FontSize="13" HorizontalAlignment="Center" />
             </Border>
@@ -33,8 +36,8 @@
             <Border>
                 <Border.Background>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                        <GradientStop Color="White" Offset="0" />
-                        <GradientStop Color="#F4F6F4" Offset="1" />
+                        <GradientStop Color="#F5EFE3" Offset="0" />
+                        <GradientStop Color="#F5EFE3" Offset="1" />
                     </LinearGradientBrush>
                 </Border.Background>
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -60,7 +63,7 @@
                             </StackPanel>
 
                             <!-- Prévia ilustrativa do resumo do dia -->
-                            <Border x:Name="Previa" Grid.Column="1" Style="{StaticResource CartaoBorda}" CornerRadius="16" Padding="24"
+                            <Border x:Name="Previa" Grid.Column="1" Style="{StaticResource CartaoBorda}" Padding="24"
                                     Effect="{StaticResource SombraCartao}" VerticalAlignment="Center">
                                 <StackPanel>
                                     <TextBlock Text="Resumo do dia" FontWeight="Bold" Margin="0,0,0,16" />
@@ -141,8 +144,8 @@
         <!-- Janela "Fale com a gente" -->
         <Grid x:Name="JanelaContato" Visibility="Collapsed">
             <Border Background="#73141E18" MouseLeftButtonDown="FundoContato_Click" />
-            <Border Style="{StaticResource CartaoBorda}" CornerRadius="16" Padding="24,24,24,20" Width="460" Margin="16"
-                    HorizontalAlignment="Center" VerticalAlignment="Center" Effect="{StaticResource SombraJanela}">
+            <Border Style="{StaticResource Janela}" Padding="24,24,24,20" Width="460" Margin="16"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
                 <StackPanel>
                     <DockPanel Margin="0,0,0,16">
                         <Button DockPanel.Dock="Right" Content="×" Style="{StaticResource LinkSuave}" FontSize="24" FontWeight="Normal"
@@ -154,7 +157,7 @@
                     </DockPanel>
 
                     <Border x:Name="AvisoContato" Style="{StaticResource Aviso}" Visibility="Collapsed"
-                            Background="{StaticResource Verde50}" BorderBrush="#BFE0CB">
+                            Background="{StaticResource Verde50}" BorderBrush="{StaticResource Verde700}">
                         <TextBlock x:Name="AvisoContatoTexto" Foreground="{StaticResource Verde700}" FontSize="14" />
                     </Border>
 
