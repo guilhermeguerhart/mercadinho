@@ -41,6 +41,8 @@ public partial class ProdutoJanela : UserControl
         Aviso.Text = produto?.EstoqueAviso is { } av ? Formulario.Quantidade(av) : "";
         CodigoCaixa.Text = produto?.CodigoBarrasCaixa ?? codigoLido ?? "";
         CodigoBalanca.Text = produto?.CodigoBalanca?.ToString(CultureInfo.InvariantCulture) ?? "";
+        CampoSemPromocao.Visibility = _servico.TemPromocoes ? Visibility.Visible : Visibility.Collapsed;
+        SemPromocaoValidade.IsChecked = produto?.SemPromocaoValidade ?? false;
         Formulario.LimparAoDigitar(CodigoBalanca, CodigoBalancaErro);
         if (produto is null && encontrado is not null)
         {
@@ -338,7 +340,8 @@ public partial class ProdutoJanela : UserControl
             _escolheFornecedor ? prazoEntrega : _produto?.PrazoEntregaDias,
             _escolheFornecedor ? PedirAntes.IsChecked == true : _produto?.PedirAntes ?? false,
             CampoCusto.Visibility == Visibility.Visible ? precoCusto : _produto?.PrecoCusto,
-            _servico.TemCaixa ? (kg ? plu : null) : _produto?.CodigoBalanca);
+            _servico.TemCaixa ? (kg ? plu : null) : _produto?.CodigoBalanca,
+            _servico.TemPromocoes ? SemPromocaoValidade.IsChecked == true : _produto?.SemPromocaoValidade ?? false);
         var principalEscolhido = (EscolhaFornecedor.SelectedItem as ComboBoxItem)?.Tag as long?;
         var outros = _outros.Where(id => id != principalEscolhido).ToList();
         var mudouOutros = CampoOutros.Visibility == Visibility.Visible &&

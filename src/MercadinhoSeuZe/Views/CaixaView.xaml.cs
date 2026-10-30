@@ -15,12 +15,16 @@ namespace MercadinhoSeuZe.Views;
 /// leitor, pela etiqueta da balança ou pelo nome ("6*" multiplica), mostra o último item em destaque e recebe o
 /// pagamento em uma ou mais formas (dinheiro, Pix, cartão e vale pela maquininha). Só depois do pagamento o banco
 /// dá baixa nos lotes. Cada item fica reservado no banco (outro caixa não vende o mesmo); lote vencido não é vendido.
-/// Cancelar item, cancelar a venda e dar desconto precisam da senha do gerente.
+/// Cancelar item, cancelar a venda e dar desconto precisam da senha do gerente. As promoções (do produto e de validade,
+/// script 008) entram no preço pelo banco; no fim do dia a pessoa conta a gaveta e fecha o caixa (sangria e suprimento).
 /// </summary>
 public partial class CaixaView : UserControl
 {
     private static readonly CultureInfo PtBr = new("pt-BR");
     private static readonly Regex Multiplicacao = new(@"^(\d{1,4}(?:[.,]\d{1,3})?)\s*[*xX]\s*(.*)$");
+
+    /// <summary>Com mais que isto em dinheiro na gaveta, o caixa lembra de fazer uma sangria.</summary>
+    private const decimal LimiteGaveta = 500m;
 
     /// <summary>Uma linha da venda. Item = null: produto por quilo esperando o peso (ainda não reservado).</summary>
     private sealed class Linha(Produto produto)
@@ -56,6 +60,10 @@ public partial class CaixaView : UserControl
     private bool _modoCaixa;
     private bool _carregou;
     private bool _recebendo;
+    private ResumoCaixa? _resumoCaixa;
+
+    /// <summary>Caixa de hoje aberto (abriu e ainda não fechou).</summary>
+    private bool CaixaAberto => _caixa is { Fechado: false };
 
     public CaixaView(AreaInternaView area, CaixaService? caixa, EstoqueService? estoque)
     {
@@ -68,6 +76,8 @@ public partial class CaixaView : UserControl
         MontarFormas();
         for (var i = 1; i <= 12; i++) Parcelas.Items.Add(new ComboBoxItem { Content = i == 1 ? "À vista" : $"{i}x", Tag = i });
         Parcelas.SelectedIndex = 0;
+        Formulario.MascaraDinheiro(TrocoInicial);
+        Formulario.MascaraDinheiro(Valor, vazio: true);
         Formulario.LimparAoDigitar(TrocoInicial, TrocoInicialErro);
         PreviewKeyDown += Atalhos;
         _timer.Tick += async (_, _) => await AtualizarEmSegundoPlanoAsync();
@@ -96,19 +106,20 @@ public partial class CaixaView : UserControl
         try
         {
             var caixa = _caixaServico.MeuCaixaAsync();
-            var produtos = _estoque.ListarAsync();
+            var produtos = _estoque.ListarComPromocoesAsync();
             var vendas = _caixaServico.VendasDeHojeAsync();
             await Task.WhenAll(caixa, produtos, vendas);
             _caixa = caixa.Result;
-            _produtos = produtos.Result;
+            _produtos = produtos.Result.Produtos;
             _vendasHoje = vendas.Result;
             await AplicarReservasAsync();
+            await AtualizarGavetaAsync();
 
             LimparVenda();
             _emEspera = [];
-            if (_caixa is not null)
+            if (CaixaAberto)
             {
-                _emEspera = await _caixaServico.VendasEmEsperaAsync(_caixa.Id);
+                _emEspera = await _caixaServico.VendasEmEsperaAsync(_caixa!.Id);
                 if (await _caixaServico.VendaAbertaAsync(_caixa.Id) is { } aberta)
                 {
                     // Venda que ficou no meio (programa fechado) ou retomada da espera: volta com os itens reservados
@@ -147,13 +158,14 @@ public partial class CaixaView : UserControl
         if (_caixaServico is null || _estoque is null || !_fila.Wait(0)) return;
         try
         {
-            var produtos = _estoque.ListarAsync();
+            var produtos = _estoque.ListarComPromocoesAsync();
             var vendas = _caixaServico.VendasDeHojeAsync();
             await Task.WhenAll(produtos, vendas);
-            _produtos = produtos.Result;
+            _produtos = produtos.Result.Produtos;
             _vendasHoje = vendas.Result;
             await AplicarReservasAsync();
-            if (_caixa is not null) _emEspera = await _caixaServico.VendasEmEsperaAsync(_caixa.Id);
+            if (CaixaAberto) _emEspera = await _caixaServico.VendasEmEsperaAsync(_caixa!.Id);
+            await AtualizarGavetaAsync();
             MostrarDia();
             MostrarPagamento();
             AtualizarResultados();
@@ -193,16 +205,57 @@ public partial class CaixaView : UserControl
 
     private void Mostrar()
     {
-        var aberto = _caixa is not null;
-        PainelAbrir.Visibility = aberto ? Visibility.Collapsed : Visibility.Visible;
+        var aberto = CaixaAberto;
+        var fechado = _caixa is { Fechado: true };
+        PainelAbrir.Visibility = _caixa is null ? Visibility.Visible : Visibility.Collapsed;
+        PainelFechado.Visibility = fechado ? Visibility.Visible : Visibility.Collapsed;
         AreaVenda.Visibility = aberto ? Visibility.Visible : Visibility.Collapsed;
         Subtitulo.Text = aberto
             ? $"Caixa aberto por {_caixa!.OperadorNome} às {_caixa.Hora} · troco inicial {Moeda(_caixa.TrocoInicial)}"
+            : fechado ? $"Caixa de {_caixa!.OperadorNome} fechado às {_caixa.HoraFechamento}"
             : "Registro de vendas do dia";
         SubtituloModoCaixa.Text = aberto ? $"{_caixa!.OperadorNome} · aberto às {_caixa.Hora}" : "Caixa fechado";
         if (aberto) MostrarVenda();
+        if (fechado) MostrarFechado();
         MostrarDia();
-        Dispatcher.BeginInvoke(DispatcherPriority.Input, () => { if (aberto) FocarBusca(); else { TrocoInicial.Focus(); TrocoInicial.SelectAll(); } });
+        Dispatcher.BeginInvoke(DispatcherPriority.Input, () => { if (aberto) FocarBusca(); else if (_caixa is null) { TrocoInicial.Focus(); TrocoInicial.SelectAll(); } });
+    }
+
+    /// <summary>Caixa de hoje já fechado: a conferência da gaveta (e "Reabrir" para o gerente).</summary>
+    private void MostrarFechado()
+    {
+        var c = _caixa!;
+        var d = c.FechadoDiferenca ?? 0;
+        FechadoTitulo.Text = $"Caixa fechado às {c.HoraFechamento}";
+        FechadoTexto.Text = (c.FechadoPor is null ? "" : $"Fechado por {c.FechadoPor}. ") +
+            (d == 0 ? "A gaveta bateu." : d > 0 ? $"Sobrou {Moeda(d)} na gaveta." : $"Faltou {Moeda(-d)} na gaveta.") +
+            " Para vender de novo hoje, o gerente precisa reabrir o caixa.";
+        FechadoResumo.Content = _resumoCaixa is { } r
+            ? CaixaJanelas.TabelaResumo(new JanelaSimples(_area, "", null), r)
+            : null;
+        BotaoReabrir.Visibility = _gerente ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>Dinheiro na gaveta (para a sangria, o aviso de gaveta cheia e o fechamento). Sem o script 008, nada muda.</summary>
+    private async Task AtualizarGavetaAsync()
+    {
+        if (_caixaServico is not { TemPromocoes: true } || _caixa is null)
+        {
+            _resumoCaixa = null;
+            return;
+        }
+        try
+        {
+            _resumoCaixa = await _caixaServico.ResumoAsync(_caixa.Id);
+        }
+        catch (TabelaInexistenteException)
+        {
+            _resumoCaixa = null;   // script 008 ainda não rodado: sem sangria, suprimento e fechamento
+        }
+        catch (ConexaoException)
+        {
+            // Sem internet agora: fica o último resumo até a próxima atualização
+        }
     }
 
     private double FonteItem => _modoCaixa ? 18 : 15;
@@ -235,6 +288,8 @@ public partial class CaixaView : UserControl
         DestaqueConta.Text = _ultima.Item is null
             ? $"Digite o peso · {Moeda(preco)}/kg"
             : p.PorPeso ? $"{_ultima.Item.Numero} kg × {Moeda(preco)}/kg" : $"{_ultima.Item.Numero} × {Moeda(preco)}";
+        if (_ultima.Item is { EmPromocao: true } item)
+            DestaqueConta.Text += $" · {item.Promocao ?? "Promoção"}: −{Moeda(item.DescontoPromocao)}";
         DestaqueSubtotal.Text = _ultima.Item is null ? "—" : Moeda(_ultima.Subtotal);
     }
 
@@ -253,12 +308,20 @@ public partial class CaixaView : UserControl
 
         var nome = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };
         nome.Children.Add(new TextBlock { Text = p.Nome, FontSize = FonteItem, FontWeight = FontWeights.SemiBold });
+        var marcas = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
         if (p.Categoria.Length > 0)
         {
             var pilula = CategoriaVisual.Pilula(this, p.Categoria, 12);
-            pilula.Margin = new Thickness(0, 4, 0, 0);
-            nome.Children.Add(pilula);
+            pilula.Margin = new Thickness(0, 0, 6, 0);
+            marcas.Children.Add(pilula);
         }
+        if (linha.Item is { EmPromocao: true } emPromocao)
+        {
+            var etiqueta = EtiquetaPromocao(emPromocao.Promocao ?? "Promoção");
+            etiqueta.ToolTip = $"Desconto de promoção neste item: {Moeda(emPromocao.DescontoPromocao)}";
+            marcas.Children.Add(etiqueta);
+        }
+        if (marcas.Children.Count > 0) nome.Children.Add(marcas);
         Grid.SetColumn(nome, 1);
         grade.Children.Add(nome);
 
@@ -305,9 +368,17 @@ public partial class CaixaView : UserControl
 
         var subtotal = new TextBlock
         {
-            Text = linha.Item is null ? "—" : Moeda(linha.Subtotal), FontSize = FonteItem, FontWeight = FontWeights.Bold,
+            FontSize = FonteItem, FontWeight = FontWeights.Bold, TextAlignment = TextAlignment.Right,
             HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center
         };
+        if (linha.Item is { EmPromocao: true, SubtotalNormal: { } normal })
+        {
+            // Preço normal riscado em cima, o da promoção embaixo
+            subtotal.Inlines.Add(new System.Windows.Documents.Run(Moeda(normal)) { FontSize = FonteItem - 3, FontWeight = FontWeights.Normal, TextDecorations = TextDecorations.Strikethrough, Foreground = Recurso<Brush>("Suave") });
+            subtotal.Inlines.Add(new System.Windows.Documents.LineBreak());
+            subtotal.Inlines.Add(new System.Windows.Documents.Run(Moeda(linha.Subtotal)) { Foreground = Recurso<Brush>("Verde700") });
+        }
+        else subtotal.Text = linha.Item is null ? "—" : Moeda(linha.Subtotal);
         Grid.SetColumn(subtotal, 4);
         grade.Children.Add(subtotal);
 
@@ -342,6 +413,8 @@ public partial class CaixaView : UserControl
         QuantidadeItens.Text = n == 0 ? "Nenhum item" : n == 1 ? "1 item" : $"{n} itens";
 
         Detalhes.Children.Clear();
+        var economia = _linhas.Sum(l => l.Item?.DescontoPromocao ?? 0);
+        if (economia > 0) Detalhes.Children.Add(LinhaDetalhe("Economia nas promoções", Moeda(economia), "já descontada dos itens", "Verde700"));
         if (_desconto > 0)
         {
             Detalhes.Children.Add(LinhaDetalhe("Itens", Moeda(ValorItens), null));
@@ -374,7 +447,20 @@ public partial class CaixaView : UserControl
         BotaoCpf.Content = _cpf is null ? "CPF na nota (F11)" : "Trocar CPF (F11)";
         BotaoVendasEspera.Visibility = _emEspera.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         BotaoVendasEspera.Content = _emEspera.Count == 1 ? "1 venda em espera" : $"{_emEspera.Count} vendas em espera";
+
+        FuncoesGaveta.Visibility = _resumoCaixa is not null ? Visibility.Visible : Visibility.Collapsed;
+        var gaveta = _resumoCaixa?.Esperado ?? 0;
+        AvisoGaveta.Visibility = gaveta > LimiteGaveta ? Visibility.Visible : Visibility.Collapsed;
+        AvisoGavetaTexto.Text = $"A gaveta está com {Moeda(gaveta)} em dinheiro. Faça uma sangria e guarde o dinheiro no cofre.";
     }
+
+    /// <summary>Etiqueta amarela de promoção no item ("Validade −30% · −R$ 6,00").</summary>
+    private Border EtiquetaPromocao(string texto) => new()
+    {
+        Background = Recurso<Brush>("Etiqueta"), CornerRadius = new CornerRadius(3), Padding = new Thickness(6, 1, 6, 1),
+        VerticalAlignment = VerticalAlignment.Center,
+        Child = new TextBlock { Text = texto, FontSize = 12, FontWeight = FontWeights.Bold, Foreground = Recurso<Brush>("Tinta") }
+    };
 
     private FrameworkElement LinhaDetalhe(string rotulo, string valor, string? sub, string cor = "Tinta", Action? remover = null)
     {
@@ -734,6 +820,9 @@ public partial class CaixaView : UserControl
             linha.Item.Id = r.ItemId ?? 0;
             linha.Item.Quantidade = r.Quantidade;
             linha.Item.Subtotal = r.Subtotal;
+            linha.Item.SubtotalNormal = r.Normal;
+            linha.Item.DescontoPromocao = r.Normal is { } normal ? Math.Max(0, normal - r.Subtotal) : 0;
+            linha.Item.Promocao = r.Promocao;
             p.Reservado += r.Quantidade - antes;
             if (r.ItemId is null) _linhas.Remove(linha);
             else _ultima = linha;
@@ -782,10 +871,10 @@ public partial class CaixaView : UserControl
     /// Pede a senha do gerente para uma ação do caixa. O gerente logado já está autorizado (o banco confere de novo).
     /// Devolve se pode seguir e o id da autorização.
     /// </summary>
-    private async Task<(bool Ok, long? Id)> AutorizarAsync(string acao, string texto)
+    private async Task<(bool Ok, long? Id)> AutorizarAsync(string acao, string texto, bool daVenda = true)
     {
         if (_gerente || _caixaServico is null) return (_caixaServico is not null, null);
-        var janela = new AutorizacaoJanela(_area, _caixaServico, acao, _vendaId, texto);
+        var janela = new AutorizacaoJanela(_area, _caixaServico, acao, daVenda ? _vendaId : null, texto);
         _area.AbrirJanela(janela);
         var id = await janela.Resultado;
         return (id is not null, id);
@@ -825,6 +914,8 @@ public partial class CaixaView : UserControl
         PainelValor.Visibility = forma is null ? Visibility.Collapsed : Visibility.Visible;
         RotuloValor.Text = forma == "dinheiro" ? "Valor recebido (R$)" : "Valor (R$)";
         ColunaParcelas.Width = forma == "credito" ? new GridLength(120) : new GridLength(0);
+        // Coluna com largura 0 ainda mede o rótulo (uma letra por linha): fora do crédito, esconde
+        BlocoParcelas.Visibility = forma == "credito" ? Visibility.Visible : Visibility.Collapsed;
         Parcelas.SelectedIndex = 0;
         MostrarPagamento();
         if (forma is not null) Dispatcher.BeginInvoke(DispatcherPriority.Input, () => Valor.Focus());
@@ -1109,6 +1200,91 @@ public partial class CaixaView : UserControl
             }, "Cancelar venda", "Voltar"));
     }
 
+    // ------------------------------------------------------------ Gaveta: sangria, suprimento e fechamento
+
+    private void Sangria_Click(object sender, RoutedEventArgs e) => AbrirMovimento(sangria: true);
+
+    private void Suprimento_Click(object sender, RoutedEventArgs e) => AbrirMovimento(sangria: false);
+
+    private void AbrirMovimento(bool sangria)
+    {
+        if (_caixaServico is null || !CaixaAberto || _resumoCaixa is null) return;
+        _area.AbrirJanela(CaixaJanelas.Movimento(_area, sangria, _resumoCaixa.Esperado, async (valor, motivo) =>
+        {
+            long? autorizacao = null;
+            if (sangria)
+            {
+                _area.FecharJanela();
+                var (ok, id) = await AutorizarAsync("sangria", $"Sangria de {Moeda(valor)}" + (motivo is null ? "." : $" ({motivo})."), daVenda: false);
+                if (!ok) return;
+                autorizacao = id;
+            }
+            try
+            {
+                _resumoCaixa = await _caixaServico.MovimentoAsync(sangria ? "sangria" : "suprimento", valor, motivo, autorizacao);
+                if (!sangria) _area.FecharJanela();
+                MostrarPagamento();
+                _area.MostrarToast(sangria
+                    ? $"Sangria de {Moeda(valor)} registrada. Na gaveta: {Moeda(_resumoCaixa.Esperado)}."
+                    : $"Suprimento de {Moeda(valor)} registrado. Na gaveta: {Moeda(_resumoCaixa.Esperado)}.");
+                FocarBusca();
+            }
+            catch (ConexaoException ex) when (sangria)
+            {
+                // A janela da sangria já fechou para o gerente digitar a senha: o erro aparece no caixa
+                FormaErro.Text = ex.Message;
+            }
+        }));
+    }
+
+    private async void FecharCaixa_Click(object sender, RoutedEventArgs e) => await FecharCaixaAsync();
+
+    /// <summary>Contar a gaveta e fechar: a venda em andamento precisa estar terminada (a em espera é cancelada).</summary>
+    private async Task FecharCaixaAsync()
+    {
+        if (_caixaServico is null || !CaixaAberto) return;
+        if (_linhas.Any(l => l.Item is not null))
+        {
+            FormaErro.Text = "Termine, ponha em espera ou cancele a venda atual antes de fechar o caixa.";
+            return;
+        }
+        ResumoCaixa resumo;
+        try
+        {
+            resumo = await _caixaServico.ResumoAsync(_caixa!.Id);
+        }
+        catch (ConexaoException ex)
+        {
+            FormaErro.Text = ex.Message;
+            return;
+        }
+        _resumoCaixa = resumo;
+        var caixaId = _caixa.Id;
+        _area.AbrirJanela(CaixaJanelas.Fechamento(_area, resumo, async (contado, obs) =>
+        {
+            var r = await _caixaServico.FecharAsync(caixaId, contado, obs);
+            _area.FecharJanela();
+            var d = r.Diferenca ?? 0;
+            _area.MostrarToast(d == 0 ? "Caixa fechado. A gaveta bateu." : d > 0 ? $"Caixa fechado com sobra de {Moeda(d)}." : $"Caixa fechado com falta de {Moeda(-d)}.");
+            await CarregarAsync();
+        }));
+    }
+
+    private async void Reabrir_Click(object sender, RoutedEventArgs e)
+    {
+        if (_caixaServico is null || _caixa is null) return;
+        try
+        {
+            await _caixaServico.ReabrirAsync(_caixa.Id);
+            _area.MostrarToast("Caixa reaberto. Feche de novo no fim do dia.");
+            await CarregarAsync();
+        }
+        catch (ConexaoException ex)
+        {
+            FechadoTexto.Text = ex.Message;
+        }
+    }
+
     // ------------------------------------------------------------ Modo caixa e atalhos
 
     private void ChaveModo_Click(object sender, RoutedEventArgs e)
@@ -1118,7 +1294,7 @@ public partial class CaixaView : UserControl
         var prefs = PreferenciasLocais.Carregar();
         prefs.ModoCaixa = ligar;
         prefs.Salvar();
-        if (_caixa is not null) FocarBusca();
+        if (CaixaAberto) FocarBusca();
     }
 
     /// <summary>Modo caixa: tela inteira (sem o menu), letras e botões maiores, sem o resumo e a lista do dia.</summary>
@@ -1139,9 +1315,11 @@ public partial class CaixaView : UserControl
 
         AreaVenda.Margin = ligado ? new Thickness(20, 16, 20, 16) : new Thickness(0, 0, 0, 20);
         PainelAbrir.Margin = ligado ? new Thickness(20, 20, 20, 20) : new Thickness(0, 0, 0, 20);
+        PainelFechado.Margin = PainelAbrir.Margin;
         AvisoErro.Margin = ligado ? new Thickness(20, 16, 20, 0) : new Thickness(0, 0, 0, 20);
         LinhaVenda.Height = ligado ? new GridLength(1, GridUnitType.Star) : GridLength.Auto;
         RolagemItens.MaxHeight = ligado ? double.PositiveInfinity : 420;
+        RolagemItens.VerticalAlignment = ligado ? VerticalAlignment.Stretch : VerticalAlignment.Top;
         CartaoItens.VerticalAlignment = ligado ? VerticalAlignment.Stretch : VerticalAlignment.Top;
         CartaoPagamento.VerticalAlignment = ligado ? VerticalAlignment.Stretch : VerticalAlignment.Top;
 
@@ -1160,14 +1338,14 @@ public partial class CaixaView : UserControl
         Falta.FontSize = ligado ? 26 : 20;
 
         MontarFormas();
-        if (_caixa is not null) MostrarVenda();
+        if (CaixaAberto) MostrarVenda();
         AtualizarResultados();
         AjustarColunas(ActualWidth);
     }
 
     private void Atalhos(object sender, KeyEventArgs e)
     {
-        if (e.Handled || _caixa is null || AreaVenda.Visibility != Visibility.Visible) return;
+        if (e.Handled || !CaixaAberto || AreaVenda.Visibility != Visibility.Visible) return;
         var ctrl = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
         var shift = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
         switch (e.Key)

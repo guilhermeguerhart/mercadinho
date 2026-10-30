@@ -38,7 +38,8 @@ INSTRUCOES_PARA_IA.txt    resumo do projeto, próximos passos e restrições (le
 2. **Criar o projeto no Supabase** (https://supabase.com, plano grátis).
 3. No Supabase, abrir **SQL Editor** e executar os scripts de `database/` em ordem
    (`001_semana1_perfis.sql`, depois `003_semana3_estoque.sql`, `004_semana4_fornecedores.sql`,
-   `005_semana4_ajustes.sql`, `006_semana5_caixa.sql` e `007_semana5_caixa_padrao.sql`; o `002` só cria usuários de teste).
+   `005_semana4_ajustes.sql`, `006_semana5_caixa.sql`, `007_semana5_caixa_padrao.sql` e `008_promocoes_fechamento.sql`;
+   o `002` só cria usuários de teste).
 4. Criar o primeiro gerente em **Authentication > Users > Add user**, marcando *Auto Confirm User*
    (os outros funcionários o gerente cadastra no próprio programa, na tela **Funcionários**).
    O login é por **nome de usuário**: crie cada um com o e-mail interno `<usuario>@mercado.local`

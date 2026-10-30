@@ -73,10 +73,28 @@
                                Text="Conte o dinheiro que está na gaveta para o troco e abra o caixa para começar a vender." />
                     <TextBlock Text="Troco inicial (R$)" Style="{StaticResource Rotulo}" />
                     <StackPanel Orientation="Horizontal">
-                        <TextBox x:Name="TrocoInicial" Width="180" MaxLength="10" Text="0,00" AutomationProperties.Name="Troco inicial em reais" KeyDown="TrocoInicial_KeyDown" />
+                        <TextBox x:Name="TrocoInicial" Width="180" Text="0,00" AutomationProperties.Name="Troco inicial em reais" KeyDown="TrocoInicial_KeyDown" />
                         <Button x:Name="BotaoAbrir" Content="Abrir caixa" Style="{StaticResource BotaoPrimario}" Margin="12,0,0,0" Click="AbrirCaixa_Click" />
                     </StackPanel>
                     <TextBlock x:Name="TrocoInicialErro" Style="{StaticResource ErroCampo}" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- Caixa de hoje já fechado: resumo da conferência (o gerente pode reabrir) -->
+        <Border x:Name="PainelFechado" Grid.Row="2" Style="{StaticResource CartaoBorda}" Padding="28,26" Margin="0,0,0,20" Visibility="Collapsed"
+                HorizontalAlignment="Left" VerticalAlignment="Top" MaxWidth="640">
+            <DockPanel>
+                <Border DockPanel.Dock="Left" Width="56" Height="56" CornerRadius="6" Background="{StaticResource Verde50}" VerticalAlignment="Top"
+                        Margin="0,0,20,0">
+                    <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeCheck}" Foreground="{StaticResource Verde700}" Width="28" />
+                </Border>
+                <StackPanel>
+                    <TextBlock x:Name="FechadoTitulo" Text="Caixa fechado" FontSize="20" FontWeight="Bold" Margin="0,0,0,6" />
+                    <TextBlock x:Name="FechadoTexto" Style="{StaticResource TextoSuave}" FontSize="14" Margin="0,0,0,14" TextWrapping="Wrap" />
+                    <ContentControl x:Name="FechadoResumo" />
+                    <Button x:Name="BotaoReabrir" Content="Reabrir o caixa" Style="{StaticResource BotaoFantasma}" HorizontalAlignment="Left"
+                            Margin="0,16,0,0" Visibility="Collapsed" Click="Reabrir_Click" />
                 </StackPanel>
             </DockPanel>
         </Border>
@@ -148,7 +166,7 @@
                     </StackPanel>
 
                     <Grid>
-                        <ScrollViewer x:Name="RolagemItens" VerticalScrollBarVisibility="Auto" MaxHeight="420">
+                        <ScrollViewer x:Name="RolagemItens" VerticalScrollBarVisibility="Auto" MaxHeight="420" VerticalAlignment="Top">
                             <StackPanel x:Name="ItensVenda" />
                         </ScrollViewer>
                         <StackPanel x:Name="SemItens" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="16,32" MaxWidth="420">
@@ -201,7 +219,7 @@
                                                VerticalAlignment="Center" Margin="15,0,0,0" IsHitTestVisible="False" />
                                 </Grid>
                             </StackPanel>
-                            <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                            <StackPanel x:Name="BlocoParcelas" Grid.Column="1" Margin="12,0,0,0" Visibility="Collapsed">
                                 <TextBlock Text="Parcelas" Style="{StaticResource Rotulo}" />
                                 <ComboBox x:Name="Parcelas" AutomationProperties.Name="Parcelas" />
                             </StackPanel>
@@ -230,6 +248,23 @@
                         <Button x:Name="BotaoCancelarVenda" Content="Cancelar venda" Style="{StaticResource LinkSuave}" Foreground="{StaticResource Vermelho600}" Margin="6,2" Click="CancelarVenda_Click" />
                     </WrapPanel>
                     <Button x:Name="BotaoVendasEspera" Style="{StaticResource BotaoFantasma}" Height="40" Margin="0,12,0,0" Visibility="Collapsed" Click="VendasEspera_Click" />
+
+                    <!-- Gaveta: muito dinheiro pede sangria -->
+                    <Border x:Name="AvisoGaveta" Style="{StaticResource Aviso}" Background="{StaticResource Ambar50}" BorderBrush="{StaticResource Ambar700}"
+                            Margin="0,14,0,0" Visibility="Collapsed">
+                        <TextBlock x:Name="AvisoGavetaTexto" Foreground="{StaticResource Ambar700}" FontSize="13.5" TextWrapping="Wrap" />
+                    </Border>
+                    <!-- Gaveta e fechamento (script 008) -->
+                    <Border x:Name="FuncoesGaveta" BorderBrush="{StaticResource Linha}" BorderThickness="0,1,0,0" Margin="0,14,0,0" Padding="0,10,0,0" Visibility="Collapsed">
+                        <WrapPanel HorizontalAlignment="Center">
+                            <Button Content="Sangria" Style="{StaticResource LinkSuave}" Margin="6,2" Click="Sangria_Click"
+                                    ToolTip="Tirar dinheiro da gaveta para o cofre (precisa do gerente)" />
+                            <Button Content="Suprimento" Style="{StaticResource LinkSuave}" Margin="6,2" Click="Suprimento_Click"
+                                    ToolTip="Pôr mais troco na gaveta" />
+                            <Button Content="Fechar o caixa" Style="{StaticResource LinkSuave}" Margin="6,2" Click="FecharCaixa_Click"
+                                    ToolTip="Contar a gaveta e encerrar o caixa do dia" />
+                        </WrapPanel>
+                    </Border>
 
                     <Border x:Name="UltimaVenda" Style="{StaticResource Aviso}" Background="{StaticResource Verde50}" BorderBrush="{StaticResource Verde700}"
                             Margin="0,16,0,0" Visibility="Collapsed">

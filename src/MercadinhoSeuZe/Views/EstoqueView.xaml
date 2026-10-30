@@ -19,6 +19,17 @@
             </StackPanel>
         </DockPanel>
 
+        <!-- Abas: produtos e promoções (as promoções aparecem depois do script 008) -->
+        <WrapPanel x:Name="Abas" Margin="0,-12,0,20" Visibility="Collapsed">
+            <Button x:Name="AbaBotaoProdutos" Content="Produtos" Style="{StaticResource Chip}" Tag="ativo" Margin="0,0,8,0" Click="Aba_Click" Uid="produtos" />
+            <Button x:Name="AbaBotaoPromocoes" Style="{StaticResource Chip}" Click="Aba_Click" Uid="promocoes">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Promoções" />
+                    <TextBlock x:Name="ContadorPromocoes" FontWeight="Bold" Margin="6,0,0,0" />
+                </StackPanel>
+            </Button>
+        </WrapPanel>
+
         <!-- Erro ao ler o banco -->
         <Border x:Name="AvisoErro" Style="{StaticResource Aviso}" Background="{StaticResource Vermelho50}" BorderBrush="{StaticResource Vermelho600}"
                 Margin="0,0,0,24" Visibility="Collapsed">
@@ -31,6 +42,7 @@
             </DockPanel>
         </Border>
 
+        <StackPanel x:Name="AbaProdutos">
         <!-- Entrada de mercadoria pelo leitor de código de barras -->
         <Border Style="{StaticResource CartaoBorda}" Padding="22,18" Margin="0,0,0,16">
             <DockPanel>
@@ -172,5 +184,9 @@
                 </WrapPanel>
             </StackPanel>
         </Border>
+        </StackPanel>
+
+        <!-- Promoções por produto e de validade por categoria (EstoqueView.Promocoes.cs) -->
+        <StackPanel x:Name="AbaPromocoes" Visibility="Collapsed" />
     </StackPanel>
 </UserControl>

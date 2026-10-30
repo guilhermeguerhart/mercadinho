@@ -183,6 +183,15 @@
                            Text="O mesmo número cadastrado na balança do açougue (PLU, até 5 dígitos). No caixa, a etiqueta impressa pela balança já entra com o peso e o preço." />
             </Grid>
 
+            <!-- Promoção de validade da categoria (script 008): o produto pode ficar de fora -->
+            <Border x:Name="CampoSemPromocao" Background="{StaticResource Fundo}" CornerRadius="10" Padding="14,10" Margin="0,14,0,0" Visibility="Collapsed">
+                <StackPanel>
+                    <CheckBox x:Name="SemPromocaoValidade" Content="Não entra na promoção de validade da categoria" />
+                    <TextBlock FontSize="12" Style="{StaticResource TextoSuave}" Margin="22,4,0,0" TextWrapping="Wrap"
+                               Text="Para o que não pode ser vendido mais barato perto do vencimento (por exemplo, o que o fornecedor troca)." />
+                </StackPanel>
+            </Border>
+
             <!-- Só no cadastro: a primeira compra vira o primeiro lote -->
             <StackPanel x:Name="PrimeiroLote">
                 <Border BorderBrush="{StaticResource Linha}" BorderThickness="0,1,0,0" Margin="0,20,0,14" />

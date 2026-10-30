@@ -12,8 +12,60 @@ public sealed class Caixa
     [JsonPropertyName("aberto_em")] public DateTimeOffset AbertoEm { get; set; }
     [JsonPropertyName("troco_inicial")] public decimal TrocoInicial { get; set; }
     [JsonPropertyName("fechado_em")] public DateTimeOffset? FechadoEm { get; set; }
+    /// <summary>Fechamento (script 008): dinheiro contado na gaveta, o que deveria ter e a diferença (+ sobra, − falta).</summary>
+    [JsonPropertyName("fechado_contado")] public decimal? FechadoContado { get; set; }
+    [JsonPropertyName("fechado_esperado")] public decimal? FechadoEsperado { get; set; }
+    [JsonPropertyName("fechado_diferenca")] public decimal? FechadoDiferenca { get; set; }
+    [JsonPropertyName("fechado_obs")] public string? FechadoObs { get; set; }
+    [JsonPropertyName("fechado_por")] public string? FechadoPor { get; set; }
+
+    public bool Fechado => FechadoEm is not null;
 
     public string Hora => AbertoEm.ToLocalTime().ToString("HH:mm");
+
+    public string HoraFechamento => FechadoEm?.ToLocalTime().ToString("HH:mm") ?? "";
+}
+
+/// <summary>Resposta de resumo_caixa, registrar_movimento e fechar_caixa (script 008).</summary>
+public sealed class ResumoCaixa
+{
+    [JsonPropertyName("caixa_id")] public long CaixaId { get; set; }
+    [JsonPropertyName("operador_nome")] public string OperadorNome { get; set; } = "";
+    [JsonPropertyName("aberto_em")] public DateTimeOffset AbertoEm { get; set; }
+    [JsonPropertyName("fechado_em")] public DateTimeOffset? FechadoEm { get; set; }
+    [JsonPropertyName("troco_inicial")] public decimal TrocoInicial { get; set; }
+    [JsonPropertyName("vendas")] public int Vendas { get; set; }
+    [JsonPropertyName("total_vendas")] public decimal TotalVendas { get; set; }
+    [JsonPropertyName("descontos")] public decimal Descontos { get; set; }
+    [JsonPropertyName("promocoes")] public decimal Promocoes { get; set; }
+    [JsonPropertyName("canceladas")] public int Canceladas { get; set; }
+    [JsonPropertyName("em_espera")] public int EmEspera { get; set; }
+    /// <summary>Total recebido por forma de pagamento ("dinheiro" → 350,00...).</summary>
+    [JsonPropertyName("formas")] public Dictionary<string, decimal> Formas { get; set; } = [];
+    [JsonPropertyName("suprimentos")] public decimal Suprimentos { get; set; }
+    [JsonPropertyName("sangrias")] public decimal Sangrias { get; set; }
+    [JsonPropertyName("movimentos")] public List<MovimentoCaixa> Movimentos { get; set; } = [];
+    /// <summary>Dinheiro que deveria estar na gaveta agora.</summary>
+    [JsonPropertyName("esperado")] public decimal Esperado { get; set; }
+    [JsonPropertyName("contado")] public decimal? Contado { get; set; }
+    [JsonPropertyName("diferenca")] public decimal? Diferenca { get; set; }
+    [JsonPropertyName("obs")] public string? Obs { get; set; }
+    [JsonPropertyName("fechado_por")] public string? FechadoPor { get; set; }
+
+    public decimal Dinheiro => Formas.GetValueOrDefault("dinheiro");
+}
+
+/// <summary>Sangria (dinheiro tirado da gaveta para o cofre) ou suprimento (troco colocado na gaveta).</summary>
+public sealed class MovimentoCaixa
+{
+    [JsonPropertyName("tipo")] public string Tipo { get; set; } = "sangria";
+    [JsonPropertyName("valor")] public decimal Valor { get; set; }
+    [JsonPropertyName("motivo")] public string? Motivo { get; set; }
+    [JsonPropertyName("autorizado_por")] public string? AutorizadoPor { get; set; }
+    [JsonPropertyName("criado_em")] public DateTimeOffset CriadoEm { get; set; }
+
+    public bool Sangria => Tipo == "sangria";
+    public string Hora => CriadoEm.ToLocalTime().ToString("HH:mm");
 }
 
 /// <summary>Venda (tabela vendas): aberta enquanto o cliente está no caixa, depois paga ou cancelada.</summary>
@@ -97,6 +149,13 @@ public sealed class ItemVenda
     [JsonPropertyName("quantidade")] public decimal Quantidade { get; set; }
     [JsonPropertyName("preco_unitario")] public decimal PrecoUnitario { get; set; }
     [JsonPropertyName("subtotal")] public decimal Subtotal { get; set; }
+    /// <summary>Subtotal sem a promoção (script 008); null em vendas antigas.</summary>
+    [JsonPropertyName("subtotal_normal")] public decimal? SubtotalNormal { get; set; }
+    [JsonPropertyName("desconto_promocao")] public decimal DescontoPromocao { get; set; }
+    /// <summary>"Promoção", "Validade −30%" ou os dois; null sem promoção.</summary>
+    [JsonPropertyName("promocao")] public string? Promocao { get; set; }
+
+    public bool EmPromocao => DescontoPromocao > 0;
 
     public bool PorPeso => UnidadeMedida == "kg";
     public string Numero => Quantidade.ToString(PorPeso ? "0.000" : "0", PtBr);
@@ -129,7 +188,12 @@ public sealed record ResultadoReserva(
     [property: JsonPropertyName("venda_id")] long VendaId,
     [property: JsonPropertyName("item_id")] long? ItemId,
     [property: JsonPropertyName("quantidade")] decimal Quantidade,
-    [property: JsonPropertyName("subtotal")] decimal Subtotal);
+    [property: JsonPropertyName("subtotal")] decimal Subtotal)
+{
+    /// <summary>Subtotal sem promoção (script 008; null antes dele).</summary>
+    [JsonPropertyName("normal")] public decimal? Normal { get; init; }
+    [JsonPropertyName("promocao")] public string? Promocao { get; init; }
+}
 
 /// <summary>Resposta de finalizar_venda.</summary>
 public sealed record ResultadoVenda(

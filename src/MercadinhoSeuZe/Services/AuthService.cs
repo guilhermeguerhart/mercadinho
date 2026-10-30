@@ -171,12 +171,42 @@ public sealed class AuthService(SupabaseApi api, PreferenciasLocais preferencias
             throw new ConexaoException("Usuário desativado. Fale com o gerente.");
 
         var perfil = linha.Perfil == "gerente" ? Perfil.Gerente : Perfil.Operador;
-        return new Sessao(linha.Id, linha.Usuario, linha.Nome, perfil, auth.AccessToken);
+        return new Sessao(linha.Id, linha.Usuario, linha.Nome, perfil, auth.AccessToken)
+        {
+            RefreshToken = auth.RefreshToken,
+            ExpiraEm = DateTimeOffset.UtcNow.AddSeconds(auth.ExpiraEmSegundos > 0 ? auth.ExpiraEmSegundos : 3600)
+        };
+    }
+
+    /// <summary>
+    /// Troca o token por um novo antes de vencer (o do Supabase vale 1 hora), para o caixa não parar no meio do turno
+    /// com "Sua sessão expirou". false = não conseguiu (sem internet ou sessão encerrada); tenta de novo depois.
+    /// </summary>
+    public async Task<bool> RenovarAsync(Sessao sessao)
+    {
+        if (sessao.RefreshToken is null) return false;
+        try
+        {
+            var resposta = await api.Http.PostAsJsonAsync("auth/v1/token?grant_type=refresh_token", new { refresh_token = sessao.RefreshToken });
+            if (!resposta.IsSuccessStatusCode) return false;
+            var auth = await resposta.Content.ReadFromJsonAsync<SessaoAuth>();
+            if (auth is null) return false;
+            sessao.Token = auth.AccessToken;
+            sessao.RefreshToken = auth.RefreshToken ?? sessao.RefreshToken;
+            sessao.ExpiraEm = DateTimeOffset.UtcNow.AddSeconds(auth.ExpiraEmSegundos > 0 ? auth.ExpiraEmSegundos : 3600);
+            return true;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            return false;
+        }
     }
 
     private sealed record SessaoAuth(
         [property: JsonPropertyName("access_token")] string AccessToken,
-        [property: JsonPropertyName("user")] UsuarioAuth Usuario);
+        [property: JsonPropertyName("user")] UsuarioAuth Usuario,
+        [property: JsonPropertyName("refresh_token")] string? RefreshToken = null,
+        [property: JsonPropertyName("expires_in")] int ExpiraEmSegundos = 0);
 
     private sealed record UsuarioAuth([property: JsonPropertyName("id")] Guid Id);
 

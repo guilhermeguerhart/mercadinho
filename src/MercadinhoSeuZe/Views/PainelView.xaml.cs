@@ -57,6 +57,7 @@ public partial class PainelView : UserControl
         // Vendas pagas e caixas abertos hoje (semana 5)
         ResumoDia? resumo = null;
         List<Caixa> caixas = [];
+        List<Caixa> fechados = [];
         string? erroVendas = _caixa is null ? "Sistema sem configuração do banco de dados." : null;
         if (_caixa is not null)
         {
@@ -67,6 +68,7 @@ public partial class PainelView : UserControl
                 await Task.WhenAll(vendas, abertos);
                 resumo = CaixaService.Resumo(vendas.Result);
                 caixas = abertos.Result.Where(c => c.FechadoEm is null).ToList();
+                fechados = abertos.Result.Where(c => c.FechadoEm is not null).ToList();
             }
             catch (ConexaoException ex) { erroVendas = ex.Message; }
         }
@@ -77,7 +79,7 @@ public partial class PainelView : UserControl
         if (_estoque is null) erroEstoque = "Sistema sem configuração do banco de dados.";
         else
         {
-            try { produtos = await _estoque.ListarAsync(); }
+            try { produtos = (await _estoque.ListarComPromocoesAsync()).Produtos; }
             catch (ConexaoException ex) { erroEstoque = ex.Message; }
         }
         // Pedidos pendentes do banco (semana 4)
@@ -143,6 +145,13 @@ public partial class PainelView : UserControl
             AdicionarAviso("IconeCaixaProduto", "Verde50", "Verde700",
                 [new Run($"E mais {avisosEstoque.Count - 8} avisos de estoque. Abra o Estoque para ver todos.")], "Estoque");
 
+        // Promoção de validade (script 008): lembrar de etiquetar a prateleira com o preço do dia
+        var lotesPromocao = produtos?.Sum(p => Promocoes.LotesEmPromocao(p).Count()) ?? 0;
+        if (lotesPromocao > 0)
+            AdicionarAviso("IconeCesta", "Verde50", "Verde700",
+                [Negrito(Plural(lotesPromocao, "lote", "lotes")), new Run(" em promoção de validade hoje. Confira as etiquetas da prateleira (Estoque > Promoções).")],
+                "Promoções");
+
         if (erroPedidos is not null)
             AdicionarAviso("IconeAlerta", "Vermelho50", "Vermelho600", [new Run("Não foi possível ler os pedidos: " + erroPedidos)], "Fornecedores");
         // Fornecedor com dias certos de entrega: hoje é o último dia para pedir e ainda pegar a próxima entrega
@@ -172,6 +181,14 @@ public partial class PainelView : UserControl
         foreach (var c in caixas)
             AdicionarAviso("IconeCaixaRegistradora", "Verde50", "Verde700",
                 [new Run("Caixa aberto por "), Negrito(c.OperadorNome), new Run($" às {c.Hora}.")], "Hoje");
+        // Fechamento com sobra ou falta na gaveta
+        foreach (var c in fechados.Where(c => c.FechadoDiferenca is not null and not 0))
+        {
+            var d = c.FechadoDiferenca!.Value;
+            AdicionarAviso("IconeCaixaRegistradora", d < 0 ? "Vermelho50" : "Ambar50", d < 0 ? "Vermelho600" : "Ambar700",
+                [new Run("Caixa de "), Negrito(c.OperadorNome), new Run($" fechou às {c.HoraFechamento} com {(d < 0 ? "falta" : "sobra")} de {Moeda(Math.Abs(d))}" +
+                    (c.FechadoObs is null ? "." : $": “{c.FechadoObs}”."))], "Hoje");
+        }
         if (ListaAvisos.Children.Count == 0)
             ListaAvisos.Children.Add(new TextBlock { Text = "Nenhum aviso no momento.", FontSize = 14, Style = (Style)FindResource("TextoSuave") });
 

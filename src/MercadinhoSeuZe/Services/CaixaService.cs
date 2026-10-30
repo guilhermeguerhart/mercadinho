@@ -3,18 +3,40 @@ using MercadinhoSeuZe.Models;
 namespace MercadinhoSeuZe.Services;
 
 /// <summary>
-/// Caixa e vendas no Supabase (scripts database/006_semana5_caixa.sql e 007_semana5_caixa_padrao.sql). Abrir o
-/// caixa, reservar, pagar, cancelar, desconto e venda em espera passam pelas funções do banco, que conferem estoque,
-/// validade, perfil e a autorização do gerente de uma vez só.
+/// Caixa e vendas no Supabase (scripts database/006_semana5_caixa.sql, 007_semana5_caixa_padrao.sql e
+/// 008_promocoes_fechamento.sql). Abrir e fechar o caixa, reservar, pagar, cancelar, desconto, venda em espera, sangria
+/// e suprimento passam pelas funções do banco, que conferem estoque, validade, promoções, perfil e a autorização do
+/// gerente de uma vez só.
 /// </summary>
 public sealed class CaixaService(SupabaseApi api, Sessao sessao)
 {
     private const string CamposVenda = "id,caixa_id,operador_id,operador_nome,situacao,forma_pagamento,total,recebido,troco,criada_em,paga_em," +
                                        "cancelada_por,cpf_nota,desconto,desconto_autorizado_por";
-    private const string CamposItem = "id,produto_id,nome_produto,unidade_medida,quantidade,preco_unitario,subtotal";
+    private const string CamposItemBase = "id,produto_id,nome_produto,unidade_medida,quantidade,preco_unitario,subtotal";
+    private string CamposItem => TemPromocoes ? CamposItemBase + ",subtotal_normal,desconto_promocao,promocao" : CamposItemBase;
     private const string CamposPagamento = "forma,valor,recebido,troco,bandeira,nsu,autorizacao,parcelas,final_cartao";
 
     public Sessao Sessao => sessao;
+
+    /// <summary>false enquanto o script 008 (promoções, sangria e fechamento) não foi rodado.</summary>
+    public bool TemPromocoes { get; private set; } = true;
+
+    /// <summary>Lê com as colunas do 008; sem elas, lê de novo sem (o caixa funciona como antes).</summary>
+    private async Task<List<T>> ListarAsync<T>(Func<string> consulta)
+    {
+        if (TemPromocoes)
+        {
+            try
+            {
+                return await api.ListarAsync<T>(consulta(), sessao.Token);
+            }
+            catch (BancoDesatualizadoException)
+            {
+                TemPromocoes = false;
+            }
+        }
+        return await api.ListarAsync<T>(consulta(), sessao.Token);
+    }
 
     private static string Hoje => DateTime.Today.ToString("yyyy-MM-dd");
 
@@ -31,22 +53,19 @@ public sealed class CaixaService(SupabaseApi api, Sessao sessao)
 
     /// <summary>A venda aberta do caixa (a que ficou no meio, se o programa foi fechado), ou null.</summary>
     public async Task<Venda?> VendaAbertaAsync(long caixaId) =>
-        (await api.ListarAsync<Venda>(
-            $"vendas?caixa_id=eq.{caixaId}&situacao=eq.aberta&select={CamposVenda},venda_itens({CamposItem})&venda_itens.order=id",
-            sessao.Token)).FirstOrDefault();
+        (await ListarAsync<Venda>(() =>
+            $"vendas?caixa_id=eq.{caixaId}&situacao=eq.aberta&select={CamposVenda},venda_itens({CamposItem})&venda_itens.order=id")).FirstOrDefault();
 
     /// <summary>Vendas em espera do caixa (suspensas para atender outro cliente).</summary>
     public Task<List<Venda>> VendasEmEsperaAsync(long caixaId) =>
-        api.ListarAsync<Venda>(
-            $"vendas?caixa_id=eq.{caixaId}&situacao=eq.espera&dia=eq.{Hoje}&select={CamposVenda},venda_itens({CamposItem})&order=id",
-            sessao.Token);
+        ListarAsync<Venda>(() =>
+            $"vendas?caixa_id=eq.{caixaId}&situacao=eq.espera&dia=eq.{Hoje}&select={CamposVenda},venda_itens({CamposItem})&order=id");
 
     /// <summary>Vendas pagas (e as pagas que depois foram canceladas) de hoje, de todos os caixas, da mais nova para a mais antiga.</summary>
     public Task<List<Venda>> VendasDeHojeAsync() =>
-        api.ListarAsync<Venda>(
+        ListarAsync<Venda>(() =>
             $"vendas?dia=eq.{Hoje}&situacao=in.(paga,cancelada)&paga_em=not.is.null" +
-            $"&select={CamposVenda},venda_itens({CamposItem}),venda_pagamentos({CamposPagamento})&order=id.desc",
-            sessao.Token);
+            $"&select={CamposVenda},venda_itens({CamposItem}),venda_pagamentos({CamposPagamento})&order=id.desc");
 
     /// <summary>Totais do dia (vendas pagas), para o Caixa e o Painel.</summary>
     public static ResumoDia Resumo(IEnumerable<Venda> vendas)
@@ -88,4 +107,26 @@ public sealed class CaixaService(SupabaseApi api, Sessao sessao)
 
     public Task RetomarAsync(long vendaId) =>
         api.ChamarAsync<object>("retomar_venda", new { p_venda_id = vendaId }, sessao.Token);
+
+    // ------------------------------------------------------------ Sangria, suprimento e fechamento (script 008)
+
+    /// <summary>Resumo do caixa: vendas, formas, sangrias, suprimentos e o dinheiro que deveria estar na gaveta.</summary>
+    public async Task<ResumoCaixa> ResumoAsync(long caixaId) =>
+        await api.ChamarAsync<ResumoCaixa>("resumo_caixa", new { p_caixa_id = caixaId }, sessao.Token)
+        ?? throw new ConexaoException("Resposta inválida do servidor.");
+
+    /// <summary>Sangria (precisa da autorização do gerente) ou suprimento no caixa aberto de quem está logado.</summary>
+    public async Task<ResumoCaixa> MovimentoAsync(string tipo, decimal valor, string? motivo, long? autorizacao) =>
+        await api.ChamarAsync<ResumoCaixa>("registrar_movimento",
+            new { p_tipo = tipo, p_valor = valor, p_motivo = motivo, p_autorizacao = autorizacao }, sessao.Token)
+        ?? throw new ConexaoException("Resposta inválida do servidor.");
+
+    /// <summary>Fecha o caixa com o dinheiro contado na gaveta; devolve o resumo com a sobra ou a falta.</summary>
+    public async Task<ResumoCaixa> FecharAsync(long caixaId, decimal contado, string? observacao) =>
+        await api.ChamarAsync<ResumoCaixa>("fechar_caixa", new { p_caixa_id = caixaId, p_contado = contado, p_obs = observacao }, sessao.Token)
+        ?? throw new ConexaoException("Resposta inválida do servidor.");
+
+    /// <summary>Só o gerente: reabre um caixa de hoje fechado por engano.</summary>
+    public Task ReabrirAsync(long caixaId) =>
+        api.ChamarAsync<object>("reabrir_caixa", new { p_caixa_id = caixaId }, sessao.Token);
 }

@@ -8,7 +8,8 @@ using MercadinhoSeuZe.Models;
 namespace MercadinhoSeuZe.Views;
 
 /// <summary>
-/// Janelas pequenas do caixa (CPF na nota, desconto, consulta de preço, vendas em espera), montadas em código com
+/// Janelas pequenas do caixa (CPF na nota, desconto, consulta de preço, vendas em espera, sangria, suprimento e
+/// fechamento) e do Estoque (promoções), montadas em código com
 /// os mesmos estilos das outras janelas: papel com faixa verde, título, conteúdo e botões. Esc fecha.
 /// </summary>
 internal sealed class JanelaSimples : UserControl
@@ -155,12 +156,22 @@ internal static class CaixaJanelas
             var cat = CategoriaVisual.Pilula(j, p.Categoria, 12);
             cat.Margin = new Thickness(0, 4, 0, 10);
             resultado.Children.Add(cat);
-            var preco = new TextBlock { Text = JanelaSimples.Moeda(p.Preco) + (p.PorPeso ? " / kg" : ""), FontSize = 28, FontWeight = FontWeights.ExtraBold };
-            resultado.Children.Add(new Border { Style = j.Estilo("EtiquetaPreco"), Padding = new Thickness(12, 2, 12, 4), Child = preco });
-            var linhas = new List<string>
+            var unidade = p.PorPeso ? " / kg" : "";
+            var preco = new TextBlock { FontSize = 28, FontWeight = FontWeights.ExtraBold };
+            if (p.PromocaoAtiva is { } promo)
             {
-                p.DisponivelParaVenda > 0 ? $"Disponível: {p.Formatar(p.DisponivelParaVenda)}" : p.QuantidadeVencida > 0 && p.Vendavel == 0 ? "Só tem lote vencido: venda bloqueada" : "Sem estoque",
-            };
+                preco.Inlines.Add(new System.Windows.Documents.Run(JanelaSimples.Moeda(p.Preco)) { FontSize = 16, FontWeight = FontWeights.SemiBold, TextDecorations = TextDecorations.Strikethrough });
+                preco.Inlines.Add(new System.Windows.Documents.Run("  " + JanelaSimples.Moeda(promo.PrecoCom(p.Preco)) + unidade));
+            }
+            else preco.Text = JanelaSimples.Moeda(p.Preco) + unidade;
+            resultado.Children.Add(new Border { Style = j.Estilo("EtiquetaPreco"), Padding = new Thickness(12, 2, 12, 4), HorizontalAlignment = HorizontalAlignment.Left, Child = preco });
+            var linhas = new List<string>();
+            if (p.PromocaoAtiva is { } ativa) linhas.Add($"Promoção {ativa.Texto} {ativa.Periodo}");
+            foreach (var l in Promocoes.LotesEmPromocao(p).OrderBy(l => l.Validade))
+                linhas.Add($"Lote que vence em {l.Validade:dd/MM}: −{Promocoes.DescontoValidade(p, l).ToString("0.##", PtBr)}% hoje " +
+                           $"({JanelaSimples.Moeda(Promocoes.PrecoDoLote(p, l))}{unidade}, {p.Formatar(l.QuantidadeRestante)})");
+            linhas.Add(p.DisponivelParaVenda > 0 ? $"Disponível: {p.Formatar(p.DisponivelParaVenda)}"
+                : p.QuantidadeVencida > 0 && p.Vendavel == 0 ? "Só tem lote vencido: venda bloqueada" : "Sem estoque");
             if (p.Reservado > 0) linhas.Add($"Reservado em vendas abertas: {p.Formatar(p.Reservado)}");
             if (p.Situacao is { } s) linhas.Add($"Próxima validade: {p.ProximaValidade:dd/MM/yyyy} ({s.Texto.ToLower(PtBr)})");
             if (valorEtiqueta is { } v) linhas.Add($"Etiqueta da balança: {JanelaSimples.Moeda(v)} ({Math.Round(v / p.Preco, 3).ToString("0.000", PtBr)} kg)");
@@ -218,6 +229,199 @@ internal static class CaixaJanelas
         }
         j.Botao("Fechar", false, j.Fechar);
         return j;
+    }
+
+    /// <summary>
+    /// Sangria (tirar dinheiro da gaveta para o cofre; depois pede a senha do gerente) ou suprimento (pôr mais troco).
+    /// aoConfirmar recebe o valor e o motivo.
+    /// </summary>
+    public static JanelaSimples Movimento(AreaInternaView area, bool sangria, decimal naGaveta, Func<decimal, string?, Task> aoConfirmar)
+    {
+        var j = new JanelaSimples(area, sangria ? "Sangria" : "Suprimento",
+            sangria
+                ? $"Tire o dinheiro da gaveta e guarde no cofre. Na gaveta agora: {JanelaSimples.Moeda(naGaveta)}. O gerente precisa autorizar."
+                : "Dinheiro colocado na gaveta para ter troco (por exemplo, moedas trazidas do cofre).", 420);
+        var valor = j.Campo("Valor (R$)", "", 12);
+        Formulario.MascaraDinheiro(valor, vazio: true);
+        var motivo = j.Campo("Motivo (opcional)", "", 120);
+        j.Botao("Voltar", false, j.Fechar);
+        Button? confirmar = null;
+        confirmar = j.Botao(sangria ? "Fazer sangria" : "Registrar suprimento", true, async () =>
+        {
+            var v = Formulario.LerPreco(valor.Text);
+            var erro = v is null or <= 0 ? "Digite o valor, por exemplo 200,00."
+                : sangria && v > naGaveta ? $"A sangria não pode passar do dinheiro da gaveta ({JanelaSimples.Moeda(naGaveta)})." : null;
+            if (erro is not null)
+            {
+                valor.Tag = "invalido";
+                j.Erro(erro);
+                valor.Focus();
+                return;
+            }
+            confirmar!.IsEnabled = false;
+            try { await aoConfirmar(v!.Value, motivo.Text.Trim().Length == 0 ? null : motivo.Text.Trim()); }
+            catch (Services.ConexaoException ex) { j.Erro(ex.Message); }
+            finally { confirmar.IsEnabled = true; }
+        });
+        j.Loaded += (_, _) => valor.Focus();
+        return j;
+    }
+
+    /// <summary>Notas e moedas para contar a gaveta no fechamento.</summary>
+    private static readonly decimal[] Cedulas = [200, 100, 50, 20, 10, 5, 2];
+
+    /// <summary>
+    /// Fechamento do caixa: mostra o que deveria estar na gaveta (troco inicial + dinheiro das vendas + suprimentos −
+    /// sangrias), a pessoa conta o dinheiro (o total ou nota por nota) e vê na hora se sobrou ou faltou.
+    /// aoConfirmar recebe o contado e a observação.
+    /// </summary>
+    public static JanelaSimples Fechamento(AreaInternaView area, ResumoCaixa r, Func<decimal, string?, Task> aoConfirmar)
+    {
+        var j = new JanelaSimples(area, "Fechar o caixa",
+            "Conte o dinheiro da gaveta. Cartão, vale e Pix ficam na maquininha: confira com o relatório dela.", 560);
+        j.Corpo.Children.Add(TabelaResumo(j, r));
+
+        j.Corpo.Children.Add(new TextBlock { Text = "Contar nota por nota (opcional)", Style = j.Estilo("Rotulo"), Margin = new Thickness(0, 16, 0, 6) });
+        var grade = new System.Windows.Controls.Primitives.UniformGrid { Columns = 4 };
+        var quantidades = new List<(decimal Valor, TextBox Campo)>();
+        foreach (var c in Cedulas)
+        {
+            var bloco = new StackPanel { Margin = new Thickness(0, 0, 10, 8) };
+            bloco.Children.Add(new TextBlock { Text = $"R$ {c:0}", FontSize = 12.5, Style = j.Estilo("TextoSuave") });
+            var q = new TextBox { MaxLength = 4, MinHeight = 36, FontSize = 14 };
+            System.Windows.Automation.AutomationProperties.SetName(q, $"Quantidade de notas de {c:0} reais");
+            q.PreviewTextInput += (_, e) => e.Handled = !e.Text.All(char.IsAsciiDigit);
+            bloco.Children.Add(q);
+            grade.Children.Add(bloco);
+            quantidades.Add((c, q));
+        }
+        var blocoMoedas = new StackPanel { Margin = new Thickness(0, 0, 10, 8) };
+        blocoMoedas.Children.Add(new TextBlock { Text = "Moedas (R$)", FontSize = 12.5, Style = j.Estilo("TextoSuave") });
+        var moedas = new TextBox { MinHeight = 36, FontSize = 14 };
+        System.Windows.Automation.AutomationProperties.SetName(moedas, "Total em moedas, em reais");
+        Formulario.MascaraDinheiro(moedas, vazio: true);
+        blocoMoedas.Children.Add(moedas);
+        grade.Children.Add(blocoMoedas);
+        j.Corpo.Children.Add(grade);
+
+        var contado = j.Campo("Dinheiro contado na gaveta (R$)", "", 12);
+        Formulario.MascaraDinheiro(contado, vazio: true);
+        var diferenca = new TextBlock { FontSize = 16, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 10, 0, 0) };
+        j.Corpo.Children.Add(diferenca);
+        var obs = j.Campo("Observação (se sobrou ou faltou, explique)", "", 200);
+
+        var somando = false;
+        void Somar()
+        {
+            if (somando) return;
+            var total = quantidades.Sum(x => int.TryParse(x.Campo.Text, out var n) ? n * x.Valor : 0) + (Formulario.LerPreco(moedas.Text) ?? 0);
+            somando = true;
+            contado.Text = total > 0 ? Formulario.Preco(total) : "";
+            somando = false;
+        }
+        foreach (var (_, campo) in quantidades) campo.TextChanged += (_, _) => Somar();
+        moedas.TextChanged += (_, _) => Somar();
+        contado.TextChanged += (_, _) =>
+        {
+            // Digitar o total à mão limpa a contagem por nota (vale o total digitado)
+            if (!somando && contado.IsKeyboardFocusWithin)
+            {
+                somando = true;
+                foreach (var (_, campo) in quantidades) campo.Text = "";
+                moedas.Text = "";
+                somando = false;
+            }
+            if (Formulario.LerPreco(contado.Text) is not { } c || contado.Text.Length == 0)
+            {
+                diferenca.Text = "";
+                return;
+            }
+            var d = c - r.Esperado;
+            diferenca.Text = d == 0 ? "A gaveta bateu certinho." : d > 0 ? $"Sobra de {JanelaSimples.Moeda(d)}" : $"Falta de {JanelaSimples.Moeda(-d)}";
+            diferenca.Foreground = j.Pincel(d == 0 ? "Verde700" : d > 0 ? "Ambar700" : "Vermelho600");
+        };
+
+        if (r.EmEspera > 0)
+            j.Corpo.Children.Add(new TextBlock
+            {
+                Text = r.EmEspera == 1 ? "1 venda em espera será cancelada (os itens voltam a ficar disponíveis)."
+                    : $"{r.EmEspera} vendas em espera serão canceladas (os itens voltam a ficar disponíveis).",
+                FontSize = 13, Foreground = j.Pincel("Ambar700"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 12, 0, 0)
+            });
+
+        j.Botao("Voltar", false, j.Fechar);
+        Button? fechar = null;
+        fechar = j.Botao("Fechar o caixa", true, async () =>
+        {
+            if (contado.Text.Trim().Length == 0 || Formulario.LerPreco(contado.Text) is not { } c)
+            {
+                contado.Tag = "invalido";
+                j.Erro("Digite quanto dinheiro tem na gaveta (0,00 se estiver vazia).");
+                contado.Focus();
+                return;
+            }
+            if (c != r.Esperado && obs.Text.Trim().Length == 0)
+            {
+                obs.Tag = "invalido";
+                j.Erro("A gaveta não bateu. Escreva na observação o que aconteceu (ex.: troco errado).");
+                obs.Focus();
+                return;
+            }
+            fechar!.IsEnabled = false;
+            try { await aoConfirmar(c, obs.Text.Trim().Length == 0 ? null : obs.Text.Trim()); }
+            catch (Services.ConexaoException ex) { j.Erro(ex.Message); }
+            finally { fechar.IsEnabled = true; }
+        });
+        j.Loaded += (_, _) => contado.Focus();
+        return j;
+    }
+
+    /// <summary>Resumo do caixa em linhas: vendas, formas de pagamento, movimentos e a gaveta (e a contagem, se fechado).</summary>
+    public static FrameworkElement TabelaResumo(JanelaSimples j, ResumoCaixa r)
+    {
+        var painel = new StackPanel();
+        void Linha(string rotulo, string valor, bool forte = false, string cor = "Tinta", bool separador = false)
+        {
+            if (separador) painel.Children.Add(new Border { Height = 1, Background = j.Pincel("Linha"), Margin = new Thickness(0, 6, 0, 6) });
+            var d = new DockPanel { Margin = new Thickness(0, 3, 0, 3) };
+            var v = new TextBlock { Text = valor, FontSize = forte ? 16 : 14, FontWeight = forte ? FontWeights.Bold : FontWeights.SemiBold, Foreground = j.Pincel(cor) };
+            DockPanel.SetDock(v, Dock.Right);
+            d.Children.Add(v);
+            d.Children.Add(new TextBlock { Text = rotulo, FontSize = forte ? 15 : 14, FontWeight = forte ? FontWeights.Bold : FontWeights.Normal });
+            painel.Children.Add(d);
+        }
+        Linha($"Vendas pagas ({r.Vendas})", JanelaSimples.Moeda(r.TotalVendas), forte: true);
+        foreach (var (id, nome, _, _) in FormaPagamento.Todas)
+            if (r.Formas.GetValueOrDefault(id) is var valor && valor > 0) Linha("   " + nome, JanelaSimples.Moeda(valor));
+        if (r.Promocoes > 0) Linha("Descontos de promoção", "− " + JanelaSimples.Moeda(r.Promocoes), cor: "Suave");
+        if (r.Descontos > 0) Linha("Descontos do gerente", "− " + JanelaSimples.Moeda(r.Descontos), cor: "Suave");
+        if (r.Canceladas > 0) Linha("Vendas canceladas", r.Canceladas.ToString(PtBr), cor: "Suave");
+
+        Linha("Troco inicial", JanelaSimples.Moeda(r.TrocoInicial), separador: true);
+        Linha("+ Dinheiro das vendas (sem o troco dado)", JanelaSimples.Moeda(r.Dinheiro));
+        if (r.Suprimentos > 0) Linha("+ Suprimentos", JanelaSimples.Moeda(r.Suprimentos));
+        if (r.Sangrias > 0) Linha("− Sangrias", JanelaSimples.Moeda(r.Sangrias));
+        Linha(r.FechadoEm is null ? "Deveria ter na gaveta" : "Deveria ter na gaveta no fechamento", JanelaSimples.Moeda(r.Esperado), forte: true, cor: "Verde700");
+        if (r.Contado is { } contado)
+        {
+            Linha("Contado", JanelaSimples.Moeda(contado), forte: true);
+            var d = r.Diferenca ?? 0;
+            Linha(d == 0 ? "Diferença" : d > 0 ? "Sobra" : "Falta", JanelaSimples.Moeda(Math.Abs(d)), forte: true,
+                cor: d == 0 ? "Verde700" : d > 0 ? "Ambar700" : "Vermelho600");
+            if (r.Obs is not null) Linha("Observação", r.Obs, cor: "Suave");
+        }
+        if (r.Movimentos.Count > 0)
+        {
+            painel.Children.Add(new TextBlock { Text = "Movimentos da gaveta", Style = j.Estilo("Rotulo"), Margin = new Thickness(0, 12, 0, 2) });
+            foreach (var m in r.Movimentos)
+                painel.Children.Add(new TextBlock
+                {
+                    FontSize = 13, Style = j.Estilo("TextoSuave"), TextWrapping = TextWrapping.Wrap,
+                    Text = $"{m.Hora} · {(m.Sangria ? "Sangria" : "Suprimento")} de {JanelaSimples.Moeda(m.Valor)}" +
+                           (m.Motivo is null ? "" : $" · {m.Motivo}") + (m.AutorizadoPor is null ? "" : $" · autorizada por {m.AutorizadoPor}")
+                });
+        }
+        return painel;
     }
 
     private static string Normalizar(string texto)

@@ -10,6 +10,9 @@ public class ConexaoException(string mensagem) : Exception(mensagem);
 /// <summary>O banco ainda não tem uma coluna nova (o script SQL da semana não foi rodado).</summary>
 public class BancoDesatualizadoException(string mensagem) : ConexaoException(mensagem);
 
+/// <summary>A tabela ou a função ainda não existe no banco (o script SQL da semana não foi rodado).</summary>
+public class TabelaInexistenteException(string mensagem) : ConexaoException(mensagem);
+
 /// <summary>Acesso HTTP ao Supabase (Auth e tabelas) usando só a chave pública.</summary>
 public sealed class SupabaseApi
 {
@@ -122,13 +125,13 @@ public sealed class SupabaseApi
         // Falta de permissão explicada pela função (as do banco em inglês ficam com o texto padrão abaixo)
         if (corpo.Contains("\"42501\"") && MensagemDoBanco(corpo) is { } negado && !negado.StartsWith("permission denied", StringComparison.OrdinalIgnoreCase))
             throw new ConexaoException(negado);
+        if (resposta.StatusCode == HttpStatusCode.NotFound && (corpo.Contains("PGRST205") || corpo.Contains("PGRST202") || corpo.Contains("does not exist")))
+            throw new TabelaInexistenteException("As tabelas desta tela ainda não foram criadas no banco. Rode o script SQL da semana no Supabase.");
         throw new ConexaoException(resposta.StatusCode switch
         {
             HttpStatusCode.Unauthorized when corpo.Contains("JWT expired") => "Sua sessão expirou. Clique em Sair e entre de novo.",
             HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => "Seu perfil não tem permissão para esta ação.",
             HttpStatusCode.Conflict => "Já existe um registro com esses dados.",
-            HttpStatusCode.NotFound when corpo.Contains("PGRST205") || corpo.Contains("PGRST202") || corpo.Contains("does not exist") =>
-                "As tabelas desta tela ainda não foram criadas no banco. Rode o script SQL da semana no Supabase.",
             _ => $"Erro no servidor ({(int)resposta.StatusCode}). Tente novamente."
         });
     }

@@ -50,6 +50,14 @@ public sealed class Produto
     [JsonPropertyName("preco_custo")] public decimal? PrecoCusto { get; set; }
     /// <summary>Código do produto na balança do açougue (PLU), que vai impresso na etiqueta; null = sem etiqueta.</summary>
     [JsonPropertyName("codigo_balanca")] public int? CodigoBalanca { get; set; }
+    /// <summary>Fica fora da promoção de validade da categoria (script 008).</summary>
+    [JsonPropertyName("sem_promocao_validade")] public bool SemPromocaoValidade { get; set; }
+
+    /// <summary>Promoção do produto que vale hoje (não vem nesta consulta; as telas preenchem com Promocoes.Aplicar).</summary>
+    [JsonIgnore] public Promocao? PromocaoAtiva { get; set; }
+
+    /// <summary>Regra de promoção de validade da categoria (preenchida por Promocoes.Aplicar).</summary>
+    [JsonIgnore] public RegraValidade? RegraValidade { get; set; }
 
     /// <summary>
     /// Quanto está reservado em vendas abertas do caixa (não vem nesta consulta; as telas preenchem com

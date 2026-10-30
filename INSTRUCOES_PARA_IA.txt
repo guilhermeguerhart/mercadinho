@@ -31,13 +31,18 @@ database/                  Scripts SQL, numerados, para rodar no SQL Editor do S
   007_semana5_caixa_padrao.sql  Caixa padrão: venda_pagamentos (várias formas, dados da maquininha), CPF na nota,
                            desconto, venda em espera, autorizações do gerente e itens cancelados. Troca reservar_item,
                            finalizar_venda e cancelar_venda do 006.
+  008_promocoes_fechamento.sql  Promoções (promocoes por produto, promocoes_validade por categoria,
+                           produtos.sem_promocao_validade), preço com promoção no reservar_item, sangria e suprimento
+                           (caixa_movimentos), fechamento do caixa (colunas fechado_* em caixas) e reabrir. Troca
+                           reservar_item e autorizar_gerente do 007.
 src/MercadinhoSeuZe/
   App.xaml                 Cores, ícones (Geometry) e estilos de botões/campos/listas de escolha, indicadores
                            quadrados (Kpi), chips e cabeçalho de tabela. Reutilize, não duplique.
   MainWindow.xaml(.cs)     Janela única; troca as telas com MostrarInicio/MostrarLogin/MostrarAreaDoUsuario.
   Models/                  Perfil (Gerente/Operador), Sessao (usuário logado), Painel, Estoque (Produto, Lote),
                            Fornecedores (Fornecedor, Pedido, ItemPedido, MensagemPedido), Caixa (Caixa, Venda,
-                           ItemVenda, FormaPagamento, CodigoBarras: leitor e etiqueta da balança).
+                           ItemVenda, FormaPagamento, CodigoBarras: leitor e etiqueta da balança, ResumoCaixa,
+                           MovimentoCaixa), Promocoes (Promocao, RegraValidade e as contas de desconto).
   Services/                Configuracao (lê appsettings.json embutido), SupabaseApi (HTTP; ListarAsync,
                            InserirAsync, AtualizarAsync, ExcluirAsync, ChamarAsync (funções rpc) com o token
                            do usuário logado), AuthService (login, bloqueio, auditoria), PreferenciasLocais,
@@ -48,9 +53,11 @@ src/MercadinhoSeuZe/
                            CaixaView, EstoqueView, FornecedoresView, FuncionariosView. Janelas por cima da tela
                            (ProdutoJanela, LoteJanela, ConfirmacaoJanela, FornecedorJanela, PedidoJanela,
                            EnvioPedidoJanela, EntregaJanela, FuncionarioJanela, MeuPerfilJanela, MaquininhaJanela,
-                           AutorizacaoJanela; CaixaJanelas.cs: CPF, desconto, consulta de preço, vendas em espera) abrem com
+                           AutorizacaoJanela; CaixaJanelas.cs: CPF, desconto, consulta de preço, vendas em espera,
+                           sangria/suprimento e fechamento do caixa; EstoqueView.Promocoes.cs: aba e janelas de promoção) abrem com
                            AreaInternaView.AbrirJanela; Esc fecha.
-                           Formulario.cs: leitura de preço, inteiro e data (dd/mm/aaaa) e erros de campo.
+                           Formulario.cs: leitura de preço, inteiro e data (dd/mm/aaaa), erros de campo e
+                           MascaraDinheiro (campo de R$ que se formata enquanto digita).
   Assets/mercado.ico       Ícone do programa.
 publicar.ps1               Gera publish/MercadinhoSeuZe.exe (feche o .exe aberto antes).
                            Com -Desenvolvimento gera publish-dev/ com os atalhos de teste (Alt+1 no login,
@@ -146,8 +153,9 @@ publicar.ps1               Gera publish/MercadinhoSeuZe.exe (feche o .exe aberto
   com unidades vencido ou vencendo em até 30 dias (Models/Estoque.cs, SituacaoValidade).
 - Cadastro de produto cria junto o primeiro lote (quantidade 0 = sem lote). Se o lote falhar, o produto
   é desfeito. O atalho "Novo produto" do Painel abre o Estoque já com o cadastro aberto.
-- O token do login vale 1 hora (padrão do Supabase). Depois disso a gravação mostra "Sua sessão expirou";
-  é só sair e entrar de novo. Renovar o token sozinho fica para depois, se o dono pedir.
+- O token do login vale 1 hora (padrão do Supabase). Desde 30/10 o programa pede um token novo sozinho, 10 minutos
+  antes de vencer (MainWindow + AuthService.RenovarAsync com o refresh_token). Sem internet nessa hora, tenta de novo a
+  cada minuto; se mesmo assim vencer, a gravação mostra "Sua sessão expirou" e é só sair e entrar de novo.
 - Painel (pedido do Guilherme): o indicador "Estoque baixo" e os avisos de estoque (sem estoque, estoque
   baixo, lote vencido/vencendo, aviso antecipado; no máximo 8) vêm do banco pelo EstoqueService, a cada
   30 s. Vendas e caixa continuam em DadosExemplo até as tabelas da semana 5 existirem; a faixa amarela
@@ -323,9 +331,52 @@ publicar.ps1               Gera publish/MercadinhoSeuZe.exe (feche o .exe aberto
     pelo botão "N vendas em espera", lista para retomar. Abrir o caixa no dia seguinte cancela as que sobraram.
   - "Vendas de hoje" mostra as formas ("Dinheiro + Crédito"), desconto e "CPF na nota"; cancelar venda paga lembra de
     estornar na maquininha (NSU de cada cartão).
-- Fica para depois: fechamento do caixa, sangria, suprimento e conferência da gaveta (semana 6), cupom/NFC-e (precisa de
-  certificado e SEFAZ), troca e devolução, maquininha de verdade, código de barras próprio da unidade quando não segue o
-  DUN-14 da caixa.
+- Fica para depois: cupom/NFC-e (precisa de certificado e SEFAZ), comprovante não fiscal impresso, troca e devolução,
+  maquininha de verdade, código de barras próprio da unidade quando não segue o DUN-14 da caixa. O fechamento de cada
+  caixa foi adiantado (3h); o fechamento do DIA (todos os caixas, e-mail, análises) continua na semana 6.
+
+3h. PROMOÇÕES E FECHAMENTO DO CAIXA (PEDIDO DO GUILHERME EM 30/10; SCRIPT 008)
+-----------------------------------------------------------------------------
+- Antes de usar: rodar database/008_promocoes_fechamento.sql (depois do 007; pode rodar de novo). Sem ele tudo funciona
+  como antes: EstoqueService.TemPromocoes e CaixaService.TemPromocoes ficam false, a aba Promoções, a caixa "Não entra na
+  promoção de validade" e os botões da gaveta somem (consultas com fallback, TabelaInexistenteException para tabela ou
+  função que ainda não existe). O 008 foi testado num Postgres local (PGlite) junto com o 001 e o 003 a 007.
+- Promoção por produto (tabela promocoes; Estoque > aba Promoções > "Nova promoção"): preço fixo ("de R$ 8,90 por
+  R$ 6,99") ou porcentagem (até 90%), início e fim (fim vazio = até encerrar). Situação Agendada / Ativa / Encerrada.
+  O gatilho conferir_promocao não deixa duas promoções no mesmo período do mesmo produto nem preço fixo maior ou igual
+  ao normal. "Encerrar agora" grava encerrada_em (fica no histórico); encerradas podem ser excluídas. Aviso amarelo
+  quando a promoção vende abaixo do custo (não bloqueia). Todos leem, só o gerente altera (RLS).
+- Promoção de validade por categoria (tabela promocoes_validade, uma regra por categoria): dias_antes (1 a 60),
+  desconto_min e desconto_max (%, até 90). O lote que vence em d dias tem: d > dias_antes → 0; d = dias_antes → mínimo;
+  sobe por igual até o máximo em d = 1; no dia do vencimento (d = 0) continua o máximo (pedido: "do dia que está perto
+  do vencimento até um dia antes"; no dia do vencimento o lote ainda é vendido, então ficou o máximo). Mesma conta em
+  public.desconto_validade e em Models/Promocoes.cs (RegraValidade.Desconto). produtos.sem_promocao_validade tira o
+  produto (caixa no cadastro). Regra desligada (ativa = false) não vale no caixa.
+- Caixa: o preço é calculado no banco (preco_com_promocao, chamado por reservar_item): vai pelos lotes na ordem em que
+  saem (o que vence primeiro), pula o que já está reservado em outras vendas, e em cada lote usa o MAIOR desconto entre
+  a promoção do produto e a de validade (não soma). venda_itens guarda subtotal_normal, desconto_promocao e promocao
+  ("Promoção", "Validade −30%" ou os dois). Etiqueta da balança: a promoção vale na mesma proporção sobre o valor
+  impresso. O preço é recalculado quando a quantidade do item muda. Na tela: etiqueta amarela no item, subtotal normal
+  riscado, "Economia nas promoções" no pagamento, e a consulta de preço (F3) mostra a promoção e os lotes com desconto.
+- Estoque: a linha do produto mostra "promoção" + preço normal riscado em cima da etiqueta; o drop-down mostra a promoção
+  e a regra de validade; cada lote em promoção mostra "30% hoje · R$ 7,00". A aba Promoções lista os lotes em promoção
+  hoje (para etiquetar a prateleira). Painel: aviso "N lotes em promoção de validade hoje".
+- Troco inicial e campos de dinheiro do caixa (pedido do Guilherme): Formulario.MascaraDinheiro. Só números entram e
+  empurram da direita (1,5,0,0,0 → 150,00; 1.500,00 acima de mil), colar "R$ 150" vira 150,00, até R$ 99.999,99.
+  Usada no troco inicial, no valor recebido (vazio = o que falta), na sangria/suprimento, no fechamento e no preço da
+  promoção. O troco inicial continua aceitando 0,00.
+- Sangria e suprimento (tabela caixa_movimentos, função registrar_movimento): botões no fim do cartão de pagamento.
+  Sangria pede a senha do gerente (acao 'sangria' em autorizacoes, sem venda) e não passa do dinheiro da gaveta.
+  Dinheiro na gaveta (dinheiro_na_gaveta) = troco inicial + dinheiro das vendas pagas (venda_pagamentos.valor, já sem o
+  troco) + suprimentos − sangrias. Acima de R$ 500 (CaixaView.LimiteGaveta) aparece o aviso para fazer sangria.
+- Fechar o caixa (fechar_caixa): a venda em andamento precisa estar terminada; as em espera são canceladas. A janela
+  mostra o resumo (resumo_caixa: vendas por forma, descontos, promoções, movimentos, o que deveria ter na gaveta), a
+  contagem nota por nota (opcional) ou o total, e a sobra/falta na hora; com diferença, pede a observação. Grava
+  fechado_contado, fechado_esperado, fechado_diferenca, fechado_obs e fechado_por. Fechado, o caixa não vende mais no
+  dia; a tela mostra o resumo e o gerente tem "Reabrir o caixa" (reabrir_caixa apaga a contagem). O gerente pode fechar
+  o caixa de outra pessoa pela função (a tela ainda só fecha o próprio). Painel: aviso de caixa fechado com sobra ou falta.
+- Correção junto: o rótulo "Parcelas" numa coluna de largura 0 deixava o cartão de pagamento enorme fora do crédito
+  (TextBlock com quebra de linha mede uma letra por linha); agora o bloco é escondido. A lista de itens fica no topo.
 
 4. O QUE AINDA DEVE SER FEITO (UMA SEMANA POR VEZ, NESTA ORDEM)
 --------------------------------------------------------------
@@ -337,8 +388,8 @@ Semana 3 - Estoque (feito, ligado ao banco): cadastro de produtos; lotes com qua
            (perto da validade, estoque baixo, sem estoque, ordem alfabética); indicadores visuais.
 Semana 4 - Fornecedores (feito, ligado ao banco): cadastro; produtos de cada fornecedor; indicadores de estoque;
            contato rápido; histórico de pedidos (feitos, pendentes).
-Semana 5 - Caixa (feito, ligado ao banco; ver 3g): tela padrão de caixa; pagamento; item na venda fica reservado e só dá baixa
-           no estoque após o pagamento; bloquear venda de lote vencido.
+Semana 5 - Caixa (feito, ligado ao banco; ver 3g e 3h): tela padrão de caixa; pagamento; item na venda fica reservado e só dá baixa
+           no estoque após o pagamento; bloquear venda de lote vencido. Extras: promoções e fechamento do caixa (3h).
 Semana 6 - Fechamento do dia: resumo de vendas; envio por e-mail; dados na nuvem para análise
            diária, semanal e mensal; integração com app de celular da gerência.
            Também (pedido do Guilherme, 20/10): caixa de e-mail de pedidos; as respostas dos fornecedores por
