@@ -12,10 +12,10 @@ O visual, os textos e os perfis seguem o projeto de referência
 | Semana | Entrega | Situação |
 |---|---|---|
 | 1 | Tela inicial e login com perfis gerente e operador | Feito |
-| 2 | Painel (modo de teste, com dados de exemplo) | Em teste |
+| 2 | Painel (resumo do dia, avisos de estoque e pedidos) | Feito |
 | 3 | Estoque (produtos, lotes e validade) | Feito |
 | 4 | Fornecedores (cadastro, pedidos pelo WhatsApp/e-mail, entregas) | Feito |
-| 5 | Caixa | Planejado |
+| 5 | Caixa padrão (reserva, baixa por lote, pagamento dividido, maquininha emulada, modo caixa), funcionários e meu perfil | Feito |
 | 6 | Fechamento do dia | Planejado |
 | 7 | Previsão de compras e pedidos automáticos | Planejado |
 
@@ -24,9 +24,9 @@ O visual, os textos e os perfis seguem o projeto de referência
 ```
 database/                 scripts SQL para rodar no Supabase, em ordem
 src/MercadinhoSeuZe/
-  Models/                 tipos do sistema (Perfil, Sessao, Produto, Fornecedor, Pedido)
+  Models/                 tipos do sistema (Perfil, Sessao, Produto, Fornecedor, Pedido, Venda)
   Services/               configuração, acesso ao Supabase, login e preferências locais
-  Views/                  telas (tela inicial, login, área interna com menu, painel, caixa provisório, estoque, fornecedores)
+  Views/                  telas (tela inicial, login, área interna com menu, painel, caixa, estoque, fornecedores, funcionários)
   App.xaml                cores e estilos visuais
 publicar.ps1              gera o .exe único
 INSTRUCOES_PARA_IA.txt    resumo do projeto, próximos passos e restrições (leia antes de alterar)
@@ -37,9 +37,10 @@ INSTRUCOES_PARA_IA.txt    resumo do projeto, próximos passos e restrições (le
 1. **Instalar o .NET 10 SDK**: `winget install Microsoft.DotNet.SDK.10`
 2. **Criar o projeto no Supabase** (https://supabase.com, plano grátis).
 3. No Supabase, abrir **SQL Editor** e executar os scripts de `database/` em ordem
-   (`001_semana1_perfis.sql`, depois `003_semana3_estoque.sql` e `004_semana4_fornecedores.sql`;
-   o `002` só cria usuários de teste).
-4. Em **Authentication > Users > Add user**, criar os usuários marcando *Auto Confirm User*.
+   (`001_semana1_perfis.sql`, depois `003_semana3_estoque.sql`, `004_semana4_fornecedores.sql`,
+   `005_semana4_ajustes.sql`, `006_semana5_caixa.sql` e `007_semana5_caixa_padrao.sql`; o `002` só cria usuários de teste).
+4. Criar o primeiro gerente em **Authentication > Users > Add user**, marcando *Auto Confirm User*
+   (os outros funcionários o gerente cadastra no próprio programa, na tela **Funcionários**).
    O login é por **nome de usuário**: crie cada um com o e-mail interno `<usuario>@mercado.local`
    (ex.: `ana.caixa@mercado.local`); no programa a pessoa digita só `ana.caixa`.
    Todo usuário novo entra como **operador**. Para tornar alguém **gerente**, rodar no SQL Editor:
@@ -62,6 +63,7 @@ Na versão de desenvolvimento (ou rodando em Debug), **Alt+1 na tela de login** 
 teste no canto inferior esquerdo; clicar num deles preenche usuário e senha. **Alt+2 na tela de Estoque** abre um
 leitor de código de barras simulado (catálogo de produtos; cada clique gera um código de caixa novo).
 **Alt+2 na tela de Fornecedores** cadastra fornecedores de teste (telefones e e-mails fictícios).
+**Alt+2 no Caixa** passa no leitor o código de um produto com estoque (ou uma etiqueta da balança).
 O .exe normal não tem esses atalhos.
 
 O .exe já leva a configuração dentro dele e roda em qualquer Windows 64 bits sem instalar nada.
@@ -73,7 +75,8 @@ O .exe já leva a configuração dentro dele e roda em qualquer Windows 64 bits 
 - "Esqueci minha senha" grava um pedido em `pedidos_senha` para o gerente redefinir a senha.
 - "Lembrar meu usuário" guarda o último usuário em `%LocalAppData%\Mercado\preferencias.json`.
 - As mensagens de "Fale com a gente" vão para a tabela `contatos`.
-- Depois do login, o gerente vai para o Painel e o operador para o Caixa (provisório até a semana 5).
+- Depois do login, o gerente vai para o Painel e o operador para o Caixa.
+- Cada um troca a própria senha em **Meu perfil** (clicar no nome, no rodapé do menu).
 
 ## Segurança
 

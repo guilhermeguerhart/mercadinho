@@ -40,6 +40,8 @@ public partial class ProdutoJanela : UserControl
         Minimo.Text = produto is null ? "" : Formulario.Quantidade(produto.EstoqueMinimo);
         Aviso.Text = produto?.EstoqueAviso is { } av ? Formulario.Quantidade(av) : "";
         CodigoCaixa.Text = produto?.CodigoBarrasCaixa ?? codigoLido ?? "";
+        CodigoBalanca.Text = produto?.CodigoBalanca?.ToString(CultureInfo.InvariantCulture) ?? "";
+        Formulario.LimparAoDigitar(CodigoBalanca, CodigoBalancaErro);
         if (produto is null && encontrado is not null)
         {
             // Sugestão do banco aberto: a pessoa confere e completa preço, mínimo e unidades por caixa
@@ -238,6 +240,7 @@ public partial class ProdutoJanela : UserControl
         RotuloAviso.Text = kg ? "Avisar com antecedência em (kg)" : "Avisar com antecedência em";
         RotuloUnidadesCaixa.Text = kg ? "Kg por caixa" : "Unidades por caixa";
         RotuloQuantidade.Text = kg ? "Peso (kg)" : "Quantidade";
+        CampoBalanca.Visibility = kg && _servico.TemCaixa ? Visibility.Visible : Visibility.Collapsed;
         AtualizarDica();
     }
 
@@ -289,6 +292,13 @@ public partial class ProdutoJanela : UserControl
             ? dono.Nome : null;
         Checar(CodigoCaixa, CodigoCaixaErro, codigoRepetido is null, $"Este código já é da caixa de “{codigoRepetido}”.");
 
+        var pluVazio = CodigoBalanca.Text.Trim().Length == 0 || !kg || !_servico.TemCaixa;
+        var plu = pluVazio ? null : Formulario.LerInteiro(CodigoBalanca.Text);
+        var pluRepetido = plu is not null && _todos.FirstOrDefault(p => p.Id != _produto?.Id && p.CodigoBalanca == plu) is { } donoPlu ? donoPlu.Nome : null;
+        if (kg && _servico.TemCaixa)
+            Checar(CodigoBalanca, CodigoBalancaErro, pluVazio || (plu is >= 1 and <= 99999 && pluRepetido is null),
+                pluRepetido is not null ? $"Este código já é de “{pluRepetido}”." : "Use um número de 1 a 99999 ou deixe vazio.");
+
         var diasVazio = DiasValidade.Text.Trim().Length == 0;
         var diasValidade = diasVazio ? null : Formulario.LerInteiro(DiasValidade.Text);
         Checar(DiasValidade, DiasValidadeErro, diasVazio || diasValidade is > 0 and <= 3650, "Use um número de dias (1 a 3650) ou deixe vazio.");
@@ -327,7 +337,8 @@ public partial class ProdutoJanela : UserControl
             _escolheFornecedor ? (EscolhaFornecedor.SelectedItem as ComboBoxItem)?.Tag as long? : _produto?.FornecedorId,
             _escolheFornecedor ? prazoEntrega : _produto?.PrazoEntregaDias,
             _escolheFornecedor ? PedirAntes.IsChecked == true : _produto?.PedirAntes ?? false,
-            CampoCusto.Visibility == Visibility.Visible ? precoCusto : _produto?.PrecoCusto);
+            CampoCusto.Visibility == Visibility.Visible ? precoCusto : _produto?.PrecoCusto,
+            _servico.TemCaixa ? (kg ? plu : null) : _produto?.CodigoBalanca);
         var principalEscolhido = (EscolhaFornecedor.SelectedItem as ComboBoxItem)?.Tag as long?;
         var outros = _outros.Where(id => id != principalEscolhido).ToList();
         var mudouOutros = CampoOutros.Visibility == Visibility.Visible &&

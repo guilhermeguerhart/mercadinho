@@ -119,6 +119,9 @@ public sealed class SupabaseApi
         // Mensagens escritas nas funções do banco (raise exception), já em português
         if (corpo.Contains("\"22023\"") && MensagemDoBanco(corpo) is { } mensagem)
             throw new ConexaoException(mensagem);
+        // Falta de permissão explicada pela função (as do banco em inglês ficam com o texto padrão abaixo)
+        if (corpo.Contains("\"42501\"") && MensagemDoBanco(corpo) is { } negado && !negado.StartsWith("permission denied", StringComparison.OrdinalIgnoreCase))
+            throw new ConexaoException(negado);
         throw new ConexaoException(resposta.StatusCode switch
         {
             HttpStatusCode.Unauthorized when corpo.Contains("JWT expired") => "Sua sessão expirou. Clique em Sair e entre de novo.",

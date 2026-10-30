@@ -2,40 +2,277 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              SizeChanged="AoRedimensionar">
-    <StackPanel>
-        <StackPanel Margin="0,0,0,28">
-            <TextBlock Text="Caixa" FontSize="28" FontWeight="Bold" Margin="0,0,0,4" />
-            <TextBlock Text="Registro de vendas do dia" Style="{StaticResource TextoSuave}" />
-        </StackPanel>
+    <!-- Caixa (igual a caixa.html do site). O interruptor "Modo caixa" troca para o caixa de balcão: tela inteira,
+         sem menu, letras grandes; o resumo e a lista de vendas do dia ficam só no modo normal. -->
+    <Grid x:Name="Raiz">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition x:Name="LinhaVenda" Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
 
-        <!-- Resumo de vendas do dia (visível para todos os perfis) -->
-        <UniformGrid x:Name="Resumo" Columns="3" Margin="0,0,-16,4">
+        <!-- Cabeçalho do modo normal -->
+        <DockPanel x:Name="CabecalhoNormal" Margin="0,0,0,24">
+            <CheckBox x:Name="ChaveModoNormal" DockPanel.Dock="Right" Style="{StaticResource Interruptor}" Content="Modo caixa" VerticalAlignment="Center"
+                      ToolTip="Tela inteira para o balcão, com letras grandes e atalhos de teclado" AutomationProperties.Name="Modo caixa"
+                      Click="ChaveModo_Click" />
+            <StackPanel Margin="0,0,16,0">
+                <TextBlock Text="Caixa" FontSize="28" FontWeight="Bold" Margin="0,0,0,4" />
+                <TextBlock x:Name="Subtitulo" Text="Registro de vendas do dia" Style="{StaticResource TextoSuave}" />
+            </StackPanel>
+        </DockPanel>
+
+        <!-- Barra do modo caixa: toldo verde com o nome de quem está no caixa e o relógio -->
+        <Border x:Name="BarraModoCaixa" Background="{StaticResource Verde700}" Visibility="Collapsed">
+            <StackPanel>
+                <Border Height="19" Background="{StaticResource Toldo}" />
+                <DockPanel Margin="20,6,20,12">
+                    <CheckBox x:Name="ChaveModoCaixa" DockPanel.Dock="Right" Style="{StaticResource Interruptor}" Content="Modo caixa" Foreground="{StaticResource Creme}"
+                              VerticalAlignment="Center" IsChecked="True" AutomationProperties.Name="Modo caixa (desligar volta ao normal)"
+                              ToolTip="Desligar volta para a tela normal, com o menu" Click="ChaveModo_Click" />
+                    <TextBlock x:Name="Relogio" DockPanel.Dock="Right" Foreground="{StaticResource Creme}" FontSize="22" FontWeight="Bold"
+                               VerticalAlignment="Center" Margin="0,0,24,0" />
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Style="{StaticResource MarcaQuadrado}">
+                            <TextBlock Text="M" FontWeight="ExtraBold" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="Caixa" Foreground="White" FontSize="20" FontWeight="ExtraBold" />
+                            <TextBlock x:Name="SubtituloModoCaixa" Foreground="{StaticResource CremeSuave}" FontSize="13" />
+                        </StackPanel>
+                    </StackPanel>
+                </DockPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- Erro ao ler ou gravar no banco -->
+        <Border x:Name="AvisoErro" Grid.Row="1" Style="{StaticResource Aviso}" Background="{StaticResource Vermelho50}" BorderBrush="{StaticResource Vermelho600}"
+                Margin="0,0,0,20" Visibility="Collapsed">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="Tentar de novo" Style="{StaticResource BotaoLink}" Foreground="{StaticResource Vermelho600}"
+                        VerticalAlignment="Center" Margin="16,0,0,0" Click="TentarDeNovo_Click" />
+                <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeAlerta}" Foreground="{StaticResource Vermelho600}"
+                                Width="18" VerticalAlignment="Top" Margin="0,1,10,0" />
+                <TextBlock x:Name="AvisoErroTexto" Foreground="{StaticResource Vermelho600}" FontSize="14" />
+            </DockPanel>
+        </Border>
+
+        <!-- Caixa fechado: abrir com o troco inicial -->
+        <Border x:Name="PainelAbrir" Grid.Row="2" Style="{StaticResource CartaoBorda}" Padding="28,26" Margin="0,0,0,20" Visibility="Collapsed"
+                HorizontalAlignment="Left" VerticalAlignment="Top" MaxWidth="640">
+            <DockPanel>
+                <Border DockPanel.Dock="Left" Width="56" Height="56" CornerRadius="6" Background="{StaticResource Etiqueta}" VerticalAlignment="Top"
+                        Margin="0,0,20,0" Effect="{StaticResource SombraEtiqueta}">
+                    <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeCaixaRegistradora}" Foreground="{StaticResource Tinta}" Width="28" />
+                </Border>
+                <StackPanel>
+                    <TextBlock Text="O caixa está fechado" FontSize="20" FontWeight="Bold" Margin="0,0,0,6" />
+                    <TextBlock Style="{StaticResource TextoSuave}" FontSize="14" Margin="0,0,0,16"
+                               Text="Conte o dinheiro que está na gaveta para o troco e abra o caixa para começar a vender." />
+                    <TextBlock Text="Troco inicial (R$)" Style="{StaticResource Rotulo}" />
+                    <StackPanel Orientation="Horizontal">
+                        <TextBox x:Name="TrocoInicial" Width="180" MaxLength="10" Text="0,00" AutomationProperties.Name="Troco inicial em reais" KeyDown="TrocoInicial_KeyDown" />
+                        <Button x:Name="BotaoAbrir" Content="Abrir caixa" Style="{StaticResource BotaoPrimario}" Margin="12,0,0,0" Click="AbrirCaixa_Click" />
+                    </StackPanel>
+                    <TextBlock x:Name="TrocoInicialErro" Style="{StaticResource ErroCampo}" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- Venda em andamento -->
+        <Grid x:Name="AreaVenda" Grid.Row="2" Margin="0,0,0,20" Visibility="Collapsed">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition x:Name="ColunaPagamento" Width="380" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- Itens -->
+            <Border x:Name="CartaoItens" Style="{StaticResource CartaoBorda}" Padding="22,20" Margin="0,0,20,0">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Top">
+                        <Grid>
+                            <TextBox x:Name="Busca" MaxLength="60" Padding="44,0,90,0" AutomationProperties.Name="Código de barras ou nome do produto"
+                                     TextChanged="Busca_TextChanged" PreviewKeyDown="Busca_PreviewKeyDown" />
+                            <ContentControl x:Name="IconeBusca" Style="{StaticResource Icone}" Tag="{StaticResource IconeCodigoBarras}" Foreground="{StaticResource Suave}"
+                                            Width="20" HorizontalAlignment="Left" Margin="14,0,0,0" IsHitTestVisible="False" />
+                            <TextBlock x:Name="DicaBusca" Text="Passe o leitor ou digite o nome (F2) · 6* multiplica" Foreground="{StaticResource Placeholder}"
+                                       FontSize="15" VerticalAlignment="Center" Margin="45,0,0,0" IsHitTestVisible="False" />
+                            <!-- Quantidade da próxima leitura ("6*") -->
+                            <Border x:Name="Multiplicador" Style="{StaticResource EtiquetaPreco}" HorizontalAlignment="Right" Margin="0,0,12,0" Visibility="Collapsed"
+                                    ToolTip="A próxima leitura entra com esta quantidade (Esc tira)">
+                                <TextBlock x:Name="MultiplicadorTexto" FontWeight="ExtraBold" FontSize="15" />
+                            </Border>
+                        </Grid>
+                        <TextBlock x:Name="BuscaErro" Style="{StaticResource ErroCampo}" />
+                        <Border x:Name="CaixaResultados" Background="White" BorderBrush="{StaticResource Linha}" BorderThickness="1" CornerRadius="6"
+                                Margin="0,6,0,0" Visibility="Collapsed">
+                            <StackPanel x:Name="Resultados" />
+                        </Border>
+
+                        <!-- Último item lido, em destaque (como no visor do caixa) -->
+                        <Border x:Name="DestaqueUltimo" Background="{StaticResource Bilhete}" BorderBrush="{StaticResource BordaEtiqueta}" BorderThickness="1"
+                                CornerRadius="6" Padding="16,10" Margin="0,14,0,0" Visibility="Collapsed">
+                            <DockPanel>
+                                <TextBlock x:Name="DestaqueSubtotal" DockPanel.Dock="Right" FontSize="22" FontWeight="ExtraBold" VerticalAlignment="Center" Margin="16,0,0,0" />
+                                <StackPanel>
+                                    <TextBlock x:Name="DestaqueNome" FontSize="20" FontWeight="Bold" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+                                    <TextBlock x:Name="DestaqueConta" Style="{StaticResource TextoSuave}" FontSize="14" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- Cabeçalho da tabela -->
+                        <Grid x:Name="CabecalhoItens" Margin="0,16,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="36" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="150" />
+                                <ColumnDefinition Width="110" />
+                                <ColumnDefinition Width="110" />
+                                <ColumnDefinition Width="40" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Nº" Style="{StaticResource Cabecalho}" />
+                            <TextBlock Grid.Column="1" Text="PRODUTO" Style="{StaticResource Cabecalho}" />
+                            <TextBlock Grid.Column="2" Text="QTD. / PESO" Style="{StaticResource Cabecalho}" HorizontalAlignment="Right" />
+                            <TextBlock Grid.Column="3" Text="PREÇO" Style="{StaticResource Cabecalho}" HorizontalAlignment="Right" />
+                            <TextBlock Grid.Column="4" Text="SUBTOTAL" Style="{StaticResource Cabecalho}" HorizontalAlignment="Right" />
+                        </Grid>
+                        <Border x:Name="LinhaCabecalho" Height="2" Background="{StaticResource Tinta}" Margin="0,8,0,0" />
+                    </StackPanel>
+
+                    <Grid>
+                        <ScrollViewer x:Name="RolagemItens" VerticalScrollBarVisibility="Auto" MaxHeight="420">
+                            <StackPanel x:Name="ItensVenda" />
+                        </ScrollViewer>
+                        <StackPanel x:Name="SemItens" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="16,32" MaxWidth="420">
+                            <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeCesta}" Foreground="{StaticResource LinhaForte}" Width="40"
+                                            HorizontalAlignment="Center" Margin="0,0,0,10" />
+                            <TextBlock Text="Caixa livre" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" />
+                            <TextBlock Style="{StaticResource TextoSuave}" FontSize="13" TextAlignment="Center" Margin="0,4,0,0"
+                                       Text="Os itens ficam reservados enquanto a venda está aberta e só saem do estoque depois do pagamento." />
+                        </StackPanel>
+                    </Grid>
+                </DockPanel>
+            </Border>
+
+            <!-- Pagamento -->
+            <Border x:Name="CartaoPagamento" Grid.Column="1" Style="{StaticResource CartaoBorda}" Padding="22,20,10,20" VerticalAlignment="Top">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="0,0,12,0">
+                    <DockPanel>
+                        <TextBlock x:Name="QuantidadeItens" DockPanel.Dock="Right" Text="Nenhum item" Style="{StaticResource TextoSuave}" FontSize="13" />
+                        <TextBlock Text="TOTAL DA VENDA" Style="{StaticResource Cabecalho}" />
+                    </DockPanel>
+                    <Border Style="{StaticResource EtiquetaPreco}" Padding="14,4,14,6" Margin="0,10,0,8">
+                        <TextBlock x:Name="Total" Text="R$ 0,00" FontSize="34" FontWeight="ExtraBold" />
+                    </Border>
+
+                    <!-- Desconto, CPF e pagamentos já recebidos -->
+                    <StackPanel x:Name="Detalhes" />
+
+                    <DockPanel x:Name="LinhaFalta" Margin="0,10,0,0">
+                        <TextBlock x:Name="Falta" DockPanel.Dock="Right" FontSize="20" FontWeight="ExtraBold" Foreground="{StaticResource Vermelho600}" />
+                        <TextBlock x:Name="RotuloFalta" Text="Falta pagar" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    </DockPanel>
+
+                    <TextBlock Text="Forma de pagamento" Style="{StaticResource Rotulo}" Margin="0,14,0,8" />
+                    <UniformGrid x:Name="Formas" Columns="2" Margin="0,0,-8,0" />
+                    <TextBlock x:Name="FormaErro" Style="{StaticResource ErroCampo}" />
+
+                    <StackPanel x:Name="PainelValor" Visibility="Collapsed" Margin="0,8,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition x:Name="ColunaParcelas" Width="0" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock x:Name="RotuloValor" Text="Valor (R$)" Style="{StaticResource Rotulo}" />
+                                <Grid>
+                                    <TextBox x:Name="Valor" MaxLength="10" AutomationProperties.Name="Valor a receber em reais"
+                                             TextChanged="Valor_TextChanged" KeyDown="Valor_KeyDown" />
+                                    <TextBlock x:Name="DicaValor" Foreground="{StaticResource Placeholder}" FontSize="15"
+                                               VerticalAlignment="Center" Margin="15,0,0,0" IsHitTestVisible="False" />
+                                </Grid>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                                <TextBlock Text="Parcelas" Style="{StaticResource Rotulo}" />
+                                <ComboBox x:Name="Parcelas" AutomationProperties.Name="Parcelas" />
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock x:Name="ValorErro" Style="{StaticResource ErroCampo}" />
+                        <DockPanel x:Name="LinhaTroco" Margin="0,12,0,0">
+                            <TextBlock x:Name="Troco" DockPanel.Dock="Right" Text="R$ 0,00" FontSize="20" FontWeight="ExtraBold" Foreground="{StaticResource Verde700}" />
+                            <TextBlock Text="Troco" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </DockPanel>
+                    </StackPanel>
+
+                    <Button x:Name="BotaoFinalizar" Style="{StaticResource BotaoPrimario}" Margin="0,18,0,0" Height="52" Click="Finalizar_Click"
+                            AutomationProperties.Name="Receber pagamento (F4)">
+                        <StackPanel Orientation="Horizontal">
+                            <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeCheck}" Foreground="White" Width="20" Margin="0,0,8,0" />
+                            <TextBlock x:Name="TextoFinalizar" Text="Receber (F4)" />
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Funções do caixa -->
+                    <WrapPanel x:Name="Funcoes" Margin="0,14,0,0" HorizontalAlignment="Center">
+                        <Button x:Name="BotaoDesconto" Content="Desconto (Ctrl+D)" Style="{StaticResource LinkSuave}" Margin="6,2" Click="Desconto_Click" />
+                        <Button x:Name="BotaoCpf" Content="CPF na nota (F11)" Style="{StaticResource LinkSuave}" Margin="6,2" Click="Cpf_Click" />
+                        <Button x:Name="BotaoEspera" Content="Pôr em espera (F12)" Style="{StaticResource LinkSuave}" Margin="6,2" Click="Espera_Click" />
+                        <Button x:Name="BotaoConsulta" Content="Consultar preço (F3)" Style="{StaticResource LinkSuave}" Margin="6,2" Click="Consulta_Click" />
+                        <Button x:Name="BotaoCancelarVenda" Content="Cancelar venda" Style="{StaticResource LinkSuave}" Foreground="{StaticResource Vermelho600}" Margin="6,2" Click="CancelarVenda_Click" />
+                    </WrapPanel>
+                    <Button x:Name="BotaoVendasEspera" Style="{StaticResource BotaoFantasma}" Height="40" Margin="0,12,0,0" Visibility="Collapsed" Click="VendasEspera_Click" />
+
+                    <Border x:Name="UltimaVenda" Style="{StaticResource Aviso}" Background="{StaticResource Verde50}" BorderBrush="{StaticResource Verde700}"
+                            Margin="0,16,0,0" Visibility="Collapsed">
+                        <TextBlock x:Name="UltimaVendaTexto" Foreground="{StaticResource Verde700}" FontSize="14" />
+                    </Border>
+                </StackPanel>
+                </ScrollViewer>
+            </Border>
+
+            <!-- Atalhos (só no modo caixa) -->
+            <TextBlock x:Name="LegendaAtalhos" Grid.Row="2" Grid.ColumnSpan="2" Style="{StaticResource TextoSuave}" FontSize="13" Margin="0,12,0,0"
+                       Visibility="Collapsed"
+                       Text="F2 leitor · 6* multiplica · F3 consulta · F4 receber · F5 dinheiro · F6 Pix · F7 débito · F8 crédito · F9 vale-alim. · Shift+F9 vale-ref. · F11 CPF · F12 espera · Ctrl+D desconto · Esc cancela o último item" />
+        </Grid>
+
+        <!-- Resumo do dia -->
+        <UniformGrid x:Name="ResumoDia" Grid.Row="3" Columns="3" Margin="0,0,-16,4">
             <Border Style="{StaticResource CartaoBorda}" Padding="22,20" Margin="0,0,16,16">
                 <StackPanel>
                     <TextBlock Text="Vendas hoje" Style="{StaticResource TextoSuave}" FontSize="14" FontWeight="SemiBold" />
-                    <TextBlock x:Name="Total" FontSize="28" FontWeight="Bold" Margin="0,10,0,0" />
+                    <TextBlock x:Name="ResumoTotal" Text="—" FontSize="28" FontWeight="Bold" Margin="0,10,0,0" />
                 </StackPanel>
             </Border>
             <Border Style="{StaticResource CartaoBorda}" Padding="22,20" Margin="0,0,16,16">
                 <StackPanel>
                     <TextBlock Text="Vendas realizadas" Style="{StaticResource TextoSuave}" FontSize="14" FontWeight="SemiBold" />
-                    <TextBlock x:Name="Quantidade" FontSize="28" FontWeight="Bold" Margin="0,10,0,0" />
+                    <TextBlock x:Name="ResumoQuantidade" Text="—" FontSize="28" FontWeight="Bold" Margin="0,10,0,0" />
                 </StackPanel>
             </Border>
             <Border Style="{StaticResource CartaoBorda}" Padding="22,20" Margin="0,0,16,16">
                 <StackPanel>
                     <TextBlock Text="Ticket médio" Style="{StaticResource TextoSuave}" FontSize="14" FontWeight="SemiBold" />
-                    <TextBlock x:Name="Ticket" FontSize="28" FontWeight="Bold" Margin="0,10,0,0" />
+                    <TextBlock x:Name="ResumoTicket" Text="—" FontSize="28" FontWeight="Bold" Margin="0,10,0,0" />
                 </StackPanel>
             </Border>
         </UniformGrid>
 
-        <Border Style="{StaticResource CartaoBorda}" Padding="24,22">
+        <!-- Vendas de hoje -->
+        <Border x:Name="CartaoVendas" Grid.Row="4" Style="{StaticResource CartaoBorda}" Padding="24,22">
             <StackPanel>
-                <TextBlock Text="Em desenvolvimento" FontSize="16" FontWeight="Bold" Margin="0,0,0,8" />
-                <TextBlock Style="{StaticResource TextoSuave}"
-                           Text="Esta tela será desenvolvida na etapa do Caixa (semana 5): montagem da venda, pagamento e baixa automática no estoque." />
+                <TextBlock Text="Vendas de hoje" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
+                <StackPanel x:Name="ListaVendas" />
             </StackPanel>
         </Border>
-    </StackPanel>
+    </Grid>
 </UserControl>

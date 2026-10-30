@@ -48,6 +48,26 @@ public sealed class Produto
     [JsonPropertyName("pedir_antes")] public bool PedirAntes { get; set; }
     /// <summary>Último preço de custo (por unidade ou por kg); atualizado a cada entrega com custo.</summary>
     [JsonPropertyName("preco_custo")] public decimal? PrecoCusto { get; set; }
+    /// <summary>Código do produto na balança do açougue (PLU), que vai impresso na etiqueta; null = sem etiqueta.</summary>
+    [JsonPropertyName("codigo_balanca")] public int? CodigoBalanca { get; set; }
+
+    /// <summary>
+    /// Quanto está reservado em vendas abertas do caixa (não vem nesta consulta; as telas preenchem com
+    /// EstoqueService.ReservadosAsync). Continua nos lotes, mas já não pode ser vendido.
+    /// </summary>
+    [JsonIgnore] public decimal Reservado { get; set; }
+
+    /// <summary>O que está nos lotes dentro da validade (lote vencido não pode ser vendido).</summary>
+    public decimal Vendavel => Lotes.Where(l => l.QuantidadeRestante > 0 && !(l.Validade < Hoje)).Sum(l => l.QuantidadeRestante);
+
+    /// <summary>O que ainda pode ir para uma venda: dentro da validade e sem reserva.</summary>
+    public decimal DisponivelParaVenda => Math.Max(0, Vendavel - Reservado);
+
+    /// <summary>Unidades (ou kg) em lotes vencidos, que o caixa bloqueia.</summary>
+    public decimal QuantidadeVencida => Quantidade - Vendavel;
+
+    private static DateOnly Hoje => DateOnly.FromDateTime(DateTime.Today);
+
     /// <summary>Outros fornecedores de quem o produto é comprado, com o último custo de cada um.</summary>
     [JsonPropertyName("produto_fornecedores")] public List<ProdutoFornecedor> Vinculos { get; set; } = [];
 

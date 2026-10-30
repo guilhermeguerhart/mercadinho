@@ -57,6 +57,8 @@ public partial class EstoqueView : UserControl
         try
         {
             _produtos = await _servico.ListarAsync();
+            var reservados = await _servico.ReservadosAsync();
+            foreach (var p in _produtos) p.Reservado = reservados.GetValueOrDefault(p.Id);
         }
         catch (ConexaoException ex)
         {
@@ -298,6 +300,8 @@ public partial class EstoqueView : UserControl
 
         var resumo = new WrapPanel();
         resumo.Children.Add(Detalhe("Em estoque", p.Formatar(p.Quantidade)));
+        if (p.Reservado > 0)
+            resumo.Children.Add(Detalhe("Reservado no caixa", p.Formatar(p.Reservado) + " (venda aberta)"));
         resumo.Children.Add(Detalhe("Já vendido", p.Formatar(p.Vendido)));
         resumo.Children.Add(DetalheValidade("Próxima validade", p.ProximaValidade, p.Situacao));
         resumo.Children.Add(Detalhe("Estoque mínimo", p.Formatar(p.EstoqueMinimo)));
@@ -319,6 +323,8 @@ public partial class EstoqueView : UserControl
         }
         var porCaixa = $"{p.Numero(p.UnidadesPorCaixa)} {p.Sigla}";
         resumo.Children.Add(Detalhe("Caixa", p.CodigoBarrasCaixa is null ? $"{porCaixa} (sem código)" : $"{p.CodigoBarrasCaixa} · {porCaixa}"));
+        if (p.CodigoBalanca is { } plu)
+            resumo.Children.Add(Detalhe("Código na balança", plu.ToString(PtBr)));
         topo.Children.Add(resumo);
         painel.Children.Add(topo);
 

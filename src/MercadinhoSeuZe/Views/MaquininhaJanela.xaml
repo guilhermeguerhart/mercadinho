@@ -1,0 +1,60 @@
+<UserControl x:Class="MercadinhoSeuZe.Views.MaquininhaJanela"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Width="440">
+    <!-- Cobrança na maquininha (cartão, vale ou Pix). Com a maquininha emulada aparecem os botões de teste. -->
+    <Border Style="{StaticResource Janela}" Padding="24,22,24,20">
+        <StackPanel>
+            <DockPanel Margin="0,0,0,4">
+                <ContentControl DockPanel.Dock="Left" Style="{StaticResource Icone}" Tag="{StaticResource IconeCarteira}" Foreground="{StaticResource Verde700}"
+                                Width="22" Margin="0,0,10,0" VerticalAlignment="Center" />
+                <TextBlock x:Name="Titulo" Text="Maquininha" FontSize="20" FontWeight="Bold" VerticalAlignment="Center" />
+            </DockPanel>
+            <TextBlock x:Name="NomeMaquininha" Style="{StaticResource TextoSuave}" FontSize="12.5" Margin="0,0,0,14" />
+
+            <!-- Visor da maquininha -->
+            <Border Background="{StaticResource Tinta}" CornerRadius="8" Padding="20,18">
+                <StackPanel>
+                    <TextBlock x:Name="FormaTexto" Foreground="{StaticResource CremeSuave}" FontSize="13" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                    <TextBlock x:Name="Valor" Foreground="{StaticResource Etiqueta}" FontSize="34" FontWeight="ExtraBold" HorizontalAlignment="Center" Margin="0,4,0,8" />
+                    <TextBlock x:Name="Visor" Foreground="White" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" TextAlignment="Center" />
+                </StackPanel>
+            </Border>
+
+            <!-- Pix: QR code e copia e cola -->
+            <StackPanel x:Name="PainelPix" Margin="0,16,0,0" Visibility="Collapsed">
+                <Border Background="White" BorderBrush="{StaticResource Linha}" BorderThickness="1" CornerRadius="6" Padding="12" HorizontalAlignment="Center">
+                    <Image x:Name="Qr" Width="180" Height="180" RenderOptions.BitmapScalingMode="NearestNeighbor" />
+                </Border>
+                <TextBlock Text="QR de teste: não é um Pix de verdade" Style="{StaticResource TextoSuave}" FontSize="12" HorizontalAlignment="Center" Margin="0,6,0,8" />
+                <TextBlock Text="Pix copia e cola" Style="{StaticResource Rotulo}" />
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Content="Copiar" Style="{StaticResource BotaoFantasma}" Height="40" Padding="14,0" Margin="8,0,0,0" Click="Copiar_Click" />
+                    <TextBox x:Name="CopiaECola" IsReadOnly="True" FontSize="12" MinHeight="40" AutomationProperties.Name="Pix copia e cola" />
+                </DockPanel>
+            </StackPanel>
+
+            <Border x:Name="AvisoResultado" Style="{StaticResource Aviso}" Margin="0,16,0,0" Visibility="Collapsed">
+                <TextBlock x:Name="AvisoResultadoTexto" FontSize="14" FontWeight="SemiBold" />
+            </Border>
+
+            <!-- Botões de teste (só na maquininha emulada) -->
+            <Border x:Name="PainelTeste" Background="{StaticResource Bilhete}" BorderBrush="{StaticResource BordaEtiqueta}" BorderThickness="1"
+                    CornerRadius="6" Padding="14,12" Margin="0,16,0,0" Visibility="Collapsed">
+                <StackPanel>
+                    <TextBlock Text="Teste: o que acontece na maquininha?" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8" />
+                    <WrapPanel>
+                        <Button x:Name="BotaoAprovar" Content="Aprovar" Style="{StaticResource BotaoPrimario}" Height="40" Padding="16,0" Margin="0,0,8,4" Click="Aprovar_Click" />
+                        <Button Content="Recusar" Style="{StaticResource BotaoFantasma}" Height="40" Padding="14,0" Margin="0,0,8,4" Click="Recusar_Click" />
+                        <Button Content="Sem comunicação" Style="{StaticResource BotaoFantasma}" Height="40" Padding="14,0" Margin="0,0,0,4" Click="SemComunicacao_Click" />
+                    </WrapPanel>
+                </StackPanel>
+            </Border>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
+                <Button x:Name="BotaoCancelar" Content="Cancelar cobrança" Style="{StaticResource BotaoFantasma}" Click="Cancelar_Click" />
+                <Button x:Name="BotaoOk" Content="Continuar" Style="{StaticResource BotaoPrimario}" Margin="10,0,0,0" Visibility="Collapsed" Click="Ok_Click" />
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</UserControl>

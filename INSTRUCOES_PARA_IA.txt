@@ -26,25 +26,35 @@ database/                  Scripts SQL, numerados, para rodar no SQL Editor do S
                            pedido mínimo e vários fornecedores por produto.
   004_semana4_fornecedores.sql  Tabelas fornecedores, pedidos e pedido_itens, coluna produtos.fornecedor_id e as
                            funções criar_pedido e registrar_entrega (tudo ou nada). RLS: só o gerente.
+  006_semana5_caixa.sql    Caixa (caixas, vendas, venda_itens, venda_item_lotes), reserva e baixa por lote,
+                           produtos.codigo_balanca e as funções de funcionários. Gravar só pelas funções.
+  007_semana5_caixa_padrao.sql  Caixa padrão: venda_pagamentos (várias formas, dados da maquininha), CPF na nota,
+                           desconto, venda em espera, autorizações do gerente e itens cancelados. Troca reservar_item,
+                           finalizar_venda e cancelar_venda do 006.
 src/MercadinhoSeuZe/
   App.xaml                 Cores, ícones (Geometry) e estilos de botões/campos/listas de escolha, indicadores
                            quadrados (Kpi), chips e cabeçalho de tabela. Reutilize, não duplique.
   MainWindow.xaml(.cs)     Janela única; troca as telas com MostrarInicio/MostrarLogin/MostrarAreaDoUsuario.
   Models/                  Perfil (Gerente/Operador), Sessao (usuário logado), Painel, Estoque (Produto, Lote),
-                           Fornecedores (Fornecedor, Pedido, ItemPedido, MensagemPedido).
+                           Fornecedores (Fornecedor, Pedido, ItemPedido, MensagemPedido), Caixa (Caixa, Venda,
+                           ItemVenda, FormaPagamento, CodigoBarras: leitor e etiqueta da balança).
   Services/                Configuracao (lê appsettings.json embutido), SupabaseApi (HTTP; ListarAsync,
                            InserirAsync, AtualizarAsync, ExcluirAsync, ChamarAsync (funções rpc) com o token
                            do usuário logado), AuthService (login, bloqueio, auditoria), PreferenciasLocais,
-                           EstoqueService, FornecedorService, ContatoRapido (abre WhatsApp/e-mail).
+                           EstoqueService, FornecedorService, ContatoRapido (abre WhatsApp/e-mail), CaixaService,
+                           FuncionarioService (funcionários e "Meu perfil"), Maquininha (IMaquininha,
+                           MaquininhaEmulada, PixCopiaECola).
   Views/                   Uma UserControl por tela: LandingView, LoginView, AreaInternaView, PainelView,
-                           CaixaView, EstoqueView, FornecedoresView. Janelas por cima da tela (ProdutoJanela,
-                           LoteJanela, ConfirmacaoJanela, FornecedorJanela, PedidoJanela, EnvioPedidoJanela,
-                           EntregaJanela) abrem com AreaInternaView.AbrirJanela; Esc fecha.
+                           CaixaView, EstoqueView, FornecedoresView, FuncionariosView. Janelas por cima da tela
+                           (ProdutoJanela, LoteJanela, ConfirmacaoJanela, FornecedorJanela, PedidoJanela,
+                           EnvioPedidoJanela, EntregaJanela, FuncionarioJanela, MeuPerfilJanela, MaquininhaJanela,
+                           AutorizacaoJanela; CaixaJanelas.cs: CPF, desconto, consulta de preço, vendas em espera) abrem com
+                           AreaInternaView.AbrirJanela; Esc fecha.
                            Formulario.cs: leitura de preço, inteiro e data (dd/mm/aaaa) e erros de campo.
   Assets/mercado.ico       Ícone do programa.
 publicar.ps1               Gera publish/MercadinhoSeuZe.exe (feche o .exe aberto antes).
                            Com -Desenvolvimento gera publish-dev/ com os atalhos de teste (Alt+1 no login,
-                           Alt+2 no Estoque e em Fornecedores).
+                           Alt+2 no Estoque, em Fornecedores e no Caixa).
 
 3. O QUE JÁ FOI FEITO (SEMANA 1)
 --------------------------------
@@ -64,8 +74,8 @@ publicar.ps1               Gera publish/MercadinhoSeuZe.exe (feche o .exe aberto
   Botão "Passar 1 caixa de cada produto que falta": cadastra no banco (com o login atual) todos os
   produtos do catálogo que ainda não existem pelo nome, cada um com código novo e 1 caixa como lote.
 
-3b. SEMANA 2 (EM MODO DE TESTE)
--------------------------------
+3b. SEMANA 2 (EM MODO DE TESTE ATÉ A SEMANA 5)
+----------------------------------------------
 - Views/AreaInternaView: menu lateral comum das telas internas (itens por perfil, "em breve", toast).
 - Views/PainelView: painel do gerente (indicadores, acesso rápido, avisos; atualiza a cada 30 s).
 - Views/CaixaView: caixa provisório do operador com o resumo de vendas do dia.
@@ -246,17 +256,88 @@ publicar.ps1               Gera publish/MercadinhoSeuZe.exe (feche o .exe aberto
 - Fontes: o site usa Bricolage Grotesque e Figtree; o programa continua com Segoe UI até o Guilherme
   autorizar baixar e embutir as fontes.
 
+3g. SEMANA 5 - CAIXA, FUNCIONÁRIOS E MEU PERFIL (LIGADO AO BANCO)
+-----------------------------------------------------------------
+- Antes de usar: rodar database/006_semana5_caixa.sql (depois do 005; pode rodar de novo). Sem ele o Caixa e a tela
+  Funcionários mostram o aviso de tabelas não criadas; Estoque e Fornecedores continuam iguais (EstoqueService.TemCaixa
+  = false esconde o código da balança e as reservas).
+- Saiu o modo de teste da semana 2: Services/DadosExemplo.cs foi apagado e a faixa amarela sumiu do Painel e do Caixa.
+  O Painel lê vendas pagas e caixas abertos de hoje (CaixaService).
+- Caixa (Views/CaixaView, modelo caixa.html/js/caixa.js do site): cada pessoa abre o próprio caixa do dia com o troco
+  inicial (abrir_caixa; caixas.unique(operador_id, dia)). Busca: leitor (Enter) ou nome; resultados com "Disponível",
+  bloqueado se só há lote vencido ou tudo reservado. Leitor: código da caixa (DUN-14) igual ao cadastrado ou da unidade
+  (EAN-13 = DUN-14 sem o 1º dígito, outro dígito verificador; regra do site, Models/Caixa.cs CodigoBarras).
+- Reserva (pedido do calendário): o item entra na venda pela função reservar_item, que trava o produto e confere
+  disponível = lotes dentro da validade - reservado em vendas abertas de hoje de qualquer caixa. A venda aberta fica no
+  banco (vendas.situacao = 'aberta', uma por caixa); se o programa fechar no meio, ela volta ao abrir o Caixa. Vendas
+  abertas de dias anteriores são canceladas ao abrir o caixa e deixam de reservar. O Estoque mostra "Reservado no caixa".
+- Pagamento: Dinheiro (valor recebido e troco; vazio = valor exato), Pix, Débito, Crédito. finalizar_venda dá baixa nos
+  lotes (o que vence primeiro sai primeiro, lote vencido nunca) e grava de qual lote saiu (venda_item_lotes).
+  O "Já vendido" dos lotes e o "sai por dia" do "pedir antes de acabar" passam a contar as vendas.
+- Cancelar: venda aberta (quem vende) tira os itens; venda paga só o gerente, na lista "Vendas de hoje"; os itens voltam
+  para os mesmos lotes (lote excluído vira lote novo com a data de hoje).
+- Produto por quilo: sem etiqueta, entra na venda com o campo do peso em foco (Enter grava). Etiqueta da balança
+  (pedido do Guilherme): produtos.codigo_balanca (PLU, campo "Código na balança" no cadastro de produto por quilo).
+  Etiqueta EAN-13 com preço: "2 CCCC 0 VVVVVV D" ou "2 CCCCC 0 VVVVV D" (valor em centavos); o peso = valor ÷ preço/kg
+  e o subtotal fica igual ao da etiqueta. Etiqueta com peso no lugar do preço não é lida (configurar a balança com preço).
+- Modo caixa (pedido do Guilherme, 29/10): interruptor "Modo caixa" no topo do Caixa (estilo Interruptor em App.xaml).
+  Ligado: AreaInternaView.TelaCheia esconde o menu, a tela ocupa a janela inteira, faixa verde com o toldo, nome e
+  relógio, letras e botões maiores; resumo e lista do dia ficam só no modo normal. Fica lembrado neste computador
+  (PreferenciasLocais.ModoCaixa). Atalhos (nos dois modos): F2 leitor, F3 consulta de preço, F4 receber/finalizar,
+  F5 a F9 e Shift+F9 formas de pagamento, F11 CPF, F12 espera, Ctrl+D desconto, Esc cancela o último item (com o gerente).
+- Meu perfil (pedido do Guilherme): clicar no nome no rodapé do menu abre MeuPerfilJanela: nome, função, usuário, acesso
+  anterior, minhas vendas de hoje (função meu_perfil) e trocar a própria senha (confere a atual entrando de novo e grava
+  pelo PUT auth/v1/user com o token do usuário; mínimo 8 caracteres).
+- Funcionários (pedido do Guilherme; Views/FuncionariosView, só gerente): lista (função listar_funcionarios) com função,
+  último acesso (auditoria_login) e pedido de nova senha da tela de login (aviso amarelo); busca e chips Todos /
+  Gerentes / Operadores / Desativados. Novo (nome, usuário sugerido pelo nome, função, senha inicial), Editar (nome e
+  função), Redefinir senha (resolve os pedidos_senha) e Remover: quem já abriu caixa fica desativado (perfis.ativo =
+  false, não entra mais, "Reativar" volta); quem nunca vendeu é apagado. O gerente não rebaixa, desativa nem remove a
+  si mesmo e sempre sobra um gerente ativo. As funções criam o usuário no Supabase Auth como o script 002
+  (usuario@mercado.local, já confirmado), com security definer e eh_gerente(): o .exe continua só com a chave pública.
+- SupabaseApi: erro 42501 com mensagem escrita pela função (em português) aparece como está.
+- Atalho de desenvolvimento Alt+2 no Caixa (Views/CaixaView.Desenvolvimento.cs, mesma regra dos outros): passa no leitor
+  o código da unidade de um produto que pode ser vendido, ou uma etiqueta da balança (0,3 a 2 kg) se tiver PLU.
+- CAIXA PADRÃO (pedido do Guilherme em 29/10, depois da pesquisa de PDVs de supermercado; script 007):
+  - Pagamento dividido: "Receber (F4)" recebe o valor na forma escolhida (vazio = o que falta); dá para juntar várias
+    formas (ex.: R$ 50 em dinheiro + o resto no crédito). Só o dinheiro tem troco. Quando não falta nada, finaliza.
+    Pagamentos ficam na tela até finalizar (× estorna); com pagamento recebido os itens não mudam. finalizar_venda
+    confere que a soma fecha com o total e grava venda_pagamentos. vendas.forma_pagamento = a forma ou 'varias'.
+  - Formas: Dinheiro F5, Pix F6, Débito F7, Crédito F8 (parcelas 1 a 12), Vale-alimentação F9, Vale-refeição Shift+F9.
+  - Maquininha (Services/Maquininha.cs): o caixa só conversa com IMaquininha. Hoje Maquininha.Atual = MaquininhaEmulada:
+    MaquininhaJanela mostra o visor ("Aproxime, insira ou passe o cartão") e botões de teste Aprovar / Recusar / Sem
+    comunicação; aprovado devolve bandeira, NSU, autorização e final do cartão fictícios, gravados no pagamento. Pix
+    mostra o "copia e cola" (BR Code com CRC16, chave de teste) e um desenho de QR que NÃO é lido por banco. Para ligar
+    a maquininha de verdade (Stone, Cielo, PagBank, Mercado Pago por API, ou TEF SiTef/PayGo com pinpad), escrever
+    outra IMaquininha e trocar Maquininha.Atual; a tela não muda. Nenhum pagamento real é feito hoje.
+  - Último item lido em destaque (faixa amarela-clara acima da lista) e itens numerados (01, 02...); "Caixa livre".
+  - "6*" multiplica: "6*" + Enter guarda a quantidade (etiqueta "× 6" no campo; Esc tira) para a próxima leitura;
+    "6*789..." já lê com a quantidade. Por quilo, o número vira o peso.
+  - Consulta de preço (F3): mostra preço, disponível, reservado e validade sem pôr na venda.
+  - CPF/CNPJ na nota (F11), com dígitos verificadores conferidos (Models/Caixa.cs Documento); vai em vendas.cpf_nota.
+  - Senha do gerente: cancelar item (×, Esc com a busca vazia, ou diminuir a quantidade), cancelar a venda e desconto
+    (Ctrl+D, em R$ ou %) pedem usuário e senha do gerente (AutorizacaoJanela → autorizar_gerente, que confere a senha
+    no Supabase Auth; 5 erros em 5 minutos bloqueiam aquele gerente). A autorização vale uma vez, para aquela venda,
+    por 10 minutos; o gerente logado não precisa digitar. Itens cancelados ficam em venda_itens_cancelados.
+  - Venda em espera (F12): com itens, suspende a venda (situacao 'espera', itens continuam reservados); sem itens, ou
+    pelo botão "N vendas em espera", lista para retomar. Abrir o caixa no dia seguinte cancela as que sobraram.
+  - "Vendas de hoje" mostra as formas ("Dinheiro + Crédito"), desconto e "CPF na nota"; cancelar venda paga lembra de
+    estornar na maquininha (NSU de cada cartão).
+- Fica para depois: fechamento do caixa, sangria, suprimento e conferência da gaveta (semana 6), cupom/NFC-e (precisa de
+  certificado e SEFAZ), troca e devolução, maquininha de verdade, código de barras próprio da unidade quando não segue o
+  DUN-14 da caixa.
+
 4. O QUE AINDA DEVE SER FEITO (UMA SEMANA POR VEZ, NESTA ORDEM)
 --------------------------------------------------------------
 Faça só a semana pedida. Cada semana é apresentada ao dono do mercado antes da próxima.
-Semana 2 - Painel (feito em modo de teste; falta ligar ao banco): tela pós-login diferente por perfil; resumo de vendas do dia; para o gerente,
+Semana 2 - Painel (feito; ligado ao banco desde a semana 5): tela pós-login diferente por perfil; resumo de vendas do dia; para o gerente,
            avisos de estoque baixo e itens a repor; operador vai só para o Caixa; tela central
            com botões para as outras telas. Trocar o destino em MainWindow.MostrarAreaDoUsuario.
 Semana 3 - Estoque (feito, ligado ao banco): cadastro de produtos; lotes com quantidade restante e validade; filtros
            (perto da validade, estoque baixo, sem estoque, ordem alfabética); indicadores visuais.
 Semana 4 - Fornecedores (feito, ligado ao banco): cadastro; produtos de cada fornecedor; indicadores de estoque;
            contato rápido; histórico de pedidos (feitos, pendentes).
-Semana 5 - Caixa: tela padrão de caixa; pagamento; item na venda fica reservado e só dá baixa
+Semana 5 - Caixa (feito, ligado ao banco; ver 3g): tela padrão de caixa; pagamento; item na venda fica reservado e só dá baixa
            no estoque após o pagamento; bloquear venda de lote vencido.
 Semana 6 - Fechamento do dia: resumo de vendas; envio por e-mail; dados na nuvem para análise
            diária, semanal e mensal; integração com app de celular da gerência.

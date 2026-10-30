@@ -167,6 +167,22 @@
                 </StackPanel>
             </Grid>
 
+            <!-- Produto por quilo: código da balança que vai impresso na etiqueta (o caixa lê a etiqueta) -->
+            <Grid x:Name="CampoBalanca" Margin="0,14,0,0" Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="2*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="Código na balança (opcional)" Style="{StaticResource Rotulo}" />
+                    <TextBox x:Name="CodigoBalanca" MaxLength="5" AutomationProperties.Name="Código do produto na balança" />
+                    <TextBlock x:Name="CodigoBalancaErro" Style="{StaticResource ErroCampo}" />
+                </StackPanel>
+                <TextBlock Grid.Column="2" FontSize="12" Style="{StaticResource TextoSuave}" VerticalAlignment="Center" Margin="0,24,0,0"
+                           Text="O mesmo número cadastrado na balança do açougue (PLU, até 5 dígitos). No caixa, a etiqueta impressa pela balança já entra com o peso e o preço." />
+            </Grid>
+
             <!-- Só no cadastro: a primeira compra vira o primeiro lote -->
             <StackPanel x:Name="PrimeiroLote">
                 <Border BorderBrush="{StaticResource Linha}" BorderThickness="0,1,0,0" Margin="0,20,0,14" />
