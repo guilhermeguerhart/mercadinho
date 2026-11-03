@@ -57,6 +57,9 @@
                     <TextBlock x:Name="Atualizado" Text="Atualizando…" FontSize="13" Style="{StaticResource TextoSuave}" />
                 </StackPanel>
             </Border>
+            <CheckBox x:Name="ChaveOcultar" DockPanel.Dock="Right" Style="{StaticResource Interruptor}" Content="Ocultar vendas" VerticalAlignment="Bottom"
+                      Margin="0,0,20,6" ToolTip="Esconde os valores de venda da tela (vale para todas as telas deste computador)"
+                      AutomationProperties.Name="Ocultar vendas" Click="ChaveOcultar_Click" />
             <StackPanel>
                 <TextBlock x:Name="Saudacao" FontSize="28" FontWeight="Bold" Margin="0,0,0,4" />
                 <TextBlock x:Name="DataTurno" Style="{StaticResource TextoSuave}" />

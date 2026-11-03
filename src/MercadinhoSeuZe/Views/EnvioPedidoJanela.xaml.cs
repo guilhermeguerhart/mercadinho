@@ -7,18 +7,25 @@ namespace MercadinhoSeuZe.Views;
 
 /// <summary>
 /// Mostra a mensagem do pedido (dá para mudar) e abre o WhatsApp ou o e-mail do fornecedor já com ela escrita.
-/// Abre sozinha depois de criar o pedido e pelo "Reenviar" do histórico.
+/// Abre sozinha depois de criar o pedido e pelo "Reenviar" do histórico. Semana 6: a mensagem começa com "Pedido nº 42"
+/// e, com a Edge Function enviar-email publicada, o e-mail sai direto pela caixa de pedidos do mercado (a resposta do
+/// fornecedor volta para a janela de mensagens); sem ela, abre o programa de e-mail como antes.
 /// </summary>
 public partial class EnvioPedidoJanela : UserControl
 {
     private readonly AreaInternaView _area;
     private readonly Fornecedor _fornecedor;
+    private readonly long? _pedidoId;
+    private readonly MensagensService? _mensagens;
 
-    public EnvioPedidoJanela(AreaInternaView area, Fornecedor fornecedor, string mensagem, string titulo)
+    public EnvioPedidoJanela(AreaInternaView area, Fornecedor fornecedor, string mensagem, string titulo, long? pedidoId = null, MensagensService? mensagens = null)
     {
         InitializeComponent();
         _area = area;
         _fornecedor = fornecedor;
+        _pedidoId = pedidoId;
+        _mensagens = mensagens is { TemMensagens: true } ? mensagens : null;
+        if (pedidoId is { } numero) mensagem = MensagemPedido.ComNumero(numero, mensagem);
 
         Titulo.Text = titulo;
         Subtitulo.Text = $"Para {fornecedor.Nome} · WhatsApp {fornecedor.Whatsapp ?? fornecedor.Telefone}" +
@@ -57,9 +64,35 @@ public partial class EnvioPedidoJanela : UserControl
         else _area.MostrarToast("Não foi possível abrir o WhatsApp. Use “Copiar” e cole a mensagem.");
     }
 
-    private void Email_Click(object sender, RoutedEventArgs e)
+    private async void Email_Click(object sender, RoutedEventArgs e)
     {
-        if (ContatoRapido.AbrirEmail(_fornecedor, $"Pedido do Mercado para {_fornecedor.Nome}", Mensagem.Text.Trim()))
+        var assunto = _pedidoId is { } numero ? MensagemPedido.Assunto(numero, _fornecedor.Nome) : $"Pedido do Mercado para {_fornecedor.Nome}";
+        if (_mensagens is not null)
+        {
+            // Envio pela caixa de pedidos do mercado (Edge Function); a conversa fica na janela de mensagens
+            BotaoEmail.IsEnabled = false;
+            try
+            {
+                var para = await _mensagens.EnviarEmailAsync("pedido", _fornecedor.Id, _pedidoId, assunto, Mensagem.Text.Trim());
+                _area.FecharJanela();
+                _area.MostrarToast($"Pedido enviado por e-mail para {para}. A resposta aparece nas mensagens do fornecedor.");
+                return;
+            }
+            catch (FuncaoInexistenteException)
+            {
+                // Função ainda não publicada: segue abrindo o programa de e-mail do computador
+            }
+            catch (ConexaoException ex)
+            {
+                _area.MostrarToast(ex.Message);
+                return;
+            }
+            finally
+            {
+                BotaoEmail.IsEnabled = true;
+            }
+        }
+        if (ContatoRapido.AbrirEmail(_fornecedor, assunto, Mensagem.Text.Trim()))
         {
             _area.FecharJanela();
             _area.MostrarToast($"E-mail aberto com o pedido para {_fornecedor.Nome}. Confira e envie.");

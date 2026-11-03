@@ -122,8 +122,9 @@ public sealed class CaixaService(SupabaseApi api, Sessao sessao)
         ?? throw new ConexaoException("Resposta inválida do servidor.");
 
     /// <summary>Fecha o caixa com o dinheiro contado na gaveta; devolve o resumo com a sobra ou a falta.</summary>
-    public async Task<ResumoCaixa> FecharAsync(long caixaId, decimal contado, string? observacao) =>
-        await api.ChamarAsync<ResumoCaixa>("fechar_caixa", new { p_caixa_id = caixaId, p_contado = contado, p_obs = observacao }, sessao.Token)
+    public async Task<ResumoCaixa> FecharAsync(long caixaId, decimal contado, string? observacao, long? autorizacao = null) =>
+        await api.ChamarAsync<ResumoCaixa>("fechar_caixa",
+            FechamentoService.Argumentos(new() { ["p_caixa_id"] = caixaId, ["p_contado"] = contado, ["p_obs"] = observacao }, autorizacao), sessao.Token)
         ?? throw new ConexaoException("Resposta inválida do servidor.");
 
     /// <summary>Só o gerente: reabre um caixa de hoje fechado por engano.</summary>

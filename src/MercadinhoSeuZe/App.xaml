@@ -3,15 +3,15 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-        <!-- Cores do tema "mercadinho de bairro" do site de referência (css/tema.css): papel, toldo verde,
-             etiqueta amarela de preço e vermelho tomate. Contrastes conferidos pela Keth (WCAG 2.1 AA). -->
-        <Color x:Key="CorVerde800">#143F27</Color>
-        <Color x:Key="CorVerde600">#23703F</Color>
-        <SolidColorBrush x:Key="Verde800" Color="#143F27" />
-        <SolidColorBrush x:Key="Verde700" Color="#1E5B38" />
-        <SolidColorBrush x:Key="Verde600" Color="#23703F" />
-        <SolidColorBrush x:Key="Verde100" Color="#C9DCC1" />
-        <SolidColorBrush x:Key="Verde50" Color="#E3EEDD" />
+        <!-- Tema "mercadinho de bairro" em azul marinho pastel com fundo cinza bem claro: toldo azul,
+             etiqueta azul-celeste de preço e vermelho tomate. Contrastes no padrão WCAG 2.1 AA. -->
+        <Color x:Key="CorVerde800">#1F3354</Color>
+        <Color x:Key="CorVerde600">#34507D</Color>
+        <SolidColorBrush x:Key="Verde800" Color="#1F3354" />
+        <SolidColorBrush x:Key="Verde700" Color="#2A4268" />
+        <SolidColorBrush x:Key="Verde600" Color="#34507D" />
+        <SolidColorBrush x:Key="Verde100" Color="#C8D4E6" />
+        <SolidColorBrush x:Key="Verde50" Color="#E3EAF4" />
         <SolidColorBrush x:Key="Azul600" Color="#285A96" />
         <SolidColorBrush x:Key="Azul50" Color="#E4ECF6" />
         <SolidColorBrush x:Key="Ambar700" Color="#7A4D00" />
@@ -29,37 +29,37 @@
         <SolidColorBrush x:Key="Indigo50" Color="#ECEEFB" />
         <SolidColorBrush x:Key="Marrom600" Color="#8B4A2B" />
         <SolidColorBrush x:Key="Marrom50" Color="#F6EDE7" />
-        <SolidColorBrush x:Key="Tinta" Color="#24211C" />
-        <SolidColorBrush x:Key="Suave" Color="#655D50" />
-        <SolidColorBrush x:Key="Placeholder" Color="#857C6E" />
-        <SolidColorBrush x:Key="Linha" Color="#E2D9C8" />
-        <SolidColorBrush x:Key="Fundo" Color="#F5EFE3" />
-        <SolidColorBrush x:Key="Cartao" Color="#FFFDF8" />
+        <SolidColorBrush x:Key="Tinta" Color="#1F2633" />
+        <SolidColorBrush x:Key="Suave" Color="#5A6372" />
+        <SolidColorBrush x:Key="Placeholder" Color="#7D8594" />
+        <SolidColorBrush x:Key="Linha" Color="#DDE1E7" />
+        <SolidColorBrush x:Key="Fundo" Color="#F1F2F4" />
+        <SolidColorBrush x:Key="Cartao" Color="#FFFFFF" />
         <!-- Cores próprias do tema -->
-        <SolidColorBrush x:Key="LinhaForte" Color="#8E8473" />
-        <SolidColorBrush x:Key="Etiqueta" Color="#F6CF3A" />
-        <SolidColorBrush x:Key="EtiquetaClara" Color="#FDF3D4" />
-        <SolidColorBrush x:Key="BordaEtiqueta" Color="#E8D08A" />
-        <SolidColorBrush x:Key="Bilhete" Color="#FFFBE8" />
-        <SolidColorBrush x:Key="Creme" Color="#FBF6EA" />
-        <SolidColorBrush x:Key="CremeSuave" Color="#D9E6D5" />
-        <SolidColorBrush x:Key="PapelClaro" Color="#FFFAF0" />
-        <SolidColorBrush x:Key="PapelAberto" Color="#F8F2E4" />
+        <SolidColorBrush x:Key="LinhaForte" Color="#8A93A0" />
+        <SolidColorBrush x:Key="Etiqueta" Color="#A8C8EC" />
+        <SolidColorBrush x:Key="EtiquetaClara" Color="#E6EFFA" />
+        <SolidColorBrush x:Key="BordaEtiqueta" Color="#A9C1DE" />
+        <SolidColorBrush x:Key="Bilhete" Color="#F5F8FC" />
+        <SolidColorBrush x:Key="Creme" Color="#F4F6FA" />
+        <SolidColorBrush x:Key="CremeSuave" Color="#D3DCEA" />
+        <SolidColorBrush x:Key="PapelClaro" Color="#FAFBFC" />
+        <SolidColorBrush x:Key="PapelAberto" Color="#F4F6F8" />
         <SolidColorBrush x:Key="BrancoTransl82" Color="#D1FFFFFF" />
         <SolidColorBrush x:Key="BrancoTransl75" Color="#BFFFFFFF" />
 
         <!-- Sombras "chapadas" (sem borrão), como papel em cima do balcão -->
-        <DropShadowEffect x:Key="SombraCartao" BlurRadius="0" ShadowDepth="5" Direction="315" Opacity="0.12" Color="#24211C" />
-        <DropShadowEffect x:Key="SombraJanela" BlurRadius="0" ShadowDepth="6" Direction="315" Opacity="0.25" Color="#24211C" />
-        <DropShadowEffect x:Key="SombraEtiqueta" BlurRadius="0" ShadowDepth="2" Direction="315" Opacity="0.85" Color="#24211C" />
-        <DropShadowEffect x:Key="SombraToast" BlurRadius="0" ShadowDepth="3" Direction="315" Opacity="1" Color="#F6CF3A" />
+        <DropShadowEffect x:Key="SombraCartao" BlurRadius="0" ShadowDepth="5" Direction="315" Opacity="0.12" Color="#1F2633" />
+        <DropShadowEffect x:Key="SombraJanela" BlurRadius="0" ShadowDepth="6" Direction="315" Opacity="0.25" Color="#1F2633" />
+        <DropShadowEffect x:Key="SombraEtiqueta" BlurRadius="0" ShadowDepth="2" Direction="315" Opacity="0.85" Color="#1F2633" />
+        <DropShadowEffect x:Key="SombraToast" BlurRadius="0" ShadowDepth="3" Direction="315" Opacity="1" Color="#A8C8EC" />
 
-        <!-- Toldo listrado (topo do menu): listras verde-escuro e creme com a borda de baixo recortada -->
+        <!-- Toldo listrado (topo do menu): listras azul marinho e branco com a borda de baixo recortada -->
         <DrawingBrush x:Key="Toldo" TileMode="Tile" Viewport="0,0,44,19" ViewportUnits="Absolute" Viewbox="0,0,44,19" ViewboxUnits="Absolute">
             <DrawingBrush.Drawing>
                 <DrawingGroup>
-                    <GeometryDrawing Brush="#143F27" Geometry="M0,0 H22 V8 A11,11 0 0 1 0,8 Z" />
-                    <GeometryDrawing Brush="#FBF6EA" Geometry="M22,0 H44 V8 A11,11 0 0 1 22,8 Z" />
+                    <GeometryDrawing Brush="#1F3354" Geometry="M0,0 H22 V8 A11,11 0 0 1 0,8 Z" />
+                    <GeometryDrawing Brush="#F4F6FA" Geometry="M22,0 H44 V8 A11,11 0 0 1 22,8 Z" />
                 </DrawingGroup>
             </DrawingBrush.Drawing>
         </DrawingBrush>
@@ -163,7 +163,7 @@
             <Setter Property="TextElement.Foreground" Value="{StaticResource Tinta}" />
             <Setter Property="Effect">
                 <Setter.Value>
-                    <DropShadowEffect BlurRadius="0" ShadowDepth="2" Direction="315" Opacity="1" Color="#143F27" />
+                    <DropShadowEffect BlurRadius="0" ShadowDepth="2" Direction="315" Opacity="1" Color="#1F3354" />
                 </Setter.Value>
             </Setter>
         </Style>
@@ -376,7 +376,7 @@
             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Template">
                 <Setter.Value>
-                    <!-- Um contador da faixa: divisória tracejada à direita; o filtro em uso fica amarelinho com traço embaixo -->
+                    <!-- Um contador da faixa: divisória tracejada à direita; o filtro em uso fica azul-celeste com traço embaixo -->
                     <ControlTemplate TargetType="Button">
                         <Grid>
                             <Border x:Name="Fundo" Background="Transparent" Padding="16,12,16,12">
@@ -438,7 +438,7 @@
             <Setter Property="MinHeight" Value="36" />
             <Setter Property="Template">
                 <Setter.Value>
-                    <!-- Etiquetinha reta; a escolhida fica amarela como a etiqueta de preço -->
+                    <!-- Etiquetinha reta; a escolhida fica azul-celeste como a etiqueta de preço -->
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="Borda" Background="{StaticResource Cartao}" BorderBrush="{StaticResource LinhaForte}" BorderThickness="1.5"
                                 CornerRadius="4" Padding="12,5">
@@ -469,7 +469,7 @@
             <Setter Property="FontWeight" Value="Bold" />
         </Style>
 
-        <!-- Etiqueta amarela de preço (como na gôndola) -->
+        <!-- Etiqueta azul-celeste de preço (como na gôndola) -->
         <Style x:Key="EtiquetaPreco" TargetType="Border">
             <Setter Property="Background" Value="{StaticResource Etiqueta}" />
             <Setter Property="CornerRadius" Value="3" />

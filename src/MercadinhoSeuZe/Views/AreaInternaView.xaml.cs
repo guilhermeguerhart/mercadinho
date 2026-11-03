@@ -23,7 +23,7 @@ public partial class AreaInternaView : UserControl
         new("fornecedores", "Fornecedores", "IconeCaminhao", true, [Perfil.Gerente]),
         new("caixa", "Caixa", "IconeCaixaRegistradora", true, [Perfil.Gerente, Perfil.Operador]),
         new("funcionarios", "Funcionários", "IconeEquipe", true, [Perfil.Gerente]),
-        new("fechamento", "Fechamento do dia", "IconeFechamento", false, [Perfil.Gerente, Perfil.Operador]),
+        new("fechamento", "Fechamento do dia", "IconeFechamento", true, [Perfil.Gerente]),
     ];
 
     private readonly MainWindow _janela;
@@ -73,8 +73,9 @@ public partial class AreaInternaView : UserControl
         {
             "painel" => new PainelView(this, _sessao, Estoque(), Fornecedores(), Caixa()),
             "estoque" => new EstoqueView(this, Estoque(), Fornecedores()),
-            "fornecedores" => new FornecedoresView(this, Fornecedores(), Estoque()),
+            "fornecedores" => new FornecedoresView(this, Fornecedores(), Estoque(), Mensagens()),
             "funcionarios" => new FuncionariosView(this, Funcionarios()),
+            "fechamento" => new FechamentoView(this, Fechamento(), Caixa()),
             _ => new CaixaView(this, Caixa(), Estoque()),
         };
         Pagina.Content = tela;
@@ -91,6 +92,10 @@ public partial class AreaInternaView : UserControl
     private CaixaService? Caixa() => _api is null ? null : new CaixaService(_api, _sessao);
 
     private FuncionarioService? Funcionarios() => _api is null ? null : new FuncionarioService(_api, _sessao);
+
+    private FechamentoService? Fechamento() => _api is null ? null : new FechamentoService(_api, _sessao);
+
+    public MensagensService? Mensagens() => _api is null ? null : new MensagensService(_api, _sessao);
 
     private void MeuPerfil_Click(object sender, RoutedEventArgs e)
     {

@@ -226,6 +226,14 @@ public static class MensagemPedido
             .Replace("{usuario}", usuario);
     }
 
+    /// <summary>
+    /// "Pedido nº 42" no começo da mensagem (semana 6): a resposta do fornecedor por e-mail volta ligada ao pedido.
+    /// </summary>
+    public static string ComNumero(long pedidoId, string mensagem) =>
+        mensagem.Contains($"Pedido nº {pedidoId}") ? mensagem : $"Pedido nº {pedidoId}\n\n{mensagem}";
+
+    public static string Assunto(long pedidoId, string fornecedor) => $"Pedido nº {pedidoId} - Mercado para {fornecedor}";
+
     /// <summary>Mensagem do contato rápido (sem pedido).</summary>
     public static string Saudacao(Fornecedor f, string usuario) =>
         $"Olá{(string.IsNullOrWhiteSpace(f.Contato) ? "" : ", " + f.Contato.Trim())}! Aqui é {usuario}, do Mercado.";
@@ -237,4 +245,52 @@ public sealed class ProdutoFornecedor
     [JsonPropertyName("fornecedor_id")] public long FornecedorId { get; set; }
     [JsonPropertyName("ultimo_custo")] public decimal? UltimoCusto { get; set; }
     [JsonPropertyName("ultima_compra")] public DateOnly? UltimaCompra { get; set; }
+}
+
+/// <summary>
+/// Mensagem trocada com o fornecedor (tabela fornecedor_mensagens, script 009): e-mail que chegou na caixa de pedidos,
+/// e-mail enviado pelo programa ou resposta do WhatsApp colada à mão.
+/// </summary>
+public sealed class MensagemFornecedor
+{
+    [JsonPropertyName("id")] public long Id { get; set; }
+    [JsonPropertyName("fornecedor_id")] public long FornecedorId { get; set; }
+    [JsonPropertyName("pedido_id")] public long? PedidoId { get; set; }
+    /// <summary>"recebida" (do fornecedor) ou "enviada" (do mercado).</summary>
+    [JsonPropertyName("direcao")] public string Direcao { get; set; } = "recebida";
+    /// <summary>"email" ou "whatsapp".</summary>
+    [JsonPropertyName("canal")] public string Canal { get; set; } = "email";
+    [JsonPropertyName("de")] public string? De { get; set; }
+    [JsonPropertyName("para")] public string? Para { get; set; }
+    [JsonPropertyName("assunto")] public string? Assunto { get; set; }
+    [JsonPropertyName("corpo")] public string Corpo { get; set; } = "";
+    [JsonPropertyName("anexos")] public List<AnexoMensagem> Anexos { get; set; } = [];
+    [JsonPropertyName("usuario_nome")] public string? UsuarioNome { get; set; }
+    [JsonPropertyName("criada_em")] public DateTimeOffset CriadaEm { get; set; }
+    [JsonPropertyName("lida_em")] public DateTimeOffset? LidaEm { get; set; }
+    [JsonPropertyName("erro")] public string? Erro { get; set; }
+
+    public bool Recebida => Direcao == "recebida";
+    public bool PorWhatsapp => Canal == "whatsapp";
+}
+
+public sealed class AnexoMensagem
+{
+    [JsonPropertyName("nome")] public string Nome { get; set; } = "";
+    /// <summary>Caminho no bucket "anexos-fornecedores" do Storage.</summary>
+    [JsonPropertyName("caminho")] public string Caminho { get; set; } = "";
+    [JsonPropertyName("tipo")] public string? Tipo { get; set; }
+    [JsonPropertyName("tamanho")] public long Tamanho { get; set; }
+
+    public bool XmlNota => Nome.EndsWith(".xml", StringComparison.OrdinalIgnoreCase);
+}
+
+/// <summary>Mensagens não lidas de um fornecedor (ícone de mensagens e aviso do Painel).</summary>
+public sealed class NaoLidas
+{
+    [JsonPropertyName("fornecedor_id")] public long FornecedorId { get; set; }
+    [JsonPropertyName("fornecedor_nome")] public string FornecedorNome { get; set; } = "";
+    [JsonPropertyName("quantidade")] public int Quantidade { get; set; }
+    [JsonPropertyName("ultima_em")] public DateTimeOffset UltimaEm { get; set; }
+    [JsonPropertyName("pedido_id")] public long? PedidoId { get; set; }
 }

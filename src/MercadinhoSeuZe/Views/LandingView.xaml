@@ -36,8 +36,8 @@
             <Border>
                 <Border.Background>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                        <GradientStop Color="#F5EFE3" Offset="0" />
-                        <GradientStop Color="#F5EFE3" Offset="1" />
+                        <GradientStop Color="#F1F2F4" Offset="0" />
+                        <GradientStop Color="#F1F2F4" Offset="1" />
                     </LinearGradientBrush>
                 </Border.Background>
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -143,7 +143,7 @@
 
         <!-- Janela "Fale com a gente" -->
         <Grid x:Name="JanelaContato" Visibility="Collapsed">
-            <Border Background="#73141E18" MouseLeftButtonDown="FundoContato_Click" />
+            <Border Background="#731F2633" MouseLeftButtonDown="FundoContato_Click" />
             <Border Style="{StaticResource Janela}" Padding="24,24,24,20" Width="460" Margin="16"
                     HorizontalAlignment="Center" VerticalAlignment="Center">
                 <StackPanel>

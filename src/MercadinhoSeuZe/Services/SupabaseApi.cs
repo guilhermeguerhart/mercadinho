@@ -13,6 +13,9 @@ public class BancoDesatualizadoException(string mensagem) : ConexaoException(men
 /// <summary>A tabela ou a função ainda não existe no banco (o script SQL da semana não foi rodado).</summary>
 public class TabelaInexistenteException(string mensagem) : ConexaoException(mensagem);
 
+/// <summary>A Edge Function (e-mail, script 009) ainda não foi publicada no Supabase.</summary>
+public class FuncaoInexistenteException(string mensagem) : ConexaoException(mensagem);
+
 /// <summary>Acesso HTTP ao Supabase (Auth e tabelas) usando só a chave pública.</summary>
 public sealed class SupabaseApi
 {
@@ -82,6 +85,41 @@ public sealed class SupabaseApi
         var resposta = await EnviarAsync(req);
         var corpo = await resposta.Content.ReadAsStringAsync();
         return corpo.Length == 0 ? default : System.Text.Json.JsonSerializer.Deserialize<T>(corpo);
+    }
+
+    /// <summary>
+    /// Chama uma Edge Function do Supabase (functions/v1/...) com o token de quem está logado. As senhas do e-mail ficam
+    /// nos segredos da função, nunca no programa. A função responde {"erro": "..."} em português quando algo falha.
+    /// </summary>
+    public async Task<T?> FuncaoAsync<T>(string funcao, object corpo, string token)
+    {
+        using var req = new HttpRequestMessage(HttpMethod.Post, $"functions/v1/{funcao}") { Content = JsonContent.Create(corpo) };
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        HttpResponseMessage resposta;
+        try
+        {
+            using var limite = new CancellationTokenSource(TimeSpan.FromSeconds(40));
+            resposta = await Http.SendAsync(req, limite.Token);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            throw new ConexaoException("Não foi possível falar com o servidor de e-mail. Verifique a internet.");
+        }
+        var texto = await resposta.Content.ReadAsStringAsync();
+        if (resposta.IsSuccessStatusCode)
+            return texto.Length == 0 ? default : System.Text.Json.JsonSerializer.Deserialize<T>(texto);
+        if (resposta.StatusCode == HttpStatusCode.NotFound && !texto.Contains("\"erro\""))
+            throw new FuncaoInexistenteException("A função de e-mail ainda não foi publicada no Supabase (veja o README).");
+        string? erro = null;
+        try
+        {
+            using var json = System.Text.Json.JsonDocument.Parse(texto);
+            if (json.RootElement.TryGetProperty("erro", out var e)) erro = e.GetString();
+        }
+        catch (System.Text.Json.JsonException)
+        {
+        }
+        throw new ConexaoException(erro ?? $"Erro no servidor de e-mail ({(int)resposta.StatusCode}). Tente novamente.");
     }
 
     private HttpRequestMessage Requisicao(HttpMethod metodo, string caminho, string token, object? corpo = null)

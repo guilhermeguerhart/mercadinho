@@ -23,7 +23,7 @@ public partial class PedidoJanela : UserControl
     private readonly IReadOnlyList<Fornecedor> _fornecedores;
     private readonly IReadOnlyList<Produto> _produtos;
     private readonly Func<Produto, bool> _jaPedido;
-    private readonly Func<string, Fornecedor, string, Task> _aoCriar;
+    private readonly Func<string, Fornecedor, string, long, Task> _aoCriar;
     private readonly List<Item> _itens = [];
     private readonly Pedido? _editando;
     private string? _previsaoAutomatica;
@@ -33,7 +33,7 @@ public partial class PedidoJanela : UserControl
     /// <param name="aoCriar">Recebe a mensagem do aviso, o fornecedor e o texto do pedido para enviar.</param>
     /// <param name="editando">Pedido pendente a alterar (null = pedido novo).</param>
     public PedidoJanela(AreaInternaView area, FornecedorService servico, IReadOnlyList<Fornecedor> fornecedores, IReadOnlyList<Produto> produtos,
-        Fornecedor? fornecedor, IReadOnlyList<Produto> itensIniciais, Func<Produto, bool> jaPedido, Func<string, Fornecedor, string, Task> aoCriar,
+        Fornecedor? fornecedor, IReadOnlyList<Produto> itensIniciais, Func<Produto, bool> jaPedido, Func<string, Fornecedor, string, long, Task> aoCriar,
         Pedido? editando = null)
     {
         InitializeComponent();
@@ -443,13 +443,13 @@ public partial class PedidoJanela : UserControl
                 Formulario.LerPreco(i.Custo.Text))).ToList();
             if (_editando is null)
             {
-                await _servico.CriarPedidoAsync(f!.Id, previsao, Observacao.Text.Trim(), itens);
-                await _aoCriar($"Pedido para {f.Nome} criado ({Plural(_itens.Count, "item", "itens")}).", f, texto);
+                var id = await _servico.CriarPedidoAsync(f!.Id, previsao, Observacao.Text.Trim(), itens);
+                await _aoCriar($"Pedido para {f.Nome} criado ({Plural(_itens.Count, "item", "itens")}).", f, texto, id);
             }
             else
             {
                 await _servico.EditarPedidoAsync(_editando.Id, previsao, Observacao.Text.Trim(), itens);
-                await _aoCriar($"Pedido para {f!.Nome} alterado ({Plural(_itens.Count, "item", "itens")}).", f, texto);
+                await _aoCriar($"Pedido para {f!.Nome} alterado ({Plural(_itens.Count, "item", "itens")}).", f, texto, _editando.Id);
             }
         }
         catch (ConexaoException ex)

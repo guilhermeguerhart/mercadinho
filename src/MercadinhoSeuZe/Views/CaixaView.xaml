@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              SizeChanged="AoRedimensionar">
     <!-- Caixa (igual a caixa.html do site). O interruptor "Modo caixa" troca para o caixa de balcão: tela inteira,
-         sem menu, letras grandes; o resumo e a lista de vendas do dia ficam só no modo normal. -->
+         sem menu, letras grandes; o resumo e a lista de vendas do dia ficam só no modo normal e só para o gerente. -->
     <Grid x:Name="Raiz">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -18,6 +18,10 @@
             <CheckBox x:Name="ChaveModoNormal" DockPanel.Dock="Right" Style="{StaticResource Interruptor}" Content="Modo caixa" VerticalAlignment="Center"
                       ToolTip="Tela inteira para o balcão, com letras grandes e atalhos de teclado" AutomationProperties.Name="Modo caixa"
                       Click="ChaveModo_Click" />
+            <!-- Só o gerente vê as vendas do dia; o interruptor esconde os valores (ValoresVenda) -->
+            <CheckBox x:Name="ChaveOcultar" DockPanel.Dock="Right" Style="{StaticResource Interruptor}" Content="Ocultar vendas" VerticalAlignment="Center"
+                      Margin="0,0,24,0" Visibility="Collapsed" AutomationProperties.Name="Ocultar vendas"
+                      ToolTip="Esconde os valores de venda da tela (vale para todas as telas deste computador)" Click="ChaveOcultar_Click" />
             <StackPanel Margin="0,0,16,0">
                 <TextBlock Text="Caixa" FontSize="28" FontWeight="Bold" Margin="0,0,0,4" />
                 <TextBlock x:Name="Subtitulo" Text="Registro de vendas do dia" Style="{StaticResource TextoSuave}" />

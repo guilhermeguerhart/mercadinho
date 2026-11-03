@@ -35,6 +35,27 @@ database/                  Scripts SQL, numerados, para rodar no SQL Editor do S
                            produtos.sem_promocao_validade), preço com promoção no reservar_item, sangria e suprimento
                            (caixa_movimentos), fechamento do caixa (colunas fechado_* em caixas) e reabrir. Troca
                            reservar_item e autorizar_gerente do 007.
+  009_semana6_fechamento_mensagens.sql  Vendas só para o gerente (o operador lê só as próprias vendas; reservas pela
+                           função reservados_hoje), fechamentos_dia, config_mercado, resumo_dia, fechar_dia, reabrir_dia,
+                           fechamento_automatico, analise_vendas, fornecedor_mensagens (e funções das mensagens), bucket
+                           anexos-fornecedores no Storage.
+  011_dados_de_exemplo.sql Só para teste: gerar_dados_exemplo(anos, vendas_dia) enche todas as tabelas (catálogo do
+                           Alt+2, fornecedores, pedidos semanais, 5 anos de vendas com inflação e sazonalidade, lotes por
+                           mês, caixas fechados com sobra/falta), gerar_fechamentos_exemplo(ano) grava os fechamentos_dia
+                           e limpar_dados_exemplo('APAGAR TUDO') apaga todo o movimento antes do uso real. Testado no PGlite.
+  012_semana6_ajustes.sql  Dias passados só mudam com a senha do gerente (autorização 'alterar_dia' em fechar_dia,
+                           reabrir_dia e fechar_caixa, com p_autorizacao) e eventos_calendario (feriados, vésperas e datas
+                           festivas de 2021 a 2028 com fator de movimento, categorias e produtos típicos; preencher_calendario).
+  013_dados_exemplo_datas_festivas.sql  Só para teste: gerar_datas_festivas_exemplo() põe vendas a mais nas datas do
+                           calendário (produtos de época: panetone, ovo de Páscoa, carvão...) e refaz os fechamentos.
+  010_semana6_agendamentos.sql  pg_cron + pg_net: ler-emails a cada 5 min e resumo das 23h. Rodar só depois de publicar
+                           as Edge Functions e guardar o segredo no Vault (README, "Ligar o e-mail").
+supabase/functions/        Edge Functions (Deno/TypeScript): enviar-email (resumo do dia, pedido e resposta ao
+                           fornecedor por SMTP 465), ler-emails (IMAP da caixa de pedidos) e _compartilhado/comum.ts.
+                           Senha do e-mail só nos Secrets do Supabase. Publicar com --no-verify-jwt (conferem o login
+                           por dentro; o agendamento usa o cabeçalho x-segredo).
+app-celular/               App de celular da gerência (HTML/CSS/JS, PWA instalável; vira .apk no PWABuilder). Usa só a
+                           chave pública (config.js) e as funções do 009. Só leitura.
 src/MercadinhoSeuZe/
   App.xaml                 Cores, ícones (Geometry) e estilos de botões/campos/listas de escolha, indicadores
                            quadrados (Kpi), chips e cabeçalho de tabela. Reutilize, não duplique.
@@ -48,16 +69,20 @@ src/MercadinhoSeuZe/
                            do usuário logado), AuthService (login, bloqueio, auditoria), PreferenciasLocais,
                            EstoqueService, FornecedorService, ContatoRapido (abre WhatsApp/e-mail), CaixaService,
                            FuncionarioService (funcionários e "Meu perfil"), Maquininha (IMaquininha,
-                           MaquininhaEmulada, PixCopiaECola).
+                           MaquininhaEmulada, PixCopiaECola), FechamentoService (resumo_dia, fechar_dia, analise_vendas,
+                           config e e-mail do resumo), MensagensService (mensagens com fornecedores, anexos).
+                           SupabaseApi.FuncaoAsync chama as Edge Functions (FuncaoInexistenteException = não publicada).
   Views/                   Uma UserControl por tela: LandingView, LoginView, AreaInternaView, PainelView,
-                           CaixaView, EstoqueView, FornecedoresView, FuncionariosView. Janelas por cima da tela
+                           CaixaView, EstoqueView, FornecedoresView, FuncionariosView, FechamentoView. Janelas por cima da tela
                            (ProdutoJanela, LoteJanela, ConfirmacaoJanela, FornecedorJanela, PedidoJanela,
                            EnvioPedidoJanela, EntregaJanela, FuncionarioJanela, MeuPerfilJanela, MaquininhaJanela,
                            AutorizacaoJanela; CaixaJanelas.cs: CPF, desconto, consulta de preço, vendas em espera,
-                           sangria/suprimento e fechamento do caixa; EstoqueView.Promocoes.cs: aba e janelas de promoção) abrem com
+                           sangria/suprimento e fechamento do caixa; EstoqueView.Promocoes.cs: aba e janelas de promoção;
+                           MensagensJanela.cs: conversa com o fornecedor) abrem com
                            AreaInternaView.AbrirJanela; Esc fecha.
                            Formulario.cs: leitura de preço, inteiro e data (dd/mm/aaaa), erros de campo e
                            MascaraDinheiro (campo de R$ que se formata enquanto digita).
+                           ValoresVenda.cs: interruptor "Ocultar vendas" (R$ •••••). Graficos.cs: barras e colunas.
   Assets/mercado.ico       Ícone do programa.
 publicar.ps1               Gera publish/MercadinhoSeuZe.exe (feche o .exe aberto antes).
                            Com -Desenvolvimento gera publish-dev/ com os atalhos de teste (Alt+1 no login,
@@ -378,6 +403,43 @@ publicar.ps1               Gera publish/MercadinhoSeuZe.exe (feche o .exe aberto
 - Correção junto: o rótulo "Parcelas" numa coluna de largura 0 deixava o cartão de pagamento enorme fora do crédito
   (TextBlock com quebra de linha mede uma letra por linha); agora o bloco é escondido. A lista de itens fica no topo.
 
+3i. SEMANA 6 - FECHAMENTO DO DIA, ANÁLISES, E-MAIL, MENSAGENS E CELULAR (03/11)
+---------------------------------------------------------------------------
+- Antes de usar: rodar database/009_semana6_fechamento_mensagens.sql (depois do 008; pode rodar de novo). Testado num
+  Postgres local (PGlite) junto com o 001 e o 003 a 008. Sem ele, o Fechamento mostra o aviso de tabelas, o ícone de
+  mensagens não aparece e as reservas são lidas como antes.
+- Vendas só para o gerente (pedido do Guilherme, 03/11): o operador não vê o resumo nem a lista "Vendas de hoje" no
+  Caixa, nem as vendas em "Meu perfil"; no banco (009) o operador lê só as próprias vendas e o próprio caixa. Interruptor
+  "Ocultar vendas" (Views/ValoresVenda, PreferenciasLocais.OcultarVendas) no Painel, no Caixa e no Fechamento: os
+  valores viram "R$ •••••" em todas as telas deste computador. O fechamento do próprio caixa continua mostrando a gaveta.
+- Fechamento do dia (Views/FechamentoView, só gerente; menu "Fechamento do dia" ligado): navegar entre os dias,
+  indicadores (vendido x mesmo dia da semana passada, vendas, ticket, descontos, margem onde há custo nos lotes, sobra/
+  falta), caixas do dia (o gerente fecha daqui o caixa de quem esqueceu, com a mesma janela do Caixa), formas, mais
+  vendidos, vendas por hora, cancelamentos e "Fechar o dia" (só com todos os caixas fechados; grava fechamentos_dia com
+  a foto do resumo e manda o e-mail). Fechado: e-mail enviado/erro, "Enviar de novo" e "Reabrir o dia". E-mails do
+  resumo em config_mercado (botão "Alterar"). Aba "Análises": por dia (30 dias), semana (12) e mês (12) com colunas, por
+  categoria, por forma, média por dia da semana, mais vendidos, perdas (lotes vencidos com unidades, pelo custo) e
+  cancelamentos.
+- E-mail (Edge Functions, README "Ligar o e-mail"): conta Gmail do mercado com senha de app nos Secrets. enviar-email
+  manda o resumo (HTML), o pedido ao fornecedor e as respostas; ler-emails lê a caixa (IMAP) a cada 5 min e grava as
+  respostas de fornecedores cadastrados (ou que citam um pedido existente) em fornecedor_mensagens; anexos no Storage.
+  Resumo automático às 23h se ninguém fechar (config_mercado.resumo_automatico). Sem as funções publicadas, o programa
+  abre o e-mail no computador (mailto) como antes. As funções ainda não foram testadas com uma conta de verdade.
+- Pedido nº: a mensagem do pedido começa com "Pedido nº 42" e o assunto é "Pedido nº 42 - Mercado para X"
+  (MensagemPedido.ComNumero/Assunto); a resposta é ligada ao pedido por esse número ou pelo e-mail do remetente.
+- Mensagens (Views/MensagensJanela): ícone de e-mail no pé do cartão do fornecedor com o número de não lidas; janela com
+  o pedido (bilhete), outros pedidos, a conversa em balões (anexos abrem por link temporário do Storage), "Enviar por
+  e-mail" e "Registrar resposta do WhatsApp" (colar o que veio pelo WhatsApp até a semana 7). Painel: aviso "X respondeu
+  sobre o pedido nº 42" com "Abrir".
+- Ajustes (03/11, script 012): o dia do Fechamento se escolhe num calendário (clicar na data) além das setas; em dia
+  que já passou, fechar o dia, reabrir e fechar um caixa pedem usuário e senha de um gerente (AutorizacaoJanela com
+  'alterar_dia'), mesmo para o gerente logado, e o banco confere. O calendário eventos_calendario fica pronto para a
+  previsão de compras da semana 7 (sem tela por enquanto).
+- App de celular (app-celular/, pedido do Guilherme: app de verdade gerado por site no fim da semana): PWA com login
+  do sistema (só gerente; 5 erros bloqueiam 5 min no aparelho e vão para auditoria_login), abas Hoje (resumo do dia),
+  Análises, Avisos (mensagens, pedidos atrasados, caixas com diferença, estoque) e Conta; interruptor "Ocultar".
+  Precisa de um endereço https (GitHub Pages ou Netlify) para o PWABuilder gerar o .apk.
+
 4. O QUE AINDA DEVE SER FEITO (UMA SEMANA POR VEZ, NESTA ORDEM)
 --------------------------------------------------------------
 Faça só a semana pedida. Cada semana é apresentada ao dono do mercado antes da próxima.
@@ -390,7 +452,7 @@ Semana 4 - Fornecedores (feito, ligado ao banco): cadastro; produtos de cada for
            contato rápido; histórico de pedidos (feitos, pendentes).
 Semana 5 - Caixa (feito, ligado ao banco; ver 3g e 3h): tela padrão de caixa; pagamento; item na venda fica reservado e só dá baixa
            no estoque após o pagamento; bloquear venda de lote vencido. Extras: promoções e fechamento do caixa (3h).
-Semana 6 - Fechamento do dia: resumo de vendas; envio por e-mail; dados na nuvem para análise
+Semana 6 - (feito, ver 3i; falta ligar o e-mail e publicar o app de celular) Fechamento do dia: resumo de vendas; envio por e-mail; dados na nuvem para análise
            diária, semanal e mensal; integração com app de celular da gerência.
            Também (pedido do Guilherme, 20/10): caixa de e-mail de pedidos; as respostas dos fornecedores por
            e-mail chegam ao sistema (Edge Function do Supabase recebe e grava numa tabela; senhas só lá, nunca

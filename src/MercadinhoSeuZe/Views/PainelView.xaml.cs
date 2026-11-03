@@ -22,7 +22,9 @@ public partial class PainelView : UserControl
     private readonly EstoqueService? _estoque;
     private readonly FornecedorService? _fornecedores;
     private readonly CaixaService? _caixa;
+    private readonly MensagensService? _mensagens;
     private bool _atualizando;
+    private ResumoDia? _resumo;
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(30) };
 
     public PainelView(AreaInternaView area, Sessao sessao, EstoqueService? estoque, FornecedorService? fornecedores, CaixaService? caixa)
@@ -33,10 +35,12 @@ public partial class PainelView : UserControl
         _estoque = estoque;
         _fornecedores = fornecedores;
         _caixa = caixa;
+        _mensagens = area.Mensagens();
 
+        ChaveOcultar.IsChecked = ValoresVenda.Ocultos;
         _timer.Tick += async (_, _) => await AtualizarAsync();
-        Loaded += async (_, _) => { _timer.Start(); await AtualizarAsync(); };
-        Unloaded += (_, _) => _timer.Stop();
+        Loaded += async (_, _) => { _timer.Start(); ValoresVenda.Mudou += MostrarVendas; await AtualizarAsync(); };
+        Unloaded += (_, _) => { _timer.Stop(); ValoresVenda.Mudou -= MostrarVendas; };
     }
 
     private async Task AtualizarAsync()
@@ -108,8 +112,8 @@ public partial class PainelView : UserControl
         var antecipados = produtos?.Where(p => p.AvisoAntecipado).OrderBy(p => p.Quantidade).ThenBy(p => p.Nome, porNome).ToList() ?? [];
         var validade = produtos?.Where(p => p.Vencido || p.ValidadeProxima).OrderBy(p => p.ProximaValidade).ToList() ?? [];
 
-        KpiVendas.Text = resumo is null ? "—" : Moeda(resumo.Total);
-        KpiVendasSub.Text = resumo is null ? "Não foi possível ler as vendas" : Plural(resumo.QuantidadeVendas, "venda realizada", "vendas realizadas");
+        _resumo = resumo;
+        MostrarVendas();
         KpiEstoque.Text = produtos is null ? "—" : Plural(baixos.Count + semEstoque.Count, "produto", "produtos");
         KpiEstoqueSub.Text = produtos is null ? "Não foi possível ler o estoque"
             : antecipados.Count > 0 ? $"Abaixo do mínimo ou zerados · +{antecipados.Count} perto do mínimo"
@@ -118,7 +122,6 @@ public partial class PainelView : UserControl
         KpiPedidosSub.Text = pedidos is null ? "Não foi possível ler os pedidos"
             : pedidos.Count(p => p.Atrasado) is > 0 and var atrasados ? $"Aguardando entrega · {atrasados} com atraso"
             : "Aguardando entrega do fornecedor";
-        KpiTicket.Text = resumo is null ? "—" : Moeda(resumo.TicketMedio);
         AtalhoCaixa.Text = caixas.Any(c => c.OperadorId == _sessao.Id) ? "Ir para o caixa" : "Abrir caixa";
 
         ListaAvisos.Children.Clear();
@@ -176,6 +179,26 @@ public partial class PainelView : UserControl
                     : [new Run("Pedido para "), Negrito(fornecedor), new Run(p.Previsao is { } prev ? $" chega até {prev:dd/MM/yyyy}." : " ainda não foi entregue.")],
                 $"Pedido de {p.Data:dd/MM/yyyy}");
         }
+        // Respostas dos fornecedores que chegaram por e-mail (semana 6, script 009)
+        if (_mensagens is not null)
+        {
+            try
+            {
+                foreach (var n in (await _mensagens.NaoLidasAsync()).OrderByDescending(n => n.UltimaEm))
+                {
+                    var aviso = n;
+                    AdicionarAviso("IconeEmail", "Azul50", "Azul600",
+                        [Negrito(n.FornecedorNome), new Run(n.PedidoId is { } pid ? $" respondeu sobre o pedido nº {pid}" : " mandou mensagem"),
+                         new Run(n.Quantidade > 1 ? $" ({n.Quantidade} mensagens novas)." : ".")],
+                        $"Chegou às {n.UltimaEm.ToLocalTime():HH:mm}" + (n.UltimaEm.ToLocalTime().Date == DateTime.Today ? "" : $" de {n.UltimaEm.ToLocalTime():dd/MM}"),
+                        () => (_area.Abrir("fornecedores") as FornecedoresView)?.MensagensDe(aviso.FornecedorId, aviso.PedidoId));
+                }
+            }
+            catch (ConexaoException)
+            {
+                // Sem internet agora: tenta de novo na próxima atualização
+            }
+        }
         if (erroVendas is not null)
             AdicionarAviso("IconeAlerta", "Vermelho50", "Vermelho600", [new Run("Não foi possível ler as vendas: " + erroVendas)], "Caixa");
         foreach (var c in caixas)
@@ -195,7 +218,19 @@ public partial class PainelView : UserControl
         Atualizado.Text = $"Atualizado às {agora:HH:mm}";
     }
 
-    private void AdicionarAviso(string icone, string fundo, string cor, Inline[] texto, string quando)
+    /// <summary>Vendas e ticket médio do dia; com "Ocultar vendas" ligado, aparecem como R$ •••••.</summary>
+    private void MostrarVendas()
+    {
+        ChaveOcultar.IsChecked = ValoresVenda.Ocultos;
+        KpiVendas.Text = _resumo is null ? "—" : ValoresVenda.Moeda(_resumo.Total);
+        KpiVendasSub.Text = _resumo is null ? "Não foi possível ler as vendas"
+            : ValoresVenda.Ocultos ? "Valores ocultos" : Plural(_resumo.QuantidadeVendas, "venda realizada", "vendas realizadas");
+        KpiTicket.Text = _resumo is null ? "—" : ValoresVenda.Moeda(_resumo.TicketMedio);
+    }
+
+    private void ChaveOcultar_Click(object sender, RoutedEventArgs e) => ValoresVenda.Definir(ChaveOcultar.IsChecked == true);
+
+    private void AdicionarAviso(string icone, string fundo, string cor, Inline[] texto, string quando, Action? abrir = null)
     {
         var linha = new DockPanel { Margin = new Thickness(0, ListaAvisos.Children.Count == 0 ? 0 : 12, 0, 12) };
         var caixaIcone = new Border
@@ -206,6 +241,13 @@ public partial class PainelView : UserControl
             Child = new ContentControl { Style = (Style)FindResource("Icone"), Tag = FindResource(icone), Foreground = (Brush)FindResource(cor), Width = 16 }
         };
         linha.Children.Add(caixaIcone);
+        if (abrir is not null)
+        {
+            var botao = new Button { Content = "Abrir", Style = (Style)FindResource("BotaoLink"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
+            botao.Click += (_, _) => abrir();
+            DockPanel.SetDock(botao, Dock.Right);
+            linha.Children.Add(botao);
+        }
 
         var textoBloco = new TextBlock { FontSize = 14 };
         textoBloco.Inlines.AddRange(texto);

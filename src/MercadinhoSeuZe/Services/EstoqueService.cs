@@ -179,6 +179,16 @@ public sealed class EstoqueService(SupabaseApi api, Sessao sessao)
         if (!TemCaixa) return [];
         try
         {
+            // Script 009: o operador não lê as vendas dos outros caixas; a função devolve só produto e quantidade
+            try
+            {
+                var reservas = await api.ChamarAsync<List<Reserva>>("reservados_hoje", new { }, sessao.Token) ?? [];
+                return reservas.Where(l => l.ProdutoId is not null).ToDictionary(l => l.ProdutoId!.Value, l => l.Quantidade);
+            }
+            catch (TabelaInexistenteException)
+            {
+                // Sem o script 009: lê pelas vendas, como antes
+            }
             var hoje = DateTime.Today.ToString("yyyy-MM-dd");
             var linhas = await api.ListarAsync<Reserva>(
                 $"venda_itens?select=produto_id,quantidade,vendas!inner(situacao,dia)&vendas.situacao=in.(aberta,espera)&vendas.dia=eq.{hoje}", sessao.Token);

@@ -72,6 +72,9 @@ public partial class CaixaView : UserControl
         _caixaServico = caixa;
         _estoque = estoque;
         _gerente = caixa?.Sessao.Perfil == Perfil.Gerente;
+        ChaveOcultar.Visibility = _gerente ? Visibility.Visible : Visibility.Collapsed;
+        ChaveOcultar.IsChecked = ValoresVenda.Ocultos;
+        if (!_gerente) ResumoDia.Visibility = CartaoVendas.Visibility = Visibility.Collapsed;
 
         MontarFormas();
         for (var i = 1; i <= 12; i++) Parcelas.Items.Add(new ComboBoxItem { Content = i == 1 ? "À vista" : $"{i}x", Tag = i });
@@ -85,10 +88,11 @@ public partial class CaixaView : UserControl
         Loaded += async (_, _) =>
         {
             _timer.Start();
+            ValoresVenda.Mudou += AoOcultarVendas;
             if (PreferenciasLocais.Carregar().ModoCaixa) AplicarModo(true);
             if (!_carregou) await CarregarAsync();
         };
-        Unloaded += (_, _) => { _timer.Stop(); _relogio.Stop(); };
+        Unloaded += (_, _) => { _timer.Stop(); _relogio.Stop(); ValoresVenda.Mudou -= AoOcultarVendas; };
         IniciarAtalhosDesenvolvimento();
     }
 
@@ -454,7 +458,7 @@ public partial class CaixaView : UserControl
         AvisoGavetaTexto.Text = $"A gaveta está com {Moeda(gaveta)} em dinheiro. Faça uma sangria e guarde o dinheiro no cofre.";
     }
 
-    /// <summary>Etiqueta amarela de promoção no item ("Validade −30% · −R$ 6,00").</summary>
+    /// <summary>Etiqueta azul-celeste de promoção no item ("Validade −30% · −R$ 6,00").</summary>
     private Border EtiquetaPromocao(string texto) => new()
     {
         Background = Recurso<Brush>("Etiqueta"), CornerRadius = new CornerRadius(3), Padding = new Thickness(6, 1, 6, 1),
@@ -482,12 +486,14 @@ public partial class CaixaView : UserControl
         return linha;
     }
 
+    /// <summary>Resumo e lista das vendas do dia: só para o gerente; com "Ocultar vendas" os valores viram R$ •••••.</summary>
     private void MostrarDia()
     {
+        if (!_gerente) return;
         var resumo = CaixaService.Resumo(_vendasHoje);
-        ResumoTotal.Text = Moeda(resumo.Total);
-        ResumoQuantidade.Text = resumo.QuantidadeVendas.ToString(PtBr);
-        ResumoTicket.Text = Moeda(resumo.TicketMedio);
+        ResumoTotal.Text = ValoresVenda.Moeda(resumo.Total);
+        ResumoQuantidade.Text = ValoresVenda.Numero(resumo.QuantidadeVendas);
+        ResumoTicket.Text = ValoresVenda.Moeda(resumo.TicketMedio);
 
         ListaVendas.Children.Clear();
         if (_vendasHoje.Count == 0)
@@ -502,10 +508,10 @@ public partial class CaixaView : UserControl
             var fim = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
             fim.Children.Add(new TextBlock
             {
-                Text = v.ResumoFormas, FontSize = 13, Style = Recurso<Style>("TextoSuave"),
+                Text = ValoresVenda.Ocultos ? "" : v.ResumoFormas, FontSize = 13, Style = Recurso<Style>("TextoSuave"),
                 VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 16, 0)
             });
-            var total = new TextBlock { Text = Moeda(v.Total), FontSize = 15, FontWeight = FontWeights.Bold };
+            var total = new TextBlock { Text = ValoresVenda.Moeda(v.Total), FontSize = 15, FontWeight = FontWeights.Bold };
             if (v.Cancelada) total.TextDecorations = TextDecorations.Strikethrough;
             fim.Children.Add(v.Cancelada ? total : new Border { Style = Recurso<Style>("EtiquetaPreco"), Child = total });
             if (v.Cancelada)
@@ -535,16 +541,24 @@ public partial class CaixaView : UserControl
 
             var texto = new StackPanel();
             var titulo = $"Venda nº {v.Id} · {v.Hora} · {v.OperadorNome}";
-            if (v.Desconto > 0) titulo += $" · desconto {Moeda(v.Desconto)}";
+            if (v.Desconto > 0) titulo += $" · desconto {ValoresVenda.Moeda(v.Desconto)}";
             if (v.CpfNota is not null) titulo += " · CPF na nota";
             texto.Children.Add(new TextBlock { Text = titulo, FontSize = 14, FontWeight = FontWeights.SemiBold });
-            texto.Children.Add(new TextBlock { Text = v.ResumoItens, FontSize = 12.5, Style = Recurso<Style>("TextoSuave"), TextTrimming = TextTrimming.CharacterEllipsis, TextWrapping = TextWrapping.NoWrap });
+            texto.Children.Add(new TextBlock { Text = ValoresVenda.Ocultos ? "Itens ocultos" : v.ResumoItens, FontSize = 12.5, Style = Recurso<Style>("TextoSuave"), TextTrimming = TextTrimming.CharacterEllipsis, TextWrapping = TextWrapping.NoWrap });
             linha.Children.Add(texto);
 
             if (ListaVendas.Children.Count > 0)
                 ListaVendas.Children.Add(new Border { Height = 1, Background = Recurso<Brush>("Linha") });
             ListaVendas.Children.Add(linha);
         }
+    }
+
+    private void ChaveOcultar_Click(object sender, RoutedEventArgs e) => ValoresVenda.Definir(ChaveOcultar.IsChecked == true);
+
+    private void AoOcultarVendas()
+    {
+        ChaveOcultar.IsChecked = ValoresVenda.Ocultos;
+        MostrarDia();
     }
 
     // ------------------------------------------------------------ Abrir o caixa
@@ -1307,8 +1321,9 @@ public partial class CaixaView : UserControl
 
         var normal = ligado ? Visibility.Collapsed : Visibility.Visible;
         CabecalhoNormal.Visibility = normal;
-        ResumoDia.Visibility = normal;
-        CartaoVendas.Visibility = normal;
+        // Vendas do dia: só o gerente vê (pedido do Guilherme em 03/11)
+        ResumoDia.Visibility = _gerente ? normal : Visibility.Collapsed;
+        CartaoVendas.Visibility = ResumoDia.Visibility;
         BarraModoCaixa.Visibility = ligado ? Visibility.Visible : Visibility.Collapsed;
         LegendaAtalhos.Visibility = ligado ? Visibility.Visible : Visibility.Collapsed;
         if (ligado) { Relogio.Text = DateTime.Now.ToString("HH:mm"); _relogio.Start(); } else _relogio.Stop();

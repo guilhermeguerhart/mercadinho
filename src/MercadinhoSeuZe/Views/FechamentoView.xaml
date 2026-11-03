@@ -1,0 +1,80 @@
+<UserControl x:Class="MercadinhoSeuZe.Views.FechamentoView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             SizeChanged="AoRedimensionar">
+    <!-- Fechamento do dia (semana 6, só o gerente): todos os caixas do dia, totais, "Fechar o dia" com o e-mail do resumo
+         e a aba Análises (vendas por dia, semana e mês). Os números vêm das funções resumo_dia e analise_vendas (script 009). -->
+    <StackPanel>
+        <!-- Cabeçalho -->
+        <DockPanel Margin="0,0,0,28">
+            <CheckBox x:Name="ChaveOcultar" DockPanel.Dock="Right" Style="{StaticResource Interruptor}" Content="Ocultar vendas" VerticalAlignment="Bottom"
+                      Margin="0,0,0,6" AutomationProperties.Name="Ocultar vendas"
+                      ToolTip="Esconde os valores de venda da tela (vale para todas as telas deste computador)" Click="ChaveOcultar_Click" />
+            <StackPanel Margin="0,0,16,0">
+                <TextBlock Text="Fechamento do dia" FontSize="28" FontWeight="Bold" Margin="0,0,0,4" />
+                <TextBlock x:Name="Subtitulo" Text="Carregando…" Style="{StaticResource TextoSuave}" />
+            </StackPanel>
+        </DockPanel>
+
+        <!-- Abas -->
+        <WrapPanel Margin="0,-12,0,20">
+            <Button x:Name="AbaBotaoDia" Content="Resumo do dia" Style="{StaticResource Chip}" Tag="ativo" Height="40" MinWidth="150" Uid="dia" Click="Aba_Click" />
+            <Button x:Name="AbaBotaoAnalises" Content="Análises" Style="{StaticResource Chip}" Height="40" MinWidth="150" Uid="analises" Click="Aba_Click" />
+        </WrapPanel>
+
+        <!-- Erro ao ler o banco -->
+        <Border x:Name="AvisoErro" Style="{StaticResource Aviso}" Background="{StaticResource Vermelho50}" BorderBrush="{StaticResource Vermelho600}"
+                Margin="0,0,0,24" Visibility="Collapsed">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="Tentar de novo" Style="{StaticResource BotaoLink}" Foreground="{StaticResource Vermelho600}"
+                        VerticalAlignment="Center" Margin="16,0,0,0" Click="TentarDeNovo_Click" />
+                <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeAlerta}" Foreground="{StaticResource Vermelho600}"
+                                Width="18" VerticalAlignment="Top" Margin="0,1,10,0" />
+                <TextBlock x:Name="AvisoErroTexto" Foreground="{StaticResource Vermelho600}" FontSize="14" TextWrapping="Wrap" />
+            </DockPanel>
+        </Border>
+
+        <!-- Resumo do dia -->
+        <StackPanel x:Name="AbaDia">
+            <DockPanel Margin="0,0,0,16">
+                <Border x:Name="Situacao" DockPanel.Dock="Right" CornerRadius="3" Padding="10,4" VerticalAlignment="Center">
+                    <TextBlock x:Name="SituacaoTexto" FontSize="13" FontWeight="SemiBold" />
+                </Border>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="BotaoAnterior" Content="‹" Style="{StaticResource BotaoFantasma}" Width="40" Height="40" Padding="0" FontSize="20"
+                            ToolTip="Dia anterior" AutomationProperties.Name="Dia anterior" Click="DiaAnterior_Click" />
+                    <!-- Clicar no dia abre o calendário -->
+                    <Button x:Name="BotaoCalendario" Style="{StaticResource BotaoFantasma}" Height="40" Margin="10,0" Padding="14,0" Click="Calendario_Click"
+                            ToolTip="Escolher o dia no calendário" AutomationProperties.Name="Escolher o dia no calendário">
+                        <StackPanel Orientation="Horizontal">
+                            <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeRelogio}" Foreground="{StaticResource Verde700}" Width="16" Margin="0,0,10,0" />
+                            <TextBlock x:Name="DiaTexto" FontSize="16" FontWeight="Bold" MinWidth="200" TextAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="BotaoProximo" Content="›" Style="{StaticResource BotaoFantasma}" Width="40" Height="40" Padding="0" FontSize="20"
+                            ToolTip="Próximo dia" AutomationProperties.Name="Próximo dia" Click="DiaProximo_Click" />
+                    <Button x:Name="BotaoHoje" Content="Voltar para hoje" Style="{StaticResource BotaoLink}" Margin="14,0,0,0" VerticalAlignment="Center"
+                            Click="Hoje_Click" />
+                </StackPanel>
+            </DockPanel>
+
+            <Border Style="{StaticResource FaixaKpis}">
+                <UniformGrid x:Name="KpisDia" Rows="1" />
+            </Border>
+            <StackPanel x:Name="ConteudoDia" />
+        </StackPanel>
+
+        <!-- Análises -->
+        <StackPanel x:Name="AbaAnalises" Visibility="Collapsed">
+            <WrapPanel x:Name="Periodos" Margin="0,0,0,8">
+                <Button Content="Por dia (30 dias)" Style="{StaticResource Chip}" Uid="dia" Tag="ativo" Click="Periodo_Click" />
+                <Button Content="Por semana (12 semanas)" Style="{StaticResource Chip}" Uid="semana" Click="Periodo_Click" />
+                <Button Content="Por mês (12 meses)" Style="{StaticResource Chip}" Uid="mes" Click="Periodo_Click" />
+            </WrapPanel>
+            <Border Style="{StaticResource FaixaKpis}">
+                <UniformGrid x:Name="KpisAnalise" Rows="1" />
+            </Border>
+            <StackPanel x:Name="ConteudoAnalise" />
+        </StackPanel>
+    </StackPanel>
+</UserControl>

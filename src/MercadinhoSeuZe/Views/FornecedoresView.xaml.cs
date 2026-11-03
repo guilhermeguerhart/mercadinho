@@ -19,6 +19,8 @@ public partial class FornecedoresView : UserControl
     private readonly AreaInternaView _area;
     private readonly FornecedorService? _servico;
     private readonly EstoqueService? _estoque;
+    private readonly MensagensService? _mensagens;
+    private Dictionary<long, NaoLidas> _naoLidas = [];
     private readonly HashSet<long> _abertos = [];          // fornecedores com o drop-down aberto
     private readonly HashSet<long> _todosProdutos = [];    // drop-downs mostrando todos os produtos
     private readonly HashSet<long> _todoHistorico = [];    // drop-downs mostrando todos os pedidos
@@ -31,12 +33,13 @@ public partial class FornecedoresView : UserControl
     private bool _dadosProntos;
     private Action? _depoisDeCarregar;
 
-    public FornecedoresView(AreaInternaView area, FornecedorService? servico, EstoqueService? estoque)
+    public FornecedoresView(AreaInternaView area, FornecedorService? servico, EstoqueService? estoque, MensagensService? mensagens = null)
     {
         InitializeComponent();
         _area = area;
         _servico = servico;
         _estoque = estoque;
+        _mensagens = mensagens;
         AjustarColunas(CabecalhoTabela);
         IniciarAtalhosDesenvolvimento();
         Loaded += async (_, _) => { if (!_carregou) await CarregarAsync(); };
@@ -64,6 +67,7 @@ public partial class FornecedoresView : UserControl
             _pedidos = pedidos.Result;
             _produtos = produtos.Result;
             Fornecedor.AplicarPrazos(_produtos, _fornecedores);
+            await CarregarNaoLidasAsync();
         }
         catch (ConexaoException ex)
         {
@@ -75,6 +79,51 @@ public partial class FornecedoresView : UserControl
         var acao = _depoisDeCarregar;
         _depoisDeCarregar = null;
         acao?.Invoke();
+    }
+
+    /// <summary>Mensagens não lidas dos fornecedores (script 009); sem o script, o ícone de mensagens não aparece.</summary>
+    private async Task CarregarNaoLidasAsync()
+    {
+        if (_mensagens is null) return;
+        try
+        {
+            _naoLidas = (await _mensagens.NaoLidasAsync()).ToDictionary(n => n.FornecedorId);
+        }
+        catch (ConexaoException)
+        {
+            // Sem internet agora: o ícone fica sem o número até a próxima leitura
+        }
+    }
+
+    /// <summary>Abre a conversa com o fornecedor (pedido escolhido ou o mais recente).</summary>
+    public void AbrirMensagens(Fornecedor f, long? pedidoId = null)
+    {
+        if (_mensagens is not { TemMensagens: true }) return;
+        _area.AbrirJanela(new MensagensJanela(_area, _mensagens, f, PedidosDe(f), pedidoId, async () =>
+        {
+            await CarregarNaoLidasAsync();
+            Mostrar();
+        }));
+    }
+
+    /// <summary>Ícone de mensagens do cartão, com o número de não lidas.</summary>
+    private Button BotaoMensagens(Fornecedor f)
+    {
+        var nao = _naoLidas.GetValueOrDefault(f.Id)?.Quantidade ?? 0;
+        var conteudo = new Grid();
+        conteudo.Children.Add(new ContentControl { Style = Recurso<Style>("Icone"), Tag = Recurso<Geometry>("IconeEmail"), Foreground = Recurso<Brush>("Verde700"), Width = 20, Margin = new Thickness(4, 6, 8, 2) });
+        if (nao > 0)
+            conteudo.Children.Add(new Border
+            {
+                Background = Recurso<Brush>("Vermelho600"), CornerRadius = new CornerRadius(8), MinWidth = 16, Height = 16, Padding = new Thickness(4, 0, 4, 0),
+                HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top,
+                Child = new TextBlock { Text = nao > 9 ? "9+" : nao.ToString(PtBr), FontSize = 10.5, FontWeight = FontWeights.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }
+            });
+        var dica = nao > 0 ? $"{Plural(nao, "mensagem nova", "mensagens novas")} de {f.Nome}" : $"Mensagens com {f.Nome}";
+        var b = new Button { Template = BotaoSoConteudo(), Cursor = System.Windows.Input.Cursors.Hand, ToolTip = dica, Content = conteudo, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) };
+        System.Windows.Automation.AutomationProperties.SetName(b, dica);
+        b.Click += (_, e) => { e.Handled = true; AbrirMensagens(f); };
+        return b;
     }
 
     private void MostrarErro(string texto)
@@ -264,6 +313,12 @@ public partial class FornecedoresView : UserControl
         mais.Click += (_, _) => Alternar(f.Id);
         DockPanel.SetDock(mais, Dock.Right);
         pe.Children.Add(mais);
+        if (_mensagens is { TemMensagens: true })
+        {
+            var mensagens = BotaoMensagens(f);
+            DockPanel.SetDock(mensagens, Dock.Right);
+            pe.Children.Add(mensagens);
+        }
         var zap = new Button
         {
             Style = Recurso<Style>("BotaoLink"), Margin = new Thickness(18, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center,
@@ -362,7 +417,7 @@ public partial class FornecedoresView : UserControl
     {
         var pincel = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(24, 24), MappingMode = BrushMappingMode.Absolute, SpreadMethod = GradientSpreadMethod.Repeat };
         var cartao = ((SolidColorBrush)Recurso<Brush>("Cartao")).Color;
-        var listra = Color.FromRgb(0xF7, 0xF1, 0xE4);
+        var listra = Color.FromRgb(0xF4, 0xF6, 0xF8);
         pincel.GradientStops.Add(new GradientStop(cartao, 0));
         pincel.GradientStops.Add(new GradientStop(cartao, 0.5));
         pincel.GradientStops.Add(new GradientStop(listra, 0.5));
@@ -820,6 +875,17 @@ public partial class FornecedoresView : UserControl
         AbrirPedido(null, []);
     }
 
+    /// <summary>Aviso do Painel "fornecedor respondeu": abre a conversa quando os dados chegarem.</summary>
+    public void MensagensDe(long fornecedorId, long? pedidoId)
+    {
+        void Abrir()
+        {
+            if (_fornecedores.FirstOrDefault(f => f.Id == fornecedorId) is { } f) AbrirMensagens(f, pedidoId);
+        }
+        if (!_dadosProntos) _depoisDeCarregar = Abrir;
+        else Abrir();
+    }
+
     private bool Pronto()
     {
         if (_servico is null || _estoque is null) { _area.MostrarToast("Sistema sem configuração do banco de dados."); return false; }
@@ -838,10 +904,10 @@ public partial class FornecedoresView : UserControl
         if (!Pronto()) return;
         if (!Ativos.Any()) { _area.MostrarToast("Cadastre um fornecedor antes de criar pedidos."); return; }
         _area.AbrirJanela(new PedidoJanela(_area, _servico!, Ativos.ToList(), _produtos, f, itens, JaPedido,
-            async (mensagem, fornecedor, texto) =>
+            async (mensagem, fornecedor, texto, pedidoId) =>
             {
                 await RecarregarAsync(mensagem);
-                _area.AbrirJanela(new EnvioPedidoJanela(_area, fornecedor, texto, "Pedido criado"));
+                _area.AbrirJanela(new EnvioPedidoJanela(_area, fornecedor, texto, "Pedido criado", pedidoId, _mensagens));
             }));
     }
 
@@ -851,15 +917,15 @@ public partial class FornecedoresView : UserControl
         if (!Pronto()) return;
         _area.AbrirJanela(new PedidoJanela(_area, _servico!, Ativos.Append(f).DistinctBy(x => x.Id).ToList(), _produtos, f, [],
             produto => _pedidos.Any(o => o.Id != p.Id && o.Pendente && o.Itens.Any(i => i.ProdutoId == produto.Id)),
-            async (mensagem, fornecedor, texto) =>
+            async (mensagem, fornecedor, texto, pedidoId) =>
             {
                 await RecarregarAsync(mensagem);
-                _area.AbrirJanela(new EnvioPedidoJanela(_area, fornecedor, $"Atualização do pedido de {p.Data:dd/MM/yyyy} (substitui o anterior):\n\n" + texto, "Pedido alterado"));
+                _area.AbrirJanela(new EnvioPedidoJanela(_area, fornecedor, $"Atualização do pedido de {p.Data:dd/MM/yyyy} (substitui o anterior):\n\n" + texto, "Pedido alterado", pedidoId, _mensagens));
             }, p));
     }
 
     private void AbrirEnvio(Fornecedor f, Pedido p) =>
-        _area.AbrirJanela(new EnvioPedidoJanela(_area, f, MensagemDoPedido(f, p, _produtos, _servico!.Usuario), "Reenviar pedido"));
+        _area.AbrirJanela(new EnvioPedidoJanela(_area, f, MensagemDoPedido(f, p, _produtos, _servico!.Usuario), "Reenviar pedido", p.Id, _mensagens));
 
     /// <summary>Mensagem de um pedido já gravado (para reenviar).</summary>
     public static string MensagemDoPedido(Fornecedor f, Pedido p, IReadOnlyList<Produto> produtos, string usuario) =>

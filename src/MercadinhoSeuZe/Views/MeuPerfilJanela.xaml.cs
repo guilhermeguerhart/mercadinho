@@ -13,12 +13,14 @@ public partial class MeuPerfilJanela : UserControl
 
     private readonly AreaInternaView _area;
     private readonly FuncionarioService? _servico;
+    private readonly bool _gerente;
 
     public MeuPerfilJanela(AreaInternaView area, Sessao sessao, FuncionarioService? servico)
     {
         InitializeComponent();
         _area = area;
         _servico = servico;
+        _gerente = sessao.Perfil == Perfil.Gerente;
 
         Avatar.Text = sessao.Nome[..1].ToUpperInvariant();
         Nome.Text = sessao.Nome;
@@ -42,8 +44,10 @@ public partial class MeuPerfilJanela : UserControl
             if (await _servico.MeuPerfilAsync() is not { } dados) return;
             Detalhes.Children.Add(Detalhe("Acesso anterior", dados.AcessoAnterior is { } a ? a.ToLocalTime().ToString("dd/MM/yyyy 'às' HH:mm", PtBr) : "primeiro acesso"));
             if (dados.CriadoEm is { } desde) Detalhes.Children.Add(Detalhe("No sistema desde", desde.ToLocalTime().ToString("dd/MM/yyyy", PtBr)));
-            Detalhes.Children.Add(Detalhe("Minhas vendas hoje", dados.VendasHoje == 0 ? "nenhuma"
-                : $"{dados.VendasHoje} · {dados.TotalHoje.ToString("C", PtBr)}"));
+            // Valores de venda só para o gerente (e respeitando "Ocultar vendas")
+            if (_gerente)
+                Detalhes.Children.Add(Detalhe("Minhas vendas hoje", dados.VendasHoje == 0 ? "nenhuma"
+                    : $"{ValoresVenda.Numero(dados.VendasHoje)} · {ValoresVenda.Moeda(dados.TotalHoje)}"));
         }
         catch (ConexaoException)
         {
