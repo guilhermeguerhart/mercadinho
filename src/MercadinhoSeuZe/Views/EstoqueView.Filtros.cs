@@ -43,9 +43,12 @@ public partial class EstoqueView
 
     private void MostrarFiltrosAtivos(string termo, int mostrando)
     {
-        Mostrando.Text = mostrando == _produtos.Count
-            ? $"Mostrando todos os {_produtos.Count} produtos"
-            : $"Mostrando {mostrando} de {_produtos.Count} produtos";
+        // Com páginas: "Mostrando 11–20 de 137 produtos" (e de quantos cadastrados, se houver filtro)
+        Mostrando.Text = _paginas.Paginas > 1
+            ? $"Mostrando {_paginas.Faixa()} produtos" + (mostrando == _produtos.Count ? "" : $" ({_produtos.Count} cadastrados)")
+            : mostrando == _produtos.Count
+                ? $"Mostrando todos os {_produtos.Count} produtos"
+                : $"Mostrando {mostrando} de {_produtos.Count} produtos";
 
         while (FiltrosAtivos.Children.Count > 1) FiltrosAtivos.Children.RemoveAt(1);
         var ativos = 0;

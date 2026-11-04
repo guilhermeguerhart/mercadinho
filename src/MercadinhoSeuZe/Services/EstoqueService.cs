@@ -227,8 +227,12 @@ public sealed class EstoqueService(SupabaseApi api, Sessao sessao)
     /// <summary>Lê produtos e promoções e liga uma coisa à outra (Produto.PromocaoAtiva e Produto.RegraValidade).</summary>
     public async Task<(List<Produto> Produtos, List<Promocao> Promocoes, List<RegraValidade> Regras)> ListarComPromocoesAsync()
     {
-        var produtos = await ListarAsync();
-        var (promocoes, regras) = await PromocoesAsync();
+        // As duas leituras saem juntas (sem o script 008, PromocoesAsync devolve listas vazias)
+        var lista = ListarAsync();
+        var promo = PromocoesAsync();
+        await Task.WhenAll(lista, promo);
+        var produtos = lista.Result;
+        var (promocoes, regras) = promo.Result;
         Promocoes.Aplicar(produtos, promocoes, regras);
         return (produtos, promocoes, regras);
     }

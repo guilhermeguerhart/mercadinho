@@ -23,9 +23,11 @@ public partial class FornecedoresView : UserControl
     private Dictionary<long, NaoLidas> _naoLidas = [];
     private readonly HashSet<long> _abertos = [];          // fornecedores com o drop-down aberto
     private readonly HashSet<long> _todosProdutos = [];    // drop-downs mostrando todos os produtos
-    private readonly HashSet<long> _todoHistorico = [];    // drop-downs mostrando todos os pedidos
     private List<Fornecedor> _fornecedores = [];
-    private List<Pedido> _pedidos = [];
+    private List<Pedido> _pedidos = [];                    // com itens: últimos 90 dias e os pendentes
+    private Dictionary<long, (int Total, DateOnly Ultimo)> _resumoPedidos = [];   // todos os pedidos, sem itens
+    private readonly Dictionary<long, List<Pedido>> _historicoCompleto = [];      // "Ver histórico completo" aberto
+    private readonly Dictionary<long, Paginacao> _paginasHistorico = [];
     private List<Produto> _produtos = [];
     private string _filtro = "todos";
     private bool _compacta;
@@ -61,13 +63,18 @@ public partial class FornecedoresView : UserControl
         {
             var fornecedores = _servico.ListarAsync();
             var pedidos = _servico.ListarPedidosAsync();
+            var resumo = _servico.ResumoPedidosAsync();
             var produtos = _estoque.ListarAsync();
-            await Task.WhenAll(fornecedores, pedidos, produtos);
+            var naoLidas = CarregarNaoLidasAsync();
+            // Históricos completos que estavam abertos voltam atualizados (depois de um pedido ou entrega novos)
+            var completos = _historicoCompleto.Keys.ToDictionary(id => id, _servico.PedidosDoFornecedorAsync);
+            await Task.WhenAll([fornecedores, pedidos, resumo, produtos, naoLidas, .. completos.Values]);
             _fornecedores = fornecedores.Result;
             _pedidos = pedidos.Result;
+            _resumoPedidos = resumo.Result.GroupBy(p => p.FornecedorId).ToDictionary(g => g.Key, g => (g.Count(), g.Max(p => p.Data)));
+            foreach (var (id, lista) in completos) _historicoCompleto[id] = lista.Result;
             _produtos = produtos.Result;
             Fornecedor.AplicarPrazos(_produtos, _fornecedores);
-            await CarregarNaoLidasAsync();
         }
         catch (ConexaoException ex)
         {
@@ -150,6 +157,9 @@ public partial class FornecedoresView : UserControl
     /// <summary>Pedidos do fornecedor, do mais novo para o mais antigo.</summary>
     private IEnumerable<Pedido> PedidosDe(Fornecedor f) =>
         _pedidos.Where(p => p.FornecedorId == f.Id).OrderByDescending(p => p.Data).ThenByDescending(p => p.Id);
+
+    /// <summary>Tem algum pedido, mesmo antigo (aí só pode desativar, para o histórico continuar guardado).</summary>
+    private bool TemPedidos(Fornecedor f) => _resumoPedidos.ContainsKey(f.Id) || PedidosDe(f).Any();
 
     private IEnumerable<Produto> ProdutosDe(Fornecedor f) => _produtos.Where(f.Fornece);
 
@@ -287,11 +297,11 @@ public partial class FornecedoresView : UserControl
         corpo.Children.Add(topo);
 
         // Dados: telefone, último pedido e prazo
-        var ultimo = PedidosDe(f).FirstOrDefault();
+        DateOnly? ultimo = _resumoPedidos.TryGetValue(f.Id, out var r) ? r.Ultimo : PedidosDe(f).FirstOrDefault()?.Data;
         var dados = new Grid { Margin = new Thickness(18, 0, 18, 12) };
         for (var i = 0; i < 3; i++) dados.ColumnDefinitions.Add(new ColumnDefinition { Width = i == 2 ? new GridLength(1, GridUnitType.Star) : GridLength.Auto });
         Colocar(dados, Dado("TELEFONE", f.Telefone), 0);
-        Colocar(dados, Dado("ÚLTIMO PEDIDO", ultimo is null ? "—" : ultimo.Data.ToString("dd/MM/yyyy", PtBr)), 1);
+        Colocar(dados, Dado("ÚLTIMO PEDIDO", ultimo?.ToString("dd/MM/yyyy", PtBr) ?? "—"), 1);
         Colocar(dados, Dado("ENTREGA", f.ListaDiasEntrega.Count > 0 ? f.TextoDiasEntrega : Plural(f.Prazo, "dia", "dias")), 2);
         corpo.Children.Add(dados);
 
@@ -541,7 +551,7 @@ public partial class FornecedoresView : UserControl
         acoes.Children.Add(BotaoPequeno("Editar", "IconeFerramenta", "Verde700", () => AbrirFornecedor(f)));
         if (!f.Ativo)
             acoes.Children.Add(BotaoPequeno("Reativar", "IconeCheck", "Verde700", async () => await AtivarAsync(f, true)));
-        else if (PedidosDe(f).Any())
+        else if (TemPedidos(f))
             acoes.Children.Add(BotaoPequeno("Desativar", "IconeLixeira", "Vermelho600", () => ConfirmarDesativar(f)));
         else
             acoes.Children.Add(BotaoPequeno("Excluir", "IconeLixeira", "Vermelho600", () => ConfirmarExclusao(f)));
@@ -655,26 +665,63 @@ public partial class FornecedoresView : UserControl
     private FrameworkElement Historico(Fornecedor f)
     {
         var bloco = new StackPanel();
-        var pedidos = PedidosDe(f).ToList();
-        bloco.Children.Add(TituloSecao($"Histórico de pedidos ({pedidos.Count})"));
-        if (pedidos.Count == 0)
+        var completo = _historicoCompleto.GetValueOrDefault(f.Id);
+        var pedidos = completo ?? PedidosDe(f).ToList();
+        var total = completo?.Count ?? (_resumoPedidos.TryGetValue(f.Id, out var r) ? r.Total : pedidos.Count);
+        bloco.Children.Add(TituloSecao($"Histórico de pedidos ({total})"));
+        if (total == 0)
         {
             bloco.Children.Add(new TextBlock { Text = "Nenhum pedido feito para este fornecedor ainda.", FontSize = 14, Foreground = Recurso<Brush>("Suave") });
             return bloco;
         }
 
-        var todos = _todoHistorico.Contains(f.Id);
         var recibos = new WrapPanel { Margin = new Thickness(0, 0, -14, 0) };
-        foreach (var p in todos ? pedidos : pedidos.Take(6))
+        if (completo is not null)
+        {
+            // Histórico inteiro: em páginas de 6 recibos (ou o tamanho escolhido)
+            if (!_paginasHistorico.TryGetValue(f.Id, out var paginas))
+            {
+                paginas = new Paginacao("historico-pedidos", [6, 12, 24, 48], 6);
+                paginas.Mudou += () => { Mostrar(); recibos.BringIntoView(); };
+                _paginasHistorico[f.Id] = paginas;
+            }
+            foreach (var p in paginas.Recortar(completo))
+                recibos.Children.Add(Recibo(f, p));
+            bloco.Children.Add(recibos);
+            bloco.Children.Add(paginas.Barra());
+            bloco.Children.Add(Link("Mostrar só os últimos pedidos", () =>
+            {
+                _historicoCompleto.Remove(f.Id);
+                _paginasHistorico.Remove(f.Id);
+                Mostrar();
+            }, margem: new Thickness(0, 8, 0, 0)));
+            return bloco;
+        }
+
+        foreach (var p in pedidos.Take(6))
             recibos.Children.Add(Recibo(f, p));
         bloco.Children.Add(recibos);
-        if (pedidos.Count > 6)
-            bloco.Children.Add(Link(todos ? "Mostrar só os últimos 6" : $"Ver os {pedidos.Count} pedidos", () =>
-            {
-                if (!_todoHistorico.Remove(f.Id)) _todoHistorico.Add(f.Id);
-                Mostrar();
-            }, margem: new Thickness(0, 0, 0, 0)));
+        if (pedidos.Count == 0)
+            bloco.Children.Add(new TextBlock { Text = $"Nenhum pedido nos últimos {FornecedorService.DiasRecentes} dias.", FontSize = 14, Foreground = Recurso<Brush>("Suave") });
+        if (total > Math.Min(pedidos.Count, 6))
+            bloco.Children.Add(Link($"Ver histórico completo ({total} pedidos)", async () => await AbrirHistoricoAsync(f),
+                margem: new Thickness(0, 0, 0, 0)));
         return bloco;
+    }
+
+    /// <summary>Lê todos os pedidos do fornecedor (só agora, para a tela abrir rápido) e mostra em páginas.</summary>
+    private async Task AbrirHistoricoAsync(Fornecedor f)
+    {
+        try
+        {
+            _historicoCompleto[f.Id] = await _servico!.PedidosDoFornecedorAsync(f.Id);
+        }
+        catch (ConexaoException ex)
+        {
+            _area.MostrarToast(ex.Message);
+            return;
+        }
+        Mostrar();
     }
 
     /// <summary>Um pedido como recibo de papel: topo com data e carimbo, itens entre linhas tracejadas, entrega e ações.</summary>

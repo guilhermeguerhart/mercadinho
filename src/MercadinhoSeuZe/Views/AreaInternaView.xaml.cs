@@ -85,17 +85,26 @@ public partial class AreaInternaView : UserControl
         return tela;
     }
 
-    private EstoqueService? Estoque() => _api is null ? null : new EstoqueService(_api, _sessao);
+    // Um serviço de cada para todas as telas: o que já se descobriu do banco (scripts rodados ou não) vale para
+    // a próxima tela, sem repetir as consultas de teste a cada troca no menu.
+    private EstoqueService? _estoque;
+    private FornecedorService? _fornecedores;
+    private CaixaService? _caixa;
+    private FuncionarioService? _funcionarios;
+    private FechamentoService? _fechamento;
+    private MensagensService? _mensagens;
 
-    private FornecedorService? Fornecedores() => _api is null ? null : new FornecedorService(_api, _sessao);
+    private EstoqueService? Estoque() => _api is null ? null : _estoque ??= new EstoqueService(_api, _sessao);
 
-    private CaixaService? Caixa() => _api is null ? null : new CaixaService(_api, _sessao);
+    private FornecedorService? Fornecedores() => _api is null ? null : _fornecedores ??= new FornecedorService(_api, _sessao);
 
-    private FuncionarioService? Funcionarios() => _api is null ? null : new FuncionarioService(_api, _sessao);
+    private CaixaService? Caixa() => _api is null ? null : _caixa ??= new CaixaService(_api, _sessao);
 
-    private FechamentoService? Fechamento() => _api is null ? null : new FechamentoService(_api, _sessao);
+    private FuncionarioService? Funcionarios() => _api is null ? null : _funcionarios ??= new FuncionarioService(_api, _sessao);
 
-    public MensagensService? Mensagens() => _api is null ? null : new MensagensService(_api, _sessao);
+    private FechamentoService? Fechamento() => _api is null ? null : _fechamento ??= new FechamentoService(_api, _sessao);
+
+    public MensagensService? Mensagens() => _api is null ? null : _mensagens ??= new MensagensService(_api, _sessao);
 
     private void MeuPerfil_Click(object sender, RoutedEventArgs e)
     {

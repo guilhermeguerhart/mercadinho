@@ -311,6 +311,8 @@
             <StackPanel>
                 <TextBlock Text="Vendas de hoje" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
                 <StackPanel x:Name="ListaVendas" />
+                <!-- Mostrar [10] por página e as páginas (Paginacao.cs) -->
+                <ContentControl x:Name="BarraVendas" Focusable="False" />
             </StackPanel>
         </Border>
     </Grid>

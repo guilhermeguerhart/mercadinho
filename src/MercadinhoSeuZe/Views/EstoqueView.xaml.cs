@@ -33,6 +33,8 @@ public partial class EstoqueView : UserControl
     private string _ordem = "nome";
     private bool _compacta;
     private bool _carregou;
+    private readonly Paginacao _paginas = new("estoque", [5, 10, 25, 50, 100], 10);
+    private string? _ultimaConsulta;     // busca + filtros + ordem do último desenho (mudou = volta à página 1)
 
     public EstoqueView(AreaInternaView area, EstoqueService? servico, FornecedorService? fornecedores)
     {
@@ -40,6 +42,7 @@ public partial class EstoqueView : UserControl
         _area = area;
         _servico = servico;
         _fornecedores = fornecedores;
+        _paginas.Mudou += () => { Mostrar(); CabecalhoTabela.BringIntoView(); };
         AjustarColunas(CabecalhoTabela);
         IniciarAtalhosDesenvolvimento();
         Loaded += async (_, _) => { if (!_carregou) await CarregarAsync(); };
@@ -57,18 +60,24 @@ public partial class EstoqueView : UserControl
             return;
         }
 
+        // Tudo pedido ao mesmo tempo: o tempo de espera é o da consulta mais lenta, não a soma delas
+        var fornecedores = CarregarFornecedoresAsync();
         try
         {
-            (_produtos, _promocoes, _regras) = await _servico.ListarComPromocoesAsync();
-            var reservados = await _servico.ReservadosAsync();
-            foreach (var p in _produtos) p.Reservado = reservados.GetValueOrDefault(p.Id);
+            var lista = _servico.ListarComPromocoesAsync();
+            var reservados = _servico.ReservadosAsync();
+            await Task.WhenAll(lista, reservados);
+            (_produtos, _promocoes, _regras) = lista.Result;
+            foreach (var p in _produtos) p.Reservado = reservados.Result.GetValueOrDefault(p.Id);
         }
         catch (ConexaoException ex)
         {
+            await fornecedores;
             MostrarErro(ex.Message);
             return;
         }
-        await CarregarFornecedoresAsync();
+        await fornecedores;
+        if (_listaFornecedores is not null) Fornecedor.AplicarPrazos(_produtos, _listaFornecedores);
         Mostrar();
         MostrarPromocoes();
         if (AbaPromocoes.Visibility != Visibility.Visible) Leitor.Focus();
@@ -88,7 +97,6 @@ public partial class EstoqueView : UserControl
             await Task.WhenAll(lista, pendentes);
             _listaFornecedores = lista.Result;
             _pendentes = pendentes.Result;
-            Fornecedor.AplicarPrazos(_produtos, _listaFornecedores);
         }
         catch (ConexaoException)
         {
@@ -141,10 +149,13 @@ public partial class EstoqueView : UserControl
                       $"{nSem} sem estoque · {nValidade} com validade próxima · {nVencido} vencidos";
 
         var termo = Busca.Text.Trim();
+        // Busca, filtro ou ordem diferentes da última vez: volta para a página 1 (abrir lotes ou editar mantém a página)
+        var consulta = $"{termo}|{_filtro}|{_categoria}|{_tipo}|{_ordem}";
+        if (consulta != _ultimaConsulta) _paginas.Inicio();
+        _ultimaConsulta = consulta;
+
         IEnumerable<Produto> lista = _produtos
-            .Where(p => PassaBusca(p, termo) && PassaSituacao(p, _filtro) && PassaCategoria(p, _categoria) && PassaTipo(p, _tipo))
-            .ToList();
-        MostrarFiltrosAtivos(termo, ((List<Produto>)lista).Count);
+            .Where(p => PassaBusca(p, termo) && PassaSituacao(p, _filtro) && PassaCategoria(p, _categoria) && PassaTipo(p, _tipo));
         var porNome = StringComparer.Create(PtBr, CompareOptions.IgnoreCase);
         lista = _ordem switch
         {
@@ -154,10 +165,13 @@ public partial class EstoqueView : UserControl
             "preco" => lista.OrderBy(p => p.Preco).ThenBy(p => p.Nome, porNome),
             _ => lista.OrderBy(p => p.Nome, porNome)
         };
+        var pagina = _paginas.Recortar(lista.ToList());
+        MostrarFiltrosAtivos(termo, _paginas.Total);
 
         Lista.Children.Clear();
-        foreach (var p in lista)
+        foreach (var p in pagina)
             Lista.Children.Add(LinhaProduto(p));
+        BarraPaginas.Content = _paginas.Barra();
 
         Vazio.Visibility = Lista.Children.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         Vazio.Text = _produtos.Count == 0 ? "Nenhum produto cadastrado ainda. Clique em “Novo produto” para começar."

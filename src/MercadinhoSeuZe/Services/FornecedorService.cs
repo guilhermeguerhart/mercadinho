@@ -49,9 +49,27 @@ public sealed class FornecedorService(SupabaseApi api, Sessao sessao)
         ListarComAjustesAsync<Fornecedor>($"fornecedores?select={CamposFornecedor},dias_entrega,pedido_minimo&order=nome",
             $"fornecedores?select={CamposFornecedor}&order=nome");
 
-    public Task<List<Pedido>> ListarPedidosAsync() =>
-        ListarComAjustesAsync<Pedido>($"pedidos?select={CamposPedido005}&order=data_pedido.desc,id.desc",
-            $"pedidos?select={CamposPedido004}&order=data_pedido.desc,id.desc");
+    /// <summary>Quantos dias de pedidos a tela de Fornecedores lê com os itens (os pendentes vêm sempre).</summary>
+    public const int DiasRecentes = 90;
+
+    /// <summary>
+    /// Pedidos com itens dos últimos 90 dias e todos os pendentes. O histórico inteiro (anos de pedidos) fica pesado:
+    /// a tela pede o de um fornecedor só quando a pessoa clica em "Ver histórico completo" (PedidosDoFornecedorAsync).
+    /// </summary>
+    public Task<List<Pedido>> ListarPedidosAsync()
+    {
+        var filtro = $"&or=(situacao.eq.pendente,data_pedido.gte.{DateTime.Today.AddDays(-DiasRecentes):yyyy-MM-dd})&order=data_pedido.desc,id.desc";
+        return ListarComAjustesAsync<Pedido>($"pedidos?select={CamposPedido005}{filtro}", $"pedidos?select={CamposPedido004}{filtro}");
+    }
+
+    /// <summary>Todos os pedidos de um fornecedor, com os itens, do mais novo para o mais antigo.</summary>
+    public Task<List<Pedido>> PedidosDoFornecedorAsync(long fornecedorId) =>
+        ListarComAjustesAsync<Pedido>($"pedidos?select={CamposPedido005}&fornecedor_id=eq.{fornecedorId}&order=data_pedido.desc,id.desc",
+            $"pedidos?select={CamposPedido004}&fornecedor_id=eq.{fornecedorId}&order=data_pedido.desc,id.desc");
+
+    /// <summary>Todos os pedidos só com fornecedor e data (sem itens, bem leve): total e último pedido de cada fornecedor.</summary>
+    public Task<List<Pedido>> ResumoPedidosAsync() =>
+        api.ListarAsync<Pedido>("pedidos?select=id,fornecedor_id,data_pedido,situacao&order=data_pedido.desc,id.desc", sessao.Token);
 
     public Task<List<Pedido>> ListarPendentesAsync() =>
         ListarComAjustesAsync<Pedido>($"pedidos?select={CamposPedido005}&situacao=eq.pendente&order=previsao_entrega",

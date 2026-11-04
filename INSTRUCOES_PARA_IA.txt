@@ -79,7 +79,7 @@ src/MercadinhoSeuZe/
                            AutorizacaoJanela; CaixaJanelas.cs: CPF, desconto, consulta de preço, vendas em espera,
                            sangria/suprimento e fechamento do caixa; EstoqueView.Promocoes.cs: aba e janelas de promoção;
                            MensagensJanela.cs: conversa com o fornecedor) abrem com
-                           AreaInternaView.AbrirJanela; Esc fecha.
+                           AreaInternaView.AbrirJanela; Esc fecha. Paginacao.cs: barra de páginas das listas longas.
                            Formulario.cs: leitura de preço, inteiro e data (dd/mm/aaaa), erros de campo e
                            MascaraDinheiro (campo de R$ que se formata enquanto digita).
                            ValoresVenda.cs: interruptor "Ocultar vendas" (R$ •••••). Graficos.cs: barras e colunas.
@@ -439,6 +439,28 @@ publicar.ps1               Gera publish/MercadinhoSeuZe.exe (feche o .exe aberto
   do sistema (só gerente; 5 erros bloqueiam 5 min no aparelho e vão para auditoria_login), abas Hoje (resumo do dia),
   Análises, Avisos (mensagens, pedidos atrasados, caixas com diferença, estoque) e Conta; interruptor "Ocultar".
   Precisa de um endereço https (GitHub Pages ou Netlify) para o PWABuilder gerar o .apk.
+
+3j. PAGINAÇÃO E VELOCIDADE DAS TELAS (PEDIDO DO GUILHERME EM 04/11)
+------------------------------------------------------------------
+- Views/Paginacao.cs: barra reutilizável embaixo das listas longas ("Mostrar [10] por página" e « ‹ 1 … 6 7 8 … 14 ›,
+  botões no estilo Chip). A tela guarda um Paginacao, recorta a lista com Recortar e põe Barra() embaixo a cada
+  desenho. O tamanho escolhido fica lembrado por lista enquanto o programa está aberto. Até 5 itens a barra some.
+- Onde está: Estoque, aba Produtos (5/10/25/50/100, padrão 10; busca, filtro, indicador ou ordem diferentes voltam
+  para a página 1; abrir lotes, editar ou excluir mantém a página, e se ela deixar de existir vai para a última);
+  "Vendas de hoje" do Caixa (gerente; a lista volta a cada minuto e a página continua); histórico completo de pedidos
+  de um fornecedor (6/12/24/48 recibos por página). Lista nova e longa: usar a mesma barra.
+- Fornecedores: a tela lê com itens só os pedidos dos últimos 90 dias e os pendentes (FornecedorService.DiasRecentes);
+  de todos os pedidos lê só fornecedor e data (ResumoPedidosAsync), para o total, o "último pedido" e para não
+  oferecer "Excluir" a quem tem pedido antigo. "Ver histórico completo" lê os pedidos daquele fornecedor na hora.
+- Velocidade: o SupabaseApi pede respostas comprimidas (gzip/brotli) e reaproveita a conexão; o Estoque, o Painel e
+  EstoqueService.ListarComPromocoesAsync fazem as leituras ao mesmo tempo (Task.WhenAll) em vez de uma depois da
+  outra; a AreaInternaView cria um serviço de cada só uma vez por login (o que se descobriu sobre os scripts rodados
+  vale para todas as telas; depois de rodar um script novo no Supabase, sair e entrar de novo).
+- Painel, "Avisos recentes" (pedido do Guilherme): separados em tópicos que abrem e fecham (Estoque, Promoções,
+  Pedidos e fornecedores, Mensagens, Caixa). Fechado, o tópico mostra só o número de avisos, em vermelho (urgente:
+  sem estoque, vencido, pedido atrasado, falta no caixa, erro de leitura), âmbar (atenção) ou neutro; as linhas só
+  são montadas ao abrir, em páginas de 5 (Paginacao com Barra(compacta: true)). Os abertos continuam abertos na
+  atualização de 30 s. Tópico sem aviso não aparece. Sem o antigo limite de 8 avisos de estoque.
 
 4. O QUE AINDA DEVE SER FEITO (UMA SEMANA POR VEZ, NESTA ORDEM)
 --------------------------------------------------------------

@@ -59,6 +59,7 @@ public partial class CaixaView : UserControl
     private string? _forma;
     private bool _modoCaixa;
     private bool _carregou;
+    private readonly Paginacao _paginasVendas = new("vendas-hoje", [5, 10, 25, 50, 100], 10);
     private bool _recebendo;
     private ResumoCaixa? _resumoCaixa;
 
@@ -68,6 +69,7 @@ public partial class CaixaView : UserControl
     public CaixaView(AreaInternaView area, CaixaService? caixa, EstoqueService? estoque)
     {
         InitializeComponent();
+        _paginasVendas.Mudou += () => { MostrarDia(); CartaoVendas.BringIntoView(); };
         _area = area;
         _caixaServico = caixa;
         _estoque = estoque;
@@ -496,12 +498,15 @@ public partial class CaixaView : UserControl
         ResumoTicket.Text = ValoresVenda.Moeda(resumo.TicketMedio);
 
         ListaVendas.Children.Clear();
+        // A lista volta a cada minuto com as vendas novas em cima; a página escolhida continua a mesma
+        var pagina = _paginasVendas.Recortar(_vendasHoje);
+        BarraVendas.Content = _paginasVendas.Barra();
         if (_vendasHoje.Count == 0)
         {
             ListaVendas.Children.Add(new TextBlock { Text = "Nenhuma venda hoje.", FontSize = 14, Style = Recurso<Style>("TextoSuave") });
             return;
         }
-        foreach (var v in _vendasHoje)
+        foreach (var v in pagina)
         {
             var linha = new DockPanel { Margin = new Thickness(0, 10, 0, 10), Opacity = v.Cancelada ? 0.65 : 1 };
 

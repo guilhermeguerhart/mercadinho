@@ -171,6 +171,8 @@
                 <StackPanel x:Name="Lista" />
                 <TextBlock x:Name="Vazio" Style="{StaticResource TextoSuave}" FontSize="15" HorizontalAlignment="Center"
                            Margin="0,28,0,20" Visibility="Collapsed" />
+                <!-- Mostrar [10] por página e as páginas (Paginacao.cs) -->
+                <ContentControl x:Name="BarraPaginas" Focusable="False" />
 
                 <WrapPanel Margin="0,16,0,0">
                     <StackPanel Orientation="Horizontal" Margin="0,0,24,4">

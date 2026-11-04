@@ -23,7 +23,14 @@ public sealed class SupabaseApi
 
     public SupabaseApi(Configuracao config)
     {
-        Http = new HttpClient { BaseAddress = new Uri(config.SupabaseUrl + "/"), Timeout = TimeSpan.FromSeconds(15) };
+        // Respostas comprimidas (gzip/brotli): a lista de produtos com lotes chega bem menor e mais rápido.
+        // A mesma conexão é reaproveitada entre as telas e renovada a cada 5 minutos.
+        var conexao = new SocketsHttpHandler
+        {
+            AutomaticDecompression = DecompressionMethods.All,
+            PooledConnectionLifetime = TimeSpan.FromMinutes(5)
+        };
+        Http = new HttpClient(conexao) { BaseAddress = new Uri(config.SupabaseUrl + "/"), Timeout = TimeSpan.FromSeconds(15) };
         Http.DefaultRequestHeaders.Add("apikey", config.SupabaseAnonKey);
     }
 
