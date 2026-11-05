@@ -1,4 +1,4 @@
-// Mercado Gerência (semana 6): app de celular só de leitura para o gerente. Usa o mesmo banco do programa
+// Mercado Gerência (semana 6): app de celular do gerente (estoque.js, pedidos.js e trava.js completam). Usa o mesmo banco do programa
 // (Supabase, chave pública) e as funções do script 009: resumo_dia, analise_vendas e mensagens_nao_lidas.
 // As regras do banco (RLS) garantem que só o gerente vê as vendas.
 "use strict";
@@ -139,6 +139,8 @@ async function abrir() {
     return;
   }
   estado.perfil = perfil;
+  // Trava ligada: pede a digital, o rosto ou o PIN do celular antes de mostrar qualquer coisa
+  if (travaLigada() && !(await desbloquear())) return;
   $("telaLogin").hidden = true;
   $("telaApp").hidden = false;
   $("ocultar").checked = estado.ocultar;
@@ -155,6 +157,7 @@ function mostrarLogin(mensagem = "") {
 }
 
 async function sair() {
+  desligarTrava();
   await sb.auth.signOut();
   estado.resumo = estado.analise = null;
   mostrarLogin();
@@ -165,10 +168,12 @@ async function sair() {
 function trocarAba(aba) {
   estado.aba = aba;
   for (const b of document.querySelectorAll(".abas button")) b.classList.toggle("ativo", b.dataset.aba === aba);
-  for (const nome of ["Hoje", "Analises", "Avisos", "Conta"]) $("aba" + nome).hidden = nome !== aba;
+  for (const nome of ["Hoje", "Analises", "Estoque", "Pedir", "Avisos", "Conta"]) $("aba" + nome).hidden = nome !== aba;
   window.scrollTo(0, 0);
   if (aba === "Hoje") carregarDia();
   if (aba === "Analises") carregarAnalise();
+  if (aba === "Estoque") carregarEstoque();
+  if (aba === "Pedir") carregarPedir();
   if (aba === "Avisos") carregarAvisos();
   if (aba === "Conta") mostrarConta();
 }
@@ -357,20 +362,39 @@ async function carregarAvisos(soContar = false) {
 let pedidoInstalar = null;
 window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); pedidoInstalar = e; if (estado.aba === "Conta") mostrarConta(); });
 
-function mostrarConta() {
+async function mostrarConta() {
   const p = estado.perfil;
+  const podeTravar = await travaDisponivel();
   $("abaConta").innerHTML = `<h2>${esc(p?.nome ?? "")}</h2><p class="sub">Gerente · usuário ${esc(p?.usuario ?? "")}</p>
-    <div class="cartao"><h3>Sobre o app</h3><p class="sub" style="margin:0">Só leitura: vendas, caixas, análises e avisos. Vender, fechar o caixa, fechar o dia e responder
-      os fornecedores continuam no programa do computador. Os valores podem ser escondidos pelo interruptor "Ocultar" no topo.</p></div>
+    <div class="cartao"><h3>Trava do app</h3>
+      <p class="sub">O app fica conectado neste celular. Com a trava ligada, ao abrir (ou depois de ${TRAVA_MINUTOS} minutos fora) ele pede a digital,
+        o rosto ou o PIN do celular, em vez da senha do sistema.</p>
+      ${podeTravar ? `<label class="interruptor escuro"><input id="chaveTrava" type="checkbox" ${travaLigada() ? "checked" : ""}><span class="trilho" aria-hidden="true"></span>
+        <span>Pedir digital, rosto ou PIN</span></label>` : `<p class="sub" style="margin:0">Este celular ou navegador não oferece desbloqueio por digital, rosto ou PIN.</p>`}
+    </div>
+    <div class="cartao"><h3>Sobre o app</h3><p class="sub" style="margin:0">Vendas, caixas, análises, estoque, avisos e pedidos de reposição pelo WhatsApp.
+      Vender, fechar o caixa, fechar o dia e responder os fornecedores continuam no programa do computador. O interruptor "Ocultar" no topo esconde os valores.</p></div>
     ${pedidoInstalar ? `<button class="primario" id="instalar" style="margin-bottom:12px">Instalar o app neste celular</button>` : ""}
     <button class="fantasma" id="botaoSair" style="width:100%">Sair</button>`;
   $("botaoSair").onclick = sair;
+  if (podeTravar)
+    $("chaveTrava").onchange = async (e) => {
+      if (e.target.checked) {
+        const ok = await ligarTrava();
+        e.target.checked = ok;
+        toast(ok ? "Trava ligada. Na próxima vez o app pede o desbloqueio do celular." : "Não foi possível ligar a trava.");
+      } else {
+        desligarTrava();
+        toast("Trava desligada.");
+      }
+    };
   if (pedidoInstalar) $("instalar").onclick = async () => { pedidoInstalar.prompt(); await pedidoInstalar.userChoice; pedidoInstalar = null; mostrarConta(); };
 }
 
 // ---------------------------------------------------------------- Início
 
 $("formLogin").addEventListener("submit", entrar);
+$("botaoConta").addEventListener("click", () => trocarAba("Conta"));
 // Tocar no M da tela de entrada mostra os usuários de teste (como o Alt+1 do programa). Só o usuário: senha não vai no app.
 $("logoTeste").addEventListener("click", () => {
   const lista = $("usuariosTeste");

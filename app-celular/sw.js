@@ -1,7 +1,7 @@
 // Service worker do Mercado Gerência: guarda as telas do app para abrir rápido (e para os sites que geram o .apk
 // reconhecerem o app). Os dados do mercado sempre vêm da internet, nunca do cache.
-const VERSAO = "mercado-gerencia-2";
-const ARQUIVOS = ["./", "./index.html", "./estilo.css", "./app.js", "./config.js", "./manifest.webmanifest", "./icones/icone-192.png", "./icones/icone-512.png"];
+const VERSAO = "mercado-gerencia-3";
+const ARQUIVOS = ["./", "./index.html", "./estilo.css", "./app.js", "./config.js", "./estoque.js", "./pedidos.js", "./trava.js", "./manifest.webmanifest", "./icones/icone-192.png", "./icones/icone-512.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(VERSAO).then((c) => c.addAll(ARQUIVOS)).then(() => self.skipWaiting()));
