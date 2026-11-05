@@ -16,7 +16,13 @@
   <main id="telaLogin" class="login" hidden>
     <div class="toldo" aria-hidden="true"></div>
     <div class="login-corpo">
-      <div class="marca"><span class="logo">M</span><span>Mercado <small>Gerência</small></span></div>
+      <div class="marca"><button id="logoTeste" class="logo" type="button" aria-label="Usuários de teste" aria-expanded="false">M</button><span>Mercado <small>Gerência</small></span></div>
+      <!-- Usuários de teste (tocar no M): preenche só o usuário; a senha não fica no app, que é público -->
+      <div id="usuariosTeste" class="usuarios-teste" hidden>
+        <p>Usuários de teste (gerentes). Toque para preencher o usuário e digite a senha.</p>
+        <button type="button" data-usuario="marcos.gerente">marcos.gerente</button>
+        <button type="button" data-usuario="julia.gerente">julia.gerente</button>
+      </div>
       <h1>Entrar</h1>
       <p class="suave">Use o mesmo usuário e senha do programa do mercado. Só o gerente entra.</p>
       <form id="formLogin" novalidate>

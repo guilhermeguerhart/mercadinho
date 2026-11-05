@@ -371,6 +371,18 @@ function mostrarConta() {
 // ---------------------------------------------------------------- Início
 
 $("formLogin").addEventListener("submit", entrar);
+// Tocar no M da tela de entrada mostra os usuários de teste (como o Alt+1 do programa). Só o usuário: senha não vai no app.
+$("logoTeste").addEventListener("click", () => {
+  const lista = $("usuariosTeste");
+  lista.hidden = !lista.hidden;
+  $("logoTeste").setAttribute("aria-expanded", String(!lista.hidden));
+});
+for (const b of document.querySelectorAll("[data-usuario]"))
+  b.addEventListener("click", () => {
+    $("usuario").value = b.dataset.usuario;
+    $("usuariosTeste").hidden = true;
+    $("senha").focus();
+  });
 for (const b of document.querySelectorAll(".abas button")) b.addEventListener("click", () => trocarAba(b.dataset.aba));
 $("ocultar").addEventListener("change", (e) => {
   estado.ocultar = e.target.checked;
