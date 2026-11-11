@@ -1,0 +1,57 @@
+<UserControl x:Class="MercadinhoSeuZe.Views.PrevisaoView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             SizeChanged="AoRedimensionar">
+    <!-- Previsão de compras (semana 7, só o gerente). O cálculo roda de madrugada no banco (scripts 016 e 019); a tela só
+         lê o que ficou pronto: pedido sugerido de cada fornecedor, a previsão de cada produto, o teste e os alertas. -->
+    <StackPanel>
+        <!-- Cabeçalho -->
+        <DockPanel Margin="0,0,0,28">
+            <Button x:Name="BotaoAtualizar" DockPanel.Dock="Right" Style="{StaticResource BotaoFantasma}" Height="40" Padding="16,0" VerticalAlignment="Bottom"
+                    Content="Atualizar" Click="Atualizar_Click" ToolTip="Ler de novo do banco" />
+            <StackPanel Margin="0,0,16,0">
+                <TextBlock Text="Previsão de compras" FontSize="28" FontWeight="Bold" Margin="0,0,0,4" />
+                <TextBlock x:Name="Subtitulo" Text="Carregando…" Style="{StaticResource TextoSuave}" TextWrapping="Wrap" />
+            </StackPanel>
+        </DockPanel>
+
+        <!-- Erro ao ler o banco -->
+        <Border x:Name="AvisoErro" Style="{StaticResource Aviso}" Background="{StaticResource Vermelho50}" BorderBrush="{StaticResource Vermelho600}"
+                Margin="0,0,0,24" Visibility="Collapsed">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="Tentar de novo" Style="{StaticResource BotaoLink}" Foreground="{StaticResource Vermelho600}"
+                        VerticalAlignment="Center" Margin="16,0,0,0" Click="Atualizar_Click" />
+                <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeAlerta}" Foreground="{StaticResource Vermelho600}"
+                                Width="18" VerticalAlignment="Top" Margin="0,1,10,0" />
+                <TextBlock x:Name="AvisoErroTexto" Foreground="{StaticResource Vermelho600}" FontSize="14" TextWrapping="Wrap" />
+            </DockPanel>
+        </Border>
+
+        <!-- Indicadores -->
+        <Border Style="{StaticResource FaixaKpis}">
+            <UniformGrid x:Name="Kpis" Rows="1" />
+        </Border>
+
+        <!-- Abas -->
+        <WrapPanel x:Name="Abas" Margin="0,0,0,20">
+            <Button Content="Pedido sugerido" Style="{StaticResource Chip}" Tag="ativo" Height="40" MinWidth="150" Uid="pedido" Click="Aba_Click" />
+            <Button Content="Produto" Style="{StaticResource Chip}" Height="40" MinWidth="120" Uid="produto" Click="Aba_Click" />
+            <Button Content="Teste da previsão" Style="{StaticResource Chip}" Height="40" MinWidth="150" Uid="teste" Click="Aba_Click" />
+            <Button x:Name="AbaAlertas" Content="Alertas" Style="{StaticResource Chip}" Height="40" MinWidth="120" Uid="alertas" Click="Aba_Click" />
+        </WrapPanel>
+
+        <!-- Aba Produto: busca fica fixa, o resto é desenhado pelo código -->
+        <StackPanel x:Name="BuscaProduto" Visibility="Collapsed" Margin="0,0,0,16">
+            <Grid>
+                <TextBox x:Name="Busca" Padding="42,0,14,0" MaxLength="80" TextChanged="Busca_TextChanged" AutomationProperties.Name="Buscar produto" />
+                <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeBusca}" Foreground="{StaticResource Suave}" Width="18"
+                                HorizontalAlignment="Left" Margin="14,0,0,0" IsHitTestVisible="False" />
+                <TextBlock x:Name="DicaBusca" Text="Digite o nome do produto" Foreground="{StaticResource Placeholder}" FontSize="15"
+                           VerticalAlignment="Center" Margin="43,0,0,0" IsHitTestVisible="False" />
+            </Grid>
+            <WrapPanel x:Name="ResultadosBusca" Margin="0,8,0,0" />
+        </StackPanel>
+
+        <StackPanel x:Name="Conteudo" />
+    </StackPanel>
+</UserControl>

@@ -76,6 +76,16 @@
         <!-- Conteúdo -->
         <ScrollViewer x:Name="Rolagem" Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto" SizeChanged="Rolagem_SizeChanged">
             <StackPanel x:Name="AreaConteudo" Margin="40,32,40,48">
+                <!-- Modo simulação ligado (script 018): a loja vende, pede e recebe sozinha com dados de teste -->
+                <Border x:Name="FaixaSimulacao" Visibility="Collapsed" Background="{StaticResource Etiqueta}" CornerRadius="4" Padding="14,8" Margin="0,0,0,16">
+                    <DockPanel>
+                        <Button x:Name="BotaoSimularAgora" DockPanel.Dock="Right" Content="Simular agora" Style="{StaticResource BotaoFantasma}" Height="30"
+                                Padding="12,0" FontSize="13" Margin="12,0,0,0" VerticalAlignment="Center" Visibility="Collapsed" Click="SimularAgora_Click" />
+                        <TextBlock x:Name="TextoSimulacao" VerticalAlignment="Center" TextWrapping="Wrap" FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{StaticResource Tinta}"
+                                   Text="Modo simulação: a loja está vendendo, pedindo e recebendo sozinha (dados de teste). Desligue antes de a loja usar o sistema de verdade." />
+                    </DockPanel>
+                </Border>
                 <ContentControl x:Name="Pagina" Focusable="False" />
             </StackPanel>
         </ScrollViewer>

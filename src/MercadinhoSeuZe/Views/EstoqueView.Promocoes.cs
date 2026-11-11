@@ -423,7 +423,7 @@ public partial class EstoqueView
             previa.Text = "Desconto em cada dia: " + string.Join(" · ", r.Escada().Select(x => $"{DiasTexto(x.Dias)} {Porcento(x.Desconto)}"));
             var exemplo = _produtos.FirstOrDefault(p => string.Equals(p.Categoria.Trim(), r.Categoria, StringComparison.CurrentCultureIgnoreCase) && !p.PorPeso);
             if (exemplo is not null)
-                previa.Text += $". Exemplo: {exemplo.Nome} de {exemplo.Preco.ToString("C", PtBr)} vai a {Math.Round(exemplo.Preco * (1 - r.DescontoMax / 100), 2).ToString("C", PtBr)} um dia antes de vencer.";
+                previa.Text += $". Exemplo: {exemplo.Nome} de {exemplo.Preco.ToString("C", PtBr)} vai a {Promocoes.ComDesconto(exemplo.Preco, r.DescontoMax).ToString("C", PtBr)} um dia antes de vencer.";
         }
         dias.TextChanged += (_, _) => Atualizar();
         minimo.TextChanged += (_, _) => Atualizar();

@@ -21,6 +21,7 @@ public partial class AreaInternaView : UserControl
         new("painel", "Painel", "IconePainel", true, [Perfil.Gerente]),
         new("estoque", "Estoque", "IconeCaixaProduto", true, [Perfil.Gerente]),
         new("fornecedores", "Fornecedores", "IconeCaminhao", true, [Perfil.Gerente]),
+        new("previsao", "Previsão de compras", "IconeTendencia", true, [Perfil.Gerente]),
         new("caixa", "Caixa", "IconeCaixaRegistradora", true, [Perfil.Gerente, Perfil.Operador]),
         new("funcionarios", "Funcionários", "IconeEquipe", true, [Perfil.Gerente]),
         new("fechamento", "Fechamento do dia", "IconeFechamento", true, [Perfil.Gerente]),
@@ -32,6 +33,8 @@ public partial class AreaInternaView : UserControl
     private readonly DispatcherTimer _timerToast = new() { Interval = TimeSpan.FromSeconds(2.8) };
     private bool _compacta;
     private bool _telaCheia;
+    private bool _simulacaoLigada;
+    private string _telaAtual = "";
 
     public AreaInternaView(MainWindow janela, Sessao sessao, SupabaseApi? api)
     {
@@ -56,6 +59,52 @@ public partial class AreaInternaView : UserControl
 
         // Tela inicial de cada perfil: gerente no Painel, operador no Caixa
         Abrir(sessao.Perfil == Perfil.Gerente ? "painel" : "caixa");
+        _ = VerSimulacaoAsync();
+    }
+
+    // ------------------------------------------------------------ Modo simulação (script 018, só no desenvolvimento)
+
+    private sealed record EstadoSimulacao([property: System.Text.Json.Serialization.JsonPropertyName("ligada")] bool Ligada);
+
+    /// <summary>Mostra a faixa "Modo simulação" quando a loja está vendendo sozinha. Sem o script 018: nada aparece.</summary>
+    private async Task VerSimulacaoAsync()
+    {
+        if (_api is null) return;
+        try
+        {
+            var estado = (await _api.ListarAsync<EstadoSimulacao>("simulacao?select=ligada&id=eq.1", _sessao.Token)).FirstOrDefault();
+            _simulacaoLigada = estado?.Ligada == true;
+        }
+        catch
+        {
+            _simulacaoLigada = false;
+        }
+        BotaoSimularAgora.Visibility = _sessao.Perfil == Perfil.Gerente ? Visibility.Visible : Visibility.Collapsed;
+        AtualizarFaixaSimulacao();
+    }
+
+    private void AtualizarFaixaSimulacao() =>
+        FaixaSimulacao.Visibility = _simulacaoLigada && !_telaCheia ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>Gerente: faz a loja andar até agora (sem esperar o agendamento de 30 em 30 minutos).</summary>
+    private async void SimularAgora_Click(object sender, RoutedEventArgs e)
+    {
+        if (_api is null) return;
+        BotaoSimularAgora.IsEnabled = false;
+        try
+        {
+            var resposta = await _api.ChamarAsync<string>("simular", new { }, _sessao.Token);
+            MostrarToast(resposta ?? "Simulação atualizada.");
+            if (_telaAtual == "painel") Abrir("painel");
+        }
+        catch (Exception ex)
+        {
+            MostrarToast("Não deu para simular agora: " + ex.Message);
+        }
+        finally
+        {
+            BotaoSimularAgora.IsEnabled = true;
+        }
     }
 
     /// <summary>Abre a tela do menu e devolve ela (ou null se não estiver liberada).</summary>
@@ -76,9 +125,11 @@ public partial class AreaInternaView : UserControl
             "fornecedores" => new FornecedoresView(this, Fornecedores(), Estoque(), Mensagens()),
             "funcionarios" => new FuncionariosView(this, Funcionarios()),
             "fechamento" => new FechamentoView(this, Fechamento(), Caixa()),
+            "previsao" => new PrevisaoView(this, Previsao(), Fornecedores(), Estoque()),
             _ => new CaixaView(this, Caixa(), Estoque()),
         };
         Pagina.Content = tela;
+        _telaAtual = id;
         MontarMenu(id);
         Rolagem.ScrollToTop();
         if (_compacta) MostrarMenuCompacto(false);
@@ -93,6 +144,7 @@ public partial class AreaInternaView : UserControl
     private FuncionarioService? _funcionarios;
     private FechamentoService? _fechamento;
     private MensagensService? _mensagens;
+    private PrevisaoService? _previsao;
 
     private EstoqueService? Estoque() => _api is null ? null : _estoque ??= new EstoqueService(_api, _sessao);
 
@@ -103,6 +155,8 @@ public partial class AreaInternaView : UserControl
     private FuncionarioService? Funcionarios() => _api is null ? null : _funcionarios ??= new FuncionarioService(_api, _sessao);
 
     private FechamentoService? Fechamento() => _api is null ? null : _fechamento ??= new FechamentoService(_api, _sessao);
+
+    private PrevisaoService? Previsao() => _api is null ? null : _previsao ??= new PrevisaoService(_api, _sessao);
 
     public MensagensService? Mensagens() => _api is null ? null : _mensagens ??= new MensagensService(_api, _sessao);
 
@@ -224,6 +278,7 @@ public partial class AreaInternaView : UserControl
         AreaConteudo.Margin = _telaCheia ? new Thickness(0)
             : compacta ? new Thickness(16, 24, 16, 40) : new Thickness(40, 32, 40, 48);
         Rolagem.VerticalScrollBarVisibility = _telaCheia ? ScrollBarVisibility.Disabled : ScrollBarVisibility.Auto;
+        AtualizarFaixaSimulacao();
         MostrarMenuCompacto(false);
     }
 

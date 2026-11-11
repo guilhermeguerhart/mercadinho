@@ -54,13 +54,39 @@ public sealed class SupabaseApi
     // ------------------------------------------------------------ Tabelas com o usuário logado
     // Estas chamadas vão com o token de quem entrou, para o banco aplicar as regras do perfil (RLS).
 
-    /// <summary>Lê linhas. Ex.: consulta = "produtos?select=*,lotes(*)".</summary>
+    /// <summary>O Supabase devolve no máximo 1.000 linhas por consulta; o resto vem em outras páginas.</summary>
+    public const int LinhasPorPagina = 1000;
+
+    /// <summary>
+    /// Lê linhas. Ex.: consulta = "produtos?select=*,lotes(*)". Sem "limit=" na consulta, lê TODAS as linhas, de 1.000 em
+    /// 1.000 (antes, com mais de 1.000 produtos ou pedidos, o resto sumia das telas sem aviso). Sem "order=", ordena
+    /// pelo id para as páginas não repetirem nem pularem linhas.
+    /// </summary>
     public async Task<List<T>> ListarAsync<T>(string consulta, string token)
+    {
+        if (TemParametro(consulta, "limit")) return await PaginaAsync<T>(consulta, token);
+        var separador = consulta.Contains('?') ? "&" : "?";
+        var ordenada = TemParametro(consulta, "order") ? consulta : consulta + separador + "order=id";
+        separador = ordenada.Contains('?') ? "&" : "?";
+        var tudo = new List<T>();
+        for (var inicio = 0; ; inicio += LinhasPorPagina)
+        {
+            var pagina = await PaginaAsync<T>($"{ordenada}{separador}limit={LinhasPorPagina}&offset={inicio}", token);
+            tudo.AddRange(pagina);
+            if (pagina.Count < LinhasPorPagina) return tudo;
+        }
+    }
+
+    private async Task<List<T>> PaginaAsync<T>(string consulta, string token)
     {
         using var req = Requisicao(HttpMethod.Get, consulta, token);
         var resposta = await EnviarAsync(req);
         return await resposta.Content.ReadFromJsonAsync<List<T>>() ?? [];
     }
+
+    /// <summary>A consulta tem o parâmetro principal (não o de uma tabela embutida, como "venda_itens.order").</summary>
+    private static bool TemParametro(string consulta, string nome) =>
+        System.Text.RegularExpressions.Regex.IsMatch(consulta, $@"[?&]{nome}=");
 
     /// <summary>Insere e devolve a linha gravada (com o id criado pelo banco).</summary>
     public async Task<T> InserirAsync<T>(string tabela, object linha, string token)
@@ -142,8 +168,11 @@ public sealed class SupabaseApi
     {
         req.Headers.Add("Prefer", "return=minimal, count=exact");
         var resposta = await EnviarAsync(req);
-        var alteradas = resposta.Content.Headers.ContentRange?.Length
-                        ?? (resposta.Headers.TryGetValues("Content-Range", out var v) && long.TryParse(v.First().Split('/').Last(), out var n) ? n : 1);
+        // O Supabase responde "Content-Range: */0" (sem a unidade "bytes"), que o .NET não lê em ContentRange: por isso o
+        // texto é lido cru. Sem o cabeçalho, considera alterado (como antes).
+        var faixa = resposta.Content.Headers.NonValidated.TryGetValues("Content-Range", out var v) ? v.ToString()
+                    : resposta.Headers.NonValidated.TryGetValues("Content-Range", out var v2) ? v2.ToString() : null;
+        var alteradas = faixa is not null && long.TryParse(faixa.Split('/').Last(), out var n) ? n : 1;
         if (alteradas == 0)
             throw new ConexaoException("Nada foi alterado. O registro não existe mais ou seu perfil não tem permissão.");
     }

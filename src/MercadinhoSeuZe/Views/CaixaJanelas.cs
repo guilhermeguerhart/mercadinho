@@ -117,7 +117,7 @@ internal static class CaixaJanelas
             if (t.Length == 0) return 0;
             if (t.EndsWith('%'))
                 return decimal.TryParse(t.TrimEnd('%').Trim(), NumberStyles.Number, PtBr, out var pct) && pct is >= 0 and <= 100
-                    ? Math.Round(itens * pct / 100, 2) : null;
+                    ? Math.Round(itens * pct / 100, 2, MidpointRounding.AwayFromZero) : null;
             return Formulario.LerPreco(t);
         }
         campo.TextChanged += (_, _) => previa.Text = Ler() is { } d && d <= itens ? $"Total com desconto: {JanelaSimples.Moeda(itens - d)}" : "";

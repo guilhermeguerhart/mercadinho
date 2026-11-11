@@ -205,7 +205,7 @@ public sealed record ResultadoVenda(
 public sealed record Leitura(Produto Produto, decimal? ValorEtiqueta = null)
 {
     /// <summary>Peso da etiqueta: valor impresso ÷ preço por kg (3 casas).</summary>
-    public decimal? PesoEtiqueta => ValorEtiqueta is { } v && Produto.Preco > 0 ? Math.Round(v / Produto.Preco, 3) : null;
+    public decimal? PesoEtiqueta => ValorEtiqueta is { } v && Produto.Preco > 0 ? Math.Round(v / Produto.Preco, 3, MidpointRounding.AwayFromZero) : null;
 }
 
 /// <summary>Códigos de barras que o caixa entende.</summary>

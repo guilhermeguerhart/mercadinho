@@ -3,9 +3,14 @@ bin/
 obj/
 publish/
 publish-dev/
+publish-testes/
 *.user
 .vs/
 .vscode/
 *.suo
 
 # appsettings.json é versionado de propósito: só tem a URL e a chave pública do Supabase.
+
+# Programa de testes: endereço e chave pública do projeto Supabase de teste, e os relatórios gerados.
+testes.json
+relatorio-testes/

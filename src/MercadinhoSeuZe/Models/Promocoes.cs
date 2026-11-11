@@ -33,7 +33,7 @@ public sealed class Promocao
     public string Situacao => Ativa ? "Ativa" : Agendada ? "Agendada" : "Encerrada";
 
     /// <summary>Preço com a promoção (por unidade ou por kg).</summary>
-    public decimal PrecoCom(decimal preco) => PorPreco ? Math.Min(preco, Valor) : Math.Round(preco * (1 - Valor / 100), 2);
+    public decimal PrecoCom(decimal preco) => PorPreco ? Math.Min(preco, Valor) : Promocoes.ComDesconto(preco, Valor);
 
     /// <summary>"R$ 6,99" ou "15%".</summary>
     public string Texto => PorPreco ? Valor.ToString("C", PtBr) : $"{Valor.ToString("0.##", PtBr)}%";
@@ -68,7 +68,7 @@ public sealed class RegraValidade
         var dias = validade.Value.DayNumber - hoje.DayNumber;
         if (dias < 0 || dias > DiasAntes) return 0;
         if (dias <= 1 || DiasAntes == 1) return DescontoMax;
-        return Math.Round(DescontoMin + (DescontoMax - DescontoMin) * (DiasAntes - dias) / (DiasAntes - 1), 2);
+        return Math.Round(DescontoMin + (DescontoMax - DescontoMin) * (DiasAntes - dias) / (DiasAntes - 1), 2, MidpointRounding.AwayFromZero);
     }
 
     /// <summary>Desconto de cada dia, do primeiro até o do vencimento (para a prévia da janela).</summary>
@@ -95,8 +95,18 @@ public static class Promocoes
     public static decimal PrecoDoLote(Produto p, Lote l)
     {
         var porProduto = p.PromocaoAtiva?.PrecoCom(p.Preco) ?? p.Preco;
-        var porValidade = Math.Round(p.Preco * (1 - DescontoValidade(p, l) / 100), 2);
+        var porValidade = ComDesconto(p.Preco, DescontoValidade(p, l));
         return Math.Min(porProduto, porValidade);
+    }
+
+    /// <summary>
+    /// Preço com um desconto em %, com o mesmo arredondamento do banco (preco_com_promocao): o desconto em R$ com 4 casas
+    /// e o preço com 2, meio centavo para cima. Ex.: 15% de R$ 8,90 = R$ 7,57 (o Math.Round padrão daria 7,56).
+    /// </summary>
+    public static decimal ComDesconto(decimal preco, decimal porcentagem)
+    {
+        var desconto = Math.Round(preco * porcentagem / 100, 4, MidpointRounding.AwayFromZero);
+        return Math.Round(preco - desconto, 2, MidpointRounding.AwayFromZero);
     }
 
     /// <summary>Lotes com unidades que estão na promoção de validade hoje.</summary>

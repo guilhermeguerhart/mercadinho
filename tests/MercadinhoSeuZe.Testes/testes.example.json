@@ -1,0 +1,15 @@
+{
+  "_leia": "Copie este arquivo para testes.json (ao lado do MercadinhoSeuZe.Testes.exe) para rodar os testes num projeto Supabase de TESTE. Só a URL e a chave PÚBLICA (sb_publishable). Nunca a chave secreta. Sem o testes.json, os testes usam o banco do mercado e só gravam o que conseguem apagar.",
+  "Supabase": {
+    "Url": "https://SEU-PROJETO-DE-TESTE.supabase.co",
+    "AnonKey": "sb_publishable_..."
+  },
+  "Usuarios": {
+    "gerente":    { "usuario": "marcos.gerente", "senha": "Gerente#4821" },
+    "gerente2":   { "usuario": "julia.gerente",  "senha": "Gerente#7350" },
+    "operador":   { "usuario": "ana.caixa",      "senha": "Caixa#1964" },
+    "operador2":  { "usuario": "pedro.caixa",    "senha": "Caixa#5307" },
+    "desativado": { "usuario": "carla.caixa",    "senha": "Caixa#8142" }
+  },
+  "PermitirMovimentoNoBancoDoMercado": false
+}

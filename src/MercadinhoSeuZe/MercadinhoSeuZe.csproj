@@ -28,6 +28,11 @@
     <DefineConstants>$(DefineConstants);DESENVOLVIMENTO</DefineConstants>
   </PropertyGroup>
 
+  <!-- O programa de testes (tests/MercadinhoSeuZe.Testes) usa as classes internas, como Formulario -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="MercadinhoSeuZe.Testes" />
+  </ItemGroup>
+
   <!-- Ícone também usado na barra de título da janela -->
   <ItemGroup>
     <Resource Include="Assets\mercado.ico" />

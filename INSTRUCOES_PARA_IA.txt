@@ -48,6 +48,34 @@ database/                  Scripts SQL, numerados, para rodar no SQL Editor do S
                            festivas de 2021 a 2028 com fator de movimento, categorias e produtos típicos; preencher_calendario).
   013_dados_exemplo_datas_festivas.sql  Só para teste: gerar_datas_festivas_exemplo() põe vendas a mais nas datas do
                            calendário (produtos de época: panetone, ovo de Páscoa, carvão...) e refaz os fechamentos.
+  014_desempenho_testes.sql  Achados do programa de testes (06/11): índice venda_itens(venda_id), regras de acesso com
+                           (select public.eh_gerente()) (conferido uma vez por consulta, não por linha) e analise_vendas
+                           lendo vendas/itens do período uma vez (mesmo resultado, conferido no PGlite). Não muda dados.
+  015_analise_rapida.sql   Resumo pronto de cada dia passado em analise_cache_dia (total, vendas, descontos, promoções,
+                           custo, formas, categorias, produtos); analise_vendas só soma esses resumos + hoje na hora
+                           (volatile: guarda os dias que faltam). Gatilho em vendas apaga o resumo do dia que mudou.
+                           Depois de gerar dados de exemplo: select public.preencher_analise_cache(); Mesmo resultado
+                           do 014 (conferido no PGlite) e 6 a 8 vezes mais rápido.
+  018_simulador.sql        Só para o desenvolvimento (pedido do Guilherme, 10/11): a loja anda sozinha. pg_cron chama
+                           simular() a cada 30 min: vendas pelo caixa de verdade (reservar_item/finalizar_venda, lotes que
+                           vencem primeiro, promoções) com os operadores de teste, venda perdida quando falta produto
+                           (simulacao_faltas), sangria, pedidos automáticos por fornecedor (previsão do 016 + margem - estoque
+                           - pendente) e entregas (às vezes atrasadas ou faltando item), fechamento dos caixas e do dia.
+                           hoje_local() passa a aceitar mercado.hoje (só dentro da simulação, para recuperar dias parados).
+                           Ligar/desligar: simulacao_ligar(true/false). Faixa "Modo simulação" no app (AreaInternaView).
+                           DESLIGAR e rodar limpar_dados_exemplo antes do uso real.
+  019_semana7_tela_previsao.sql  Tela Previsão de compras (Views/PrevisaoView, Services/PrevisaoService): previsao_ajustar
+                           ignora dias em falta (simulacao_faltas ou 3+ dias sem venda improváveis), faixa de 80% real
+                           (±1,07 desvio no dia, ±1,33 na semana; previsao_dias.desvio), pedido_sugerido() (a tela e o
+                           simulador usam a mesma conta), previsao_produto(), previsao_alertas(), previsao_tela(). Depende do 016.
+  020_laboratorio_previsao.sql  Laboratório da previsão (só na versão de desenvolvimento: aba "Laboratório (dev)" da
+                           PrevisaoView, arquivo PrevisaoView.Laboratorio.cs dentro de #if DESENVOLVIMENTO). Tabelas
+                           previsao_teste_dias (produto x dia) e previsao_teste_loja (movimento x dia) do teste do último
+                           ano, preenchidas por previsao_calcular (redefinida: só chama previsao_guardar_teste). Função
+                           previsao_laboratorio(escopo todos/categoria/produto/loja, categoria, produto, agrupar dia/semana/mes).
+  021_correcao_laboratorio.sql  Corrige o 020: o Supabase recusa UPDATE/DELETE sem WHERE em chamadas do programa
+                           (pg_safeupdate: "UPDATE requires a WHERE clause", erro 400). Regra para os próximos scripts:
+                           toda função chamada pelo programa usa WHERE em UPDATE e DELETE (nem que seja "where true").
   010_semana6_agendamentos.sql  pg_cron + pg_net: ler-emails a cada 5 min e resumo das 23h. Rodar só depois de publicar
                            as Edge Functions e guardar o segredo no Vault (README, "Ligar o e-mail").
 supabase/functions/        Edge Functions (Deno/TypeScript): enviar-email (resumo do dia, pedido e resposta ao
@@ -84,7 +112,17 @@ src/MercadinhoSeuZe/
                            MascaraDinheiro (campo de R$ que se formata enquanto digita).
                            ValoresVenda.cs: interruptor "Ocultar vendas" (R$ •••••). Graficos.cs: barras e colunas.
   Assets/mercado.ico       Ícone do programa.
+tests/MercadinhoSeuZe.Testes/  Programa de testes (console, .exe próprio; não entra no .exe do mercado). Motor/ (registro,
+                           conferências, ambiente, relatório HTML) e Testes/ (um arquivo por módulo: lógica, APIs, login,
+                           segurança, estoque, promoções, fornecedores, funcionários, caixa, fechamento, celular,
+                           integridade, previsão, volume, telas). Usa os serviços do programa (InternalsVisibleTo no .csproj).
+                           No banco do mercado só grava o que apaga no fim (prefixo "TESTE AUTOMATICO", usuários
+                           "teste.auto."); venda/caixa/fechar o dia só com --movimento ou num projeto de teste
+                           (testes.json com URL e chave PÚBLICA, fora do git). Teste novo: mesma Lista do módulo.
+docs/MANUAL_DO_SISTEMA.md  Manual do sistema (uso de cada tela, regras com números, testes e apêndice técnico).
+                           Ao mudar uma regra ou tela, atualize o manual junto.
 publicar.ps1               Gera publish/MercadinhoSeuZe.exe (feche o .exe aberto antes).
+                           Com -Testes gera publish-testes/MercadinhoSeuZe.Testes.exe.
                            Com -Desenvolvimento gera publish-dev/ com os atalhos de teste (Alt+1 no login,
                            Alt+2 no Estoque, em Fornecedores e no Caixa).
 
@@ -452,6 +490,11 @@ publicar.ps1               Gera publish/MercadinhoSeuZe.exe (feche o .exe aberto
 - Fornecedores: a tela lê com itens só os pedidos dos últimos 90 dias e os pendentes (FornecedorService.DiasRecentes);
   de todos os pedidos lê só fornecedor e data (ResumoPedidosAsync), para o total, o "último pedido" e para não
   oferecer "Excluir" a quem tem pedido antigo. "Ver histórico completo" lê os pedidos daquele fornecedor na hora.
+- Mais de 1.000 linhas (achado pelo programa de testes em 06/11): o Supabase devolve no máximo 1.000 linhas por consulta.
+  SupabaseApi.ListarAsync, sem "limit=" na consulta, lê de 1.000 em 1.000 até acabar (ordena por id se não houver
+  "order="). Consulta com "limit=" continua lendo só uma página. "Nada foi alterado" agora aparece de verdade: o
+  Content-Range "*/0" do Supabase é lido cru (o .NET não entende sem a unidade). Preço com desconto em % usa
+  Promocoes.ComDesconto, com o mesmo arredondamento do banco (meio centavo para cima): 15% de R$ 8,90 = R$ 7,57.
 - Velocidade: o SupabaseApi pede respostas comprimidas (gzip/brotli) e reaproveita a conexão; o Estoque, o Painel e
   EstoqueService.ListarComPromocoesAsync fazem as leituras ao mesmo tempo (Task.WhenAll) em vez de uma depois da
   outra; a AreaInternaView cria um serviço de cada só uma vez por login (o que se descobriu sobre os scripts rodados

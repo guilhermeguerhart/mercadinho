@@ -32,9 +32,10 @@ public partial class PedidoJanela : UserControl
     /// <param name="jaPedido">Produto que já está num pedido pendente.</param>
     /// <param name="aoCriar">Recebe a mensagem do aviso, o fornecedor e o texto do pedido para enviar.</param>
     /// <param name="editando">Pedido pendente a alterar (null = pedido novo).</param>
+    /// <param name="quantidades">Quantidade inicial de cada produto de itensIniciais (tela Previsão: o pedido sugerido).</param>
     public PedidoJanela(AreaInternaView area, FornecedorService servico, IReadOnlyList<Fornecedor> fornecedores, IReadOnlyList<Produto> produtos,
         Fornecedor? fornecedor, IReadOnlyList<Produto> itensIniciais, Func<Produto, bool> jaPedido, Func<string, Fornecedor, string, long, Task> aoCriar,
-        Pedido? editando = null)
+        Pedido? editando = null, IReadOnlyDictionary<long, decimal>? quantidades = null)
     {
         InitializeComponent();
         _area = area;
@@ -50,7 +51,7 @@ public partial class PedidoJanela : UserControl
         EscolhaFornecedor.SelectedIndex = fornecedor is null ? 0 : _fornecedores.ToList().FindIndex(f => f.Id == fornecedor.Id) + 1;
 
         foreach (var p in itensIniciais)
-            Adicionar(p, focar: false);
+            Adicionar(p, focar: false, quantidadeInicial: quantidades is not null && quantidades.TryGetValue(p.Id, out var q) ? q : null);
 
         // Edição: fornecedor fixo, itens e datas do pedido
         _editando = editando;

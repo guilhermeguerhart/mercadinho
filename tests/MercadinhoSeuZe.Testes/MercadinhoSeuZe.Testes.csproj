@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Programa de testes do Mercado: confere a lógica, as APIs, o banco, a segurança, a integridade dos dados, os limites
+    e as telas, e grava um relatório em HTML. Não entra no .exe do mercado.
+    Gerar: .\publicar.ps1 -Testes  (sai em publish-testes\MercadinhoSeuZe.Testes.exe)
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>MercadinhoSeuZe.Testes</AssemblyName>
+    <RootNamespace>MercadinhoSeuZe.Testes</RootNamespace>
+    <Product>Mercado - Testes do sistema</Product>
+    <Version>0.1.0</Version>
+    <ApplicationIcon>..\..\src\MercadinhoSeuZe\Assets\mercado.ico</ApplicationIcon>
+    <!-- A janela de console mostra os acentos -->
+    <SatelliteResourceLanguages>pt-BR</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\MercadinhoSeuZe\MercadinhoSeuZe.csproj" />
+  </ItemGroup>
+
+  <!-- Exemplo de configuração do projeto Supabase de teste (copie para testes.json ao lado do .exe) -->
+  <ItemGroup>
+    <None Include="testes.example.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
