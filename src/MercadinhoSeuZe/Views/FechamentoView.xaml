@@ -6,7 +6,7 @@
          e a aba Análises (vendas por dia, semana e mês). Os números vêm das funções resumo_dia e analise_vendas (script 009). -->
     <StackPanel>
         <!-- Cabeçalho -->
-        <DockPanel Margin="0,0,0,28">
+        <DockPanel x:Name="Cabecalho" Margin="0,0,0,28">
             <CheckBox x:Name="ChaveOcultar" DockPanel.Dock="Right" Style="{StaticResource Interruptor}" Content="Ocultar vendas" VerticalAlignment="Bottom"
                       Margin="0,0,0,6" AutomationProperties.Name="Ocultar vendas"
                       ToolTip="Esconde os valores de venda da tela (vale para todas as telas deste computador)" Click="ChaveOcultar_Click" />
@@ -17,7 +17,7 @@
         </DockPanel>
 
         <!-- Abas -->
-        <WrapPanel Margin="0,-12,0,20">
+        <WrapPanel x:Name="Abas" Margin="0,-12,0,20">
             <Button x:Name="AbaBotaoDia" Content="Resumo do dia" Style="{StaticResource Chip}" Tag="ativo" Height="40" MinWidth="150" Uid="dia" Click="Aba_Click" />
             <Button x:Name="AbaBotaoAnalises" Content="Análises" Style="{StaticResource Chip}" Height="40" MinWidth="150" Uid="analises" Click="Aba_Click" />
         </WrapPanel>
@@ -40,7 +40,7 @@
                 <Border x:Name="Situacao" DockPanel.Dock="Right" CornerRadius="3" Padding="10,4" VerticalAlignment="Center">
                     <TextBlock x:Name="SituacaoTexto" FontSize="13" FontWeight="SemiBold" />
                 </Border>
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <StackPanel x:Name="Navegacao" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button x:Name="BotaoAnterior" Content="‹" Style="{StaticResource BotaoFantasma}" Width="40" Height="40" Padding="0" FontSize="20"
                             ToolTip="Dia anterior" AutomationProperties.Name="Dia anterior" Click="DiaAnterior_Click" />
                     <!-- Clicar no dia abre o calendário -->

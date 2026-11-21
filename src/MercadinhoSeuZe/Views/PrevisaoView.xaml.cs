@@ -32,9 +32,11 @@ public partial class PrevisaoView : UserControl
     private string _aba = "pedido";
     private bool _estreita;
 
-    public PrevisaoView(AreaInternaView area, PrevisaoService? servico, FornecedorService? fornecedores, EstoqueService? estoque)
+    /// <param name="embutida">Dentro do Calendário (área "Dados completos da previsão"): sem o título grande.</param>
+    public PrevisaoView(AreaInternaView area, PrevisaoService? servico, FornecedorService? fornecedores, EstoqueService? estoque, bool embutida = false)
     {
         InitializeComponent();
+        if (embutida) Titulo.Visibility = Visibility.Collapsed;
         _area = area;
         _servico = servico;
         _fornecedores = fornecedores;

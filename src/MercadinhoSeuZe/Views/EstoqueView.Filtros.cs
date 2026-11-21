@@ -21,6 +21,7 @@ public partial class EstoqueView
         new("baixo", "Estoque baixo", "IconeRelogio", "Ambar50", "Ambar700"),
         new("aviso", "Repor em breve", "IconeTriangulo", "Ambar50", "Ambar700"),
         new("sem", "Sem estoque", "IconeAlerta", "Vermelho50", "Vermelho600"),
+        new("acaba", "Acabam antes da entrega", "IconeTendencia", "Ambar50", "Ambar700"),
         new("validade", "Validade próxima", "IconeTriangulo", "Ambar50", "Ambar700"),
         new("vencido", "Vencidos", "IconeTriangulo", "Vermelho50", "Vermelho600"),
         new("semcodigo", "Sem código de barras", "IconeCodigoBarras", "Fundo", "Suave"),

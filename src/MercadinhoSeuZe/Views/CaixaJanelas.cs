@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using MercadinhoSeuZe.Models;
+using MercadinhoSeuZe.Services;
 
 namespace MercadinhoSeuZe.Views;
 
@@ -138,6 +139,124 @@ internal static class CaixaJanelas
     }
 
     /// <summary>Consulta de preço (F3): lê o código ou o nome e mostra preço, estoque e validade, sem pôr na venda.</summary>
+    /// <summary>
+    /// F10 "Faltou produto": o cliente procurou e não tinha. Grava a venda perdida (script 022) para a previsão pedir mais
+    /// da próxima vez; "Prateleira vazia" (o sistema tem, a gôndola não) também avisa o gerente no Painel.
+    /// </summary>
+    public static JanelaSimples FaltouProduto(AreaInternaView area, IReadOnlyList<Produto> produtos, Func<Produto, decimal, string, Task<string>> registrar)
+    {
+        var j = new JanelaSimples(area, "Faltou produto (F10)", "O cliente procurou e não tinha. Ajuda a previsão a pedir mais da próxima vez.", 520);
+        var campo = j.Campo("Produto (código ou nome)", "", 60);
+        var sugestoes = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
+        j.Corpo.Children.Add(sugestoes);
+        var info = new TextBlock { FontSize = 13, Style = j.Estilo("TextoSuave"), Margin = new Thickness(0, 6, 0, 0), TextWrapping = TextWrapping.Wrap };
+        j.Corpo.Children.Add(info);
+
+        var linha = new Grid { Margin = new Thickness(0, 14, 0, 0) };
+        linha.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
+        linha.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
+        linha.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        var colQtd = new StackPanel();
+        colQtd.Children.Add(new TextBlock { Text = "Quanto queria", Style = j.Estilo("Rotulo") });
+        var quantidade = new TextBox { Text = "1", MaxLength = 8, HorizontalContentAlignment = HorizontalAlignment.Right };
+        System.Windows.Automation.AutomationProperties.SetName(quantidade, "Quantidade que o cliente queria");
+        colQtd.Children.Add(quantidade);
+        linha.Children.Add(colQtd);
+        var colMotivo = new StackPanel();
+        Grid.SetColumn(colMotivo, 2);
+        colMotivo.Children.Add(new TextBlock { Text = "O que aconteceu", Style = j.Estilo("Rotulo") });
+        var motivos = new WrapPanel();
+        colMotivo.Children.Add(motivos);
+        linha.Children.Add(colMotivo);
+        j.Corpo.Children.Add(linha);
+
+        var motivo = "nao_tinha";
+        foreach (var (id, nome, dica) in new[]
+                 {
+                     ("nao_tinha", "Não tinha", "Acabou: não tinha nenhum"),
+                     ("levou_outro", "Levou outro", "Não tinha e o cliente levou um parecido no lugar"),
+                     ("prateleira_vazia", "Prateleira vazia", "O sistema diz que tem, mas não está na gôndola: o gerente é avisado para repor")
+                 })
+        {
+            var b = new Button { Content = nome, Style = j.Estilo("Chip"), Margin = new Thickness(0, 0, 6, 6), ToolTip = dica, Tag = id == motivo ? "ativo" : null };
+            b.Click += (_, _) =>
+            {
+                motivo = id;
+                foreach (var outro in motivos.Children.OfType<Button>()) outro.Tag = null;
+                b.Tag = "ativo";
+            };
+            motivos.Children.Add(b);
+        }
+
+        Produto? escolhido = null;
+        var escolhendo = false;
+        void Escolher(Produto p)
+        {
+            escolhendo = true;
+            campo.Text = p.Nome;
+            escolhendo = false;
+            escolhido = p;
+            sugestoes.Children.Clear();
+            info.Text = $"Disponível no sistema: {p.Formatar(p.DisponivelParaVenda)}" + (p.PorPeso ? " · quantidade em kg" : "");
+            quantidade.Focus();
+            quantidade.SelectAll();
+        }
+        List<Produto> Buscar(string t)
+        {
+            if (t.Length == 0) return [];
+            if (t.All(char.IsAsciiDigit) && CodigoBarras.Ler(produtos, t)?.Produto is { } lido) return [lido];
+            var n = Normalizar(t);
+            return produtos.Where(p => Normalizar(p.Nome).Contains(n)).OrderByDescending(p => Normalizar(p.Nome).StartsWith(n))
+                .ThenBy(p => p.Nome, StringComparer.Create(PtBr, true)).Take(5).ToList();
+        }
+        campo.TextChanged += (_, _) =>
+        {
+            if (escolhendo) return;   // texto posto por Escolher
+            escolhido = null;
+            info.Text = "";
+            sugestoes.Children.Clear();
+            var t = campo.Text.Trim();
+            if (t.All(char.IsAsciiDigit)) return;   // leitor: espera o Enter
+            foreach (var p in Buscar(t))
+            {
+                var b = new Button { Content = p.Nome, Style = j.Estilo("LinkSuave"), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 2, 0, 2) };
+                b.Click += (_, _) => Escolher(p);
+                sugestoes.Children.Add(b);
+            }
+        };
+        campo.PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key != Key.Enter) return;
+            e.Handled = true;
+            if (Buscar(campo.Text.Trim()).FirstOrDefault() is { } p) Escolher(p);
+            else j.Erro("Nenhum produto encontrado.");
+        };
+
+        Button? registrarBotao = null;
+        async Task Registrar()
+        {
+            if (escolhido is null) { j.Erro("Escolha o produto."); campo.Focus(); return; }
+            var q = Formulario.LerQuantidade(quantidade.Text, escolhido.PorPeso);
+            if (q is not > 0) { j.Erro(escolhido.PorPeso ? "Quanto queria, em kg (ex: 1,5)." : "Quanto queria (número inteiro maior que 0)."); quantidade.Focus(); return; }
+            registrarBotao!.IsEnabled = false;
+            try
+            {
+                var texto = await registrar(escolhido, q.Value, motivo);
+                j.Fechar();
+                area.MostrarToast(texto);
+            }
+            catch (ConexaoException ex)
+            {
+                j.Erro(ex is TabelaInexistenteException ? "Falta rodar o script 022 no Supabase para registrar." : ex.Message);
+                registrarBotao.IsEnabled = true;
+            }
+        }
+        j.Botao("Cancelar", false, j.Fechar);
+        registrarBotao = j.Botao("Registrar", true, () => _ = Registrar());
+        j.Loaded += (_, _) => campo.Focus();
+        return j;
+    }
+
     public static JanelaSimples ConsultaPreco(AreaInternaView area, IReadOnlyList<Produto> produtos)
     {
         var j = new JanelaSimples(area, "Consulta de preço", "Passe o leitor ou digite o nome. Nada entra na venda.", 460);

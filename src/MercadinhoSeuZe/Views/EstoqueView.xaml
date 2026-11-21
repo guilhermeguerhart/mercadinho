@@ -68,7 +68,7 @@
 
         <!-- Indicadores quadrados numa fileira só (clicar filtra a lista; passar o mouse explica) -->
         <Border Style="{StaticResource FaixaKpis}">
-        <UniformGrid x:Name="Kpis" Rows="1" Columns="5">
+        <UniformGrid x:Name="Kpis" Rows="1">
             <Button Style="{StaticResource Kpi}" Uid="todos" Click="Filtro_Click" AutomationProperties.Name="Mostrar todos os produtos">
                 <Button.ToolTip><TextBlock x:Name="KpiTotalSub" Text="Cadastrados no estoque" /></Button.ToolTip>
                 <StackPanel>
@@ -97,6 +97,18 @@
                     </Border>
                     <TextBlock x:Name="KpiSem" Style="{StaticResource KpiValor}" />
                     <TextBlock Text="Sem estoque" Style="{StaticResource KpiRotulo}" />
+                </StackPanel>
+            </Button>
+            <!-- Pela previsão de vendas (script 022): acaba antes da próxima entrega possível do fornecedor -->
+            <Button x:Name="KpiAcabaBotao" Style="{StaticResource Kpi}" Uid="acaba" Click="Filtro_Click" Visibility="Collapsed"
+                    AutomationProperties.Name="Filtrar os que acabam antes da entrega">
+                <Button.ToolTip><TextBlock Text="Pela previsão de vendas, acaba antes de chegar o próximo pedido possível (e ainda não foi pedido)" /></Button.ToolTip>
+                <StackPanel>
+                    <Border Width="22" Height="22" HorizontalAlignment="Left">
+                        <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeTendencia}" Foreground="{StaticResource Ambar700}" Width="16" />
+                    </Border>
+                    <TextBlock x:Name="KpiAcaba" Style="{StaticResource KpiValor}" />
+                    <TextBlock Text="Acabam antes da entrega" Style="{StaticResource KpiRotulo}" />
                 </StackPanel>
             </Button>
             <Button Style="{StaticResource Kpi}" Uid="validade" Click="Filtro_Click" AutomationProperties.Name="Filtrar validade próxima">
@@ -164,7 +176,9 @@
                         <TextBlock Grid.Column="0" Text="PRODUTO" Style="{StaticResource Cabecalho}" />
                         <TextBlock Grid.Column="1" Text="CATEGORIA" Style="{StaticResource Cabecalho}" />
                         <TextBlock Grid.Column="2" Text="QTD" Style="{StaticResource Cabecalho}" HorizontalAlignment="Right" />
-                        <TextBlock Grid.Column="3" Text="PREÇO" Style="{StaticResource Cabecalho}" HorizontalAlignment="Right" Margin="0,0,8,0" />
+                        <TextBlock x:Name="CabecalhoDura" Grid.Column="3" Text="DURA ATÉ" Style="{StaticResource Cabecalho}" HorizontalAlignment="Right" Margin="0,0,8,0"
+                                   ToolTip="Pela previsão de vendas: quando o estoque deve acabar" />
+                        <TextBlock Grid.Column="4" Text="PREÇO" Style="{StaticResource Cabecalho}" HorizontalAlignment="Right" Margin="0,0,8,0" />
                     </Grid>
                 </Border>
 

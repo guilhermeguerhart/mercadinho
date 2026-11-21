@@ -92,6 +92,21 @@
                     <TextBlock x:Name="KpiEstoqueSub" Text="Abaixo do mínimo cadastrado" Style="{StaticResource KpiSub}" />
                 </StackPanel>
             </Border>
+            <!-- Pedido sugerido pela previsão de vendas: clicar abre os Fornecedores -->
+            <Border x:Name="CartaoPedirHoje" Style="{StaticResource Kpi}" Cursor="Hand" MouseLeftButtonUp="PedirHoje_Click"
+                    ToolTip="Pela previsão de vendas: fornecedores em que hoje é o dia de pedir. Clique para ver nos Fornecedores."
+                    AutomationProperties.Name="Pedir hoje">
+                <StackPanel>
+                    <DockPanel>
+                        <Border DockPanel.Dock="Right" Width="36" Height="36" CornerRadius="4" Background="Transparent">
+                            <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeTendencia}" Foreground="{StaticResource Ambar700}" Width="18" />
+                        </Border>
+                        <TextBlock Text="Pedir hoje" Style="{StaticResource KpiRotulo}" />
+                    </DockPanel>
+                    <TextBlock x:Name="KpiPedirHoje" Style="{StaticResource KpiValor}" Text="—" />
+                    <TextBlock x:Name="KpiPedirHojeSub" Text="Pela previsão de vendas" Style="{StaticResource KpiSub}" TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
             <Border Style="{StaticResource Kpi}">
                 <StackPanel>
                     <DockPanel>
@@ -102,18 +117,6 @@
                     </DockPanel>
                     <TextBlock x:Name="KpiPedidos" Style="{StaticResource KpiValor}" Text="—" />
                     <TextBlock x:Name="KpiPedidosSub" Text="Aguardando entrega do fornecedor" Style="{StaticResource KpiSub}" />
-                </StackPanel>
-            </Border>
-            <Border Style="{StaticResource Kpi}">
-                <StackPanel>
-                    <DockPanel>
-                        <Border DockPanel.Dock="Right" Width="36" Height="36" CornerRadius="4" Background="Transparent">
-                            <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeCarteira}" Foreground="{StaticResource Verde700}" Width="18" />
-                        </Border>
-                        <TextBlock Text="Ticket médio" Style="{StaticResource KpiRotulo}" />
-                    </DockPanel>
-                    <Border Style="{StaticResource EtiquetaPreco}" Margin="0,6,0,8" Padding="10,2,10,3"><TextBlock x:Name="KpiTicket" Style="{StaticResource KpiValor}" Text="—" Margin="0" /></Border>
-                    <TextBlock Text="Nas vendas de hoje" Style="{StaticResource KpiSub}" />
                 </StackPanel>
             </Border>
         </UniformGrid>

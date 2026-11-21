@@ -907,7 +907,7 @@ public partial class CaixaView : UserControl
         foreach (var (id, nome, curto, tecla) in FormaPagamento.Todas)
         {
             var conteudo = new DockPanel();
-            var atalho = new TextBlock { Text = tecla, FontSize = 11, Style = Recurso<Style>("TextoSuave"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0) };
+            var atalho = new TextBlock { Text = tecla, FontSize = 12, Style = Recurso<Style>("TextoSuave"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0) };
             DockPanel.SetDock(atalho, Dock.Right);
             conteudo.Children.Add(atalho);
             conteudo.Children.Add(new TextBlock { Text = curto, VerticalAlignment = VerticalAlignment.Center });
@@ -1168,6 +1168,15 @@ public partial class CaixaView : UserControl
 
     private void Consulta_Click(object sender, RoutedEventArgs e) => _area.AbrirJanela(CaixaJanelas.ConsultaPreco(_area, _produtos));
 
+    private void Faltou_Click(object sender, RoutedEventArgs e) => AbrirFaltou();
+
+    /// <summary>F10: o cliente procurou e não tinha (venda perdida para a previsão, script 022).</summary>
+    private void AbrirFaltou()
+    {
+        if (_caixaServico is not { } servico) { _area.MostrarToast("Sistema sem configuração do banco de dados."); return; }
+        _area.AbrirJanela(CaixaJanelas.FaltouProduto(_area, _produtos, (p, q, motivo) => servico.RegistrarVendaPerdidaAsync(p.Id, q, motivo)));
+    }
+
     private async void CancelarVenda_Click(object sender, RoutedEventArgs e) => await CancelarVendaAsync();
 
     /// <summary>Cancelar a venda inteira: com itens, precisa do gerente. Pagamentos com cartão são estornados (simulado).</summary>
@@ -1384,6 +1393,9 @@ public partial class CaixaView : UserControl
                 break;
             case Key.F9:
                 EscolherForma(shift ? "vale_refeicao" : "vale_alimentacao");
+                break;
+            case Key.F10:
+                AbrirFaltou();
                 break;
             case Key.F11:
                 PerguntarCpf();

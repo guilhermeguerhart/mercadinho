@@ -22,6 +22,9 @@ const estado = {
   resumo: null,
   analise: null,
   aba: "Hoje",
+  mes: null,          // calendário: primeiro dia do mês mostrado
+  calendario: null,   // calendario_mes (script 023)
+  diaCalendario: null,
 };
 
 // ---------------------------------------------------------------- Ajudantes
@@ -65,7 +68,8 @@ function mensagemDeErro(e) {
   const m = String(e?.message ?? e ?? "");
   if (/Failed to fetch|NetworkError|network/i.test(m)) return "Sem internet agora. Tente de novo em instantes.";
   if (/JWT|expired|token/i.test(m)) return "Sua sessão expirou. Entre de novo.";
-  if (/does not exist|PGRST202/i.test(m)) return "O banco ainda não tem as funções da semana 6 (script 009).";
+  if (/calendario_mes/i.test(m)) return "O banco ainda não tem o calendário (script 023).";
+  if (/does not exist|PGRST202/i.test(m)) return "O banco ainda não tem as funções desta tela (scripts da semana 6 a 8).";
   return m || "Não foi possível carregar. Tente de novo.";
 }
 
@@ -168,10 +172,10 @@ async function sair() {
 function trocarAba(aba) {
   estado.aba = aba;
   for (const b of document.querySelectorAll(".abas button")) b.classList.toggle("ativo", b.dataset.aba === aba);
-  for (const nome of ["Hoje", "Analises", "Estoque", "Pedir", "Avisos", "Conta"]) $("aba" + nome).hidden = nome !== aba;
+  for (const nome of ["Hoje", "Calendario", "Estoque", "Pedir", "Avisos", "Conta"]) $("aba" + nome).hidden = nome !== aba;
   window.scrollTo(0, 0);
   if (aba === "Hoje") carregarDia();
-  if (aba === "Analises") carregarAnalise();
+  if (aba === "Calendario") carregarCalendario();
   if (aba === "Estoque") carregarEstoque();
   if (aba === "Pedir") carregarPedir();
   if (aba === "Avisos") carregarAvisos();
@@ -263,7 +267,102 @@ function mostrarDia() {
   $("diaDepois").onclick = () => { if (!hoje) { estado.dia = somarDias(estado.dia, 1); estado.resumo = null; carregarDia(); } };
 }
 
-// ---------------------------------------------------------------- Análises
+// ---------------------------------------------------------------- Calendário (semana 8): mês com vendido, previsão e dias de compra
+
+async function carregarCalendario() {
+  const alvo = $("abaCalendario");
+  if (!estado.mes) { const h = hojeLocal(); estado.mes = new Date(h.getFullYear(), h.getMonth(), 1); }
+  if (!estado.calendario) alvo.innerHTML = `<p class="carregando">Carregando o calendário…</p>`;
+  const [cal] = await Promise.all([sb.rpc("calendario_mes", { p_mes: iso(estado.mes) }), carregarSugeridos()]);
+  if (cal.error) { alvo.innerHTML = `<div class="aviso perigo">${esc(mensagemDeErro(cal.error))}</div>`; return; }
+  estado.calendario = cal.data;
+  mostrarCalendario();
+}
+
+function valorCurto(v) {
+  if (estado.ocultar) return "•••";
+  const n = Number(v);
+  return n >= 1000 ? `${(n / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mil` : n.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+}
+
+/** Dias de compra: dia de pedir de fornecedor com produtos no pedido sugerido e último dia para pedir para data festiva grande. */
+function diasDeCompra() {
+  const r = new Map();
+  const por = (dia, t) => { if (!r.has(dia)) r.set(dia, []); r.get(dia).push(t); };
+  for (const s of ped.sugeridos ?? [])
+    if (s.itens.length && !s.tem_pendente) por(s.data_pedido, { titulo: s.fornecedor, detalhe: `${plural(s.itens.length, "produto", "produtos")}: ${s.itens.slice(0, 4).map((i) => i.nome).join(", ")}${s.itens.length > 4 ? "…" : ""}`, s });
+  const hoje = iso(hojeLocal());
+  for (const d of estado.calendario?.datas ?? [])
+    if (Number(d.fator) >= 1.2 && d.pedir_ate >= hoje) por(d.pedir_ate, { titulo: `Último dia para pedir para ${d.nome} (${dataBr(d.dia).slice(0, 5)})`, detalhe: d.produtos ? `Vende a mais: ${d.produtos}` : "Movimento maior que o normal" });
+  return r;
+}
+
+function mostrarCalendario() {
+  const c = estado.calendario;
+  const hoje = iso(hojeLocal());
+  const compras = diasDeCompra();
+  const rotina = new Map();
+  for (const f of c.fornecedores ?? []) for (const d of f.dias ?? []) { if (!rotina.has(d)) rotina.set(d, []); rotina.get(d).push(f.fornecedor); }
+  if (!estado.diaCalendario || estado.diaCalendario < c.inicio || estado.diaCalendario > c.fim) estado.diaCalendario = hoje >= c.inicio && hoje <= c.fim ? hoje : c.inicio;
+
+  const vendido = c.dias.reduce((t, d) => t + Number(d.vendido ?? 0), 0);
+  const previsto = c.dias.filter((d) => d.dia > hoje || (d.dia === hoje && !Number(d.vendido))).reduce((t, d) => t + Number(d.previsto ?? 0), 0);
+  const nomeMes = estado.mes.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  const primeiro = deIso(c.inicio).getDay();
+  const celulas = [];
+  for (let i = 0; i < primeiro; i++) celulas.push(`<div class="cal-vazio"></div>`);
+  for (const d of c.dias) {
+    const passado = d.dia < hoje, ehHoje = d.dia === hoje;
+    const valor = (passado || (ehHoje && Number(d.vendido) > 0)) ? `<b>${valorCurto(d.vendido ?? 0)}</b>` : d.previsto != null && !passado ? `<i>${valorCurto(d.previsto)}</i>` : "";
+    const sinal = compras.has(d.dia) ? `<span class="cal-compra" title="Dia de compra">🚚</span>` : rotina.has(d.dia) && !passado ? `<span class="cal-rotina" aria-hidden="true"></span>` : "";
+    celulas.push(`<button class="cal-dia ${passado ? "passado" : ""} ${ehHoje ? "hoje" : ""} ${d.dia === estado.diaCalendario ? "escolhido" : ""} ${d.evento ? "evento" : ""}"
+      data-dia="${d.dia}" aria-label="${esc(deIso(d.dia).toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" }))}${compras.has(d.dia) ? ", dia de compra" : ""}">
+      <span class="cal-num">${deIso(d.dia).getDate()}${d.fechado ? "✓" : ""}</span>${sinal}${valor}</button>`);
+  }
+
+  // Dia escolhido: até hoje abre o resumo na aba Hoje; futuro mostra a previsão e as compras aqui
+  const dia = c.dias.find((d) => d.dia === estado.diaCalendario);
+  const comprasDia = compras.get(estado.diaCalendario) ?? [];
+  const nomeDia = deIso(estado.diaCalendario).toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
+  const detalhe = !dia ? "" : `<div class="cartao"><h3>${esc(nomeDia[0].toUpperCase() + nomeDia.slice(1))}${dia.evento ? ` · ${esc(dia.evento)}` : ""}</h3>
+    ${dia.dia <= hoje
+      ? `<p class="sub">Vendido: <b>${esc(moeda(dia.vendido ?? 0))}</b> em ${plural(dia.vendas ?? 0, "venda", "vendas")}${dia.fechado ? " · dia fechado" : ""}.</p>
+         <button class="fantasma" id="verResumoDia" style="width:100%">Ver o resumo completo do dia</button>`
+      : dia.previsto != null
+        ? `<p class="sub">Previsão de vendas: <b>≈ ${esc(moeda(dia.previsto))}</b>${estado.ocultar ? "" : ` (entre ${moedaReal(dia.previsto_min)} e ${moedaReal(dia.previsto_max)} em 8 de cada 10 dias)`}.</p>`
+        : `<p class="sub">A previsão vai até ${esc(dataBr(c.previsao_ate))}.</p>`}
+    ${comprasDia.length ? `<h3 style="margin-top:12px">Dia de compra</h3>${comprasDia.map((x) => `<div class="aviso atencao"><div>${esc(x.titulo)}<small>${esc(x.detalhe)}</small></div></div>`).join("")}
+       ${comprasDia.some((x) => x.s) ? `<button class="primario" id="irPedir" style="width:100%">Ver na aba Pedir</button>` : ""}`
+      : rotina.has(estado.diaCalendario) && dia.dia >= hoje ? `<p class="sub">Dia de pedido de rotina de ${esc(rotina.get(estado.diaCalendario).join(", "))}.</p>` : ""}
+  </div>`;
+
+  $("abaCalendario").innerHTML = `
+    <div class="dia-nav">
+      <button class="fantasma" id="mesAntes" aria-label="Mês anterior">‹</button>
+      <strong>${esc(nomeMes[0].toUpperCase() + nomeMes.slice(1))}</strong>
+      <button class="fantasma" id="mesDepois" aria-label="Próximo mês">›</button>
+    </div>
+    <div class="kpis">
+      ${kpi("Vendido", moeda(vendido), "até hoje")}
+      ${kpi("Previsto", previsto > 0 ? moeda(previsto) : "—", "até o fim do mês")}
+    </div>
+    <div class="cal">
+      ${["D", "S", "T", "Q", "Q", "S", "S"].map((d) => `<span class="cal-semana">${d}</span>`).join("")}
+      ${celulas.join("")}
+    </div>
+    <p class="sub cal-legenda">🚚 dia de compra · <span class="cal-rotina" aria-hidden="true"></span> pedido de rotina · <b>vendido</b> · <i>previsto (azul)</i> · ✓ dia fechado</p>
+    ${detalhe}
+    <details class="cartao" id="blocoAnalises"${estado.analise ? " open" : ""}><summary><h3 style="display:inline">Análises de vendas</h3></summary><div id="abaAnalises"></div></details>`;
+  $("mesAntes").onclick = () => { estado.mes = new Date(estado.mes.getFullYear(), estado.mes.getMonth() - 1, 1); estado.calendario = null; carregarCalendario(); };
+  $("mesDepois").onclick = () => { estado.mes = new Date(estado.mes.getFullYear(), estado.mes.getMonth() + 1, 1); estado.calendario = null; carregarCalendario(); };
+  for (const b of document.querySelectorAll("[data-dia]")) b.onclick = () => { estado.diaCalendario = b.dataset.dia; mostrarCalendario(); };
+  if ($("verResumoDia")) $("verResumoDia").onclick = () => { estado.dia = deIso(estado.diaCalendario); estado.resumo = null; trocarAba("Hoje"); };
+  if ($("irPedir")) $("irPedir").onclick = () => trocarAba("Pedir");
+  $("blocoAnalises").addEventListener("toggle", (e) => { if (e.target.open) { if (estado.analise) mostrarAnalise(); else carregarAnalise(); } });
+  if (estado.analise && $("blocoAnalises").open) mostrarAnalise();
+}
+
+// ---------------------------------------------------------------- Análises (dentro do Calendário)
 
 async function carregarAnalise() {
   const alvo = $("abaAnalises");
@@ -319,13 +418,25 @@ function mostrarAnalise() {
 
 async function carregarAvisos(soContar = false) {
   const hoje = iso(hojeLocal());
-  const [mensagens, atrasados, produtos, dia] = await Promise.all([
+  const [mensagens, atrasados, produtos, dia, perdidas, sugeridos] = await Promise.all([
     sb.rpc("mensagens_nao_lidas"),
     sb.from("pedidos").select("id,previsao_entrega,fornecedores(nome)").eq("situacao", "pendente").lt("previsao_entrega", hoje).order("previsao_entrega"),
     sb.from("produtos").select("nome,estoque_minimo,unidade_medida,lotes(quantidade_restante,validade)"),
     sb.rpc("resumo_dia", { p_dia: hoje }),
+    sb.from("vendas_perdidas").select("motivo,quantidade,momento,operador_nome,produtos(nome)").eq("dia", hoje).order("momento", { ascending: false }),
+    carregarSugeridos(),
   ]);
   const avisos = [];
+  // Pela previsão (semana 8): fornecedores para pedir hoje
+  for (const s of sugeridos ?? [])
+    if (s.pedir_hoje && !s.tem_pendente && s.itens.length)
+      avisos.push(["atencao", `Pedir hoje para ${s.fornecedor}: ${plural(s.itens.length, "produto", "produtos")}.`, `Chega ${diaCurto(s.chegada)} e precisa durar até ${diaCurto(s.proxima_entrega)} · aba Pedir`]);
+  // Do caixa (F10): prateleira vazia e clientes que não acharam o produto
+  for (const v of (perdidas.data ?? []).filter((x) => x.motivo === "prateleira_vazia"))
+    avisos.push(["perigo", `${v.produtos?.nome ?? "Produto"} não está na prateleira. Reponha.`, `Avisado no caixa por ${v.operador_nome} às ${hora(v.momento)}`]);
+  const faltaram = new Map();
+  for (const v of (perdidas.data ?? []).filter((x) => x.motivo !== "prateleira_vazia")) faltaram.set(v.produtos?.nome ?? "Produto", (faltaram.get(v.produtos?.nome ?? "Produto") ?? 0) + 1);
+  for (const [nome, n] of faltaram) avisos.push(["atencao", `${plural(n, "cliente procurou", "clientes procuraram")} ${nome} e não tinha.`, "Hoje, no caixa"]);
   for (const m of mensagens.data ?? [])
     avisos.push(["info", `${m.fornecedor_nome} ${m.pedido_id ? `respondeu sobre o pedido nº ${m.pedido_id}` : "mandou mensagem"}${m.quantidade > 1 ? ` (${m.quantidade} mensagens)` : ""}.`, `Chegou às ${hora(m.ultima_em)} · abra em Fornecedores no computador`]);
   for (const p of atrasados.data ?? [])
@@ -412,7 +523,8 @@ $("ocultar").addEventListener("change", (e) => {
   estado.ocultar = e.target.checked;
   gravarLocal("ocultar", estado.ocultar ? "1" : "0");
   if (estado.resumo && estado.aba === "Hoje") mostrarDia();
-  if (estado.analise && estado.aba === "Analises") mostrarAnalise();
+  if (estado.calendario && estado.aba === "Calendario") mostrarCalendario();
+  if (estado.aba === "Pedir" && est.produtos) mostrarPedir();
   if (estado.aba === "Avisos") carregarAvisos();
 });
 sb.auth.onAuthStateChange((evento) => { if (evento === "SIGNED_OUT") mostrarLogin(); });

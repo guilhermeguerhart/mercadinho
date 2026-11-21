@@ -21,10 +21,9 @@ public partial class AreaInternaView : UserControl
         new("painel", "Painel", "IconePainel", true, [Perfil.Gerente]),
         new("estoque", "Estoque", "IconeCaixaProduto", true, [Perfil.Gerente]),
         new("fornecedores", "Fornecedores", "IconeCaminhao", true, [Perfil.Gerente]),
-        new("previsao", "Previsão de compras", "IconeTendencia", true, [Perfil.Gerente]),
+        new("calendario", "Calendário", "IconeCalendario", true, [Perfil.Gerente]),
         new("caixa", "Caixa", "IconeCaixaRegistradora", true, [Perfil.Gerente, Perfil.Operador]),
         new("funcionarios", "Funcionários", "IconeEquipe", true, [Perfil.Gerente]),
-        new("fechamento", "Fechamento do dia", "IconeFechamento", true, [Perfil.Gerente]),
     ];
 
     private readonly MainWindow _janela;
@@ -60,7 +59,67 @@ public partial class AreaInternaView : UserControl
         // Tela inicial de cada perfil: gerente no Painel, operador no Caixa
         Abrir(sessao.Perfil == Perfil.Gerente ? "painel" : "caixa");
         _ = VerSimulacaoAsync();
+
+        // Pedido sugerido pela previsão: o número no menu (Fornecedores) fica à vista em todas as telas
+        if (sessao.Perfil == Perfil.Gerente)
+        {
+            _timerSugeridos.Tick += async (_, _) => await SugeridosAsync(atualizar: true);
+            Loaded += (_, _) => _timerSugeridos.Start();
+            Unloaded += (_, _) => _timerSugeridos.Stop();
+            _ = SugeridosAsync();
+        }
     }
+
+    // ------------------------------------------------------------ Pedido sugerido (previsão), comum a todas as telas
+
+    private readonly DispatcherTimer _timerSugeridos = new() { Interval = TimeSpan.FromMinutes(10) };
+    private List<PedidoSugerido>? _sugeridos;
+    private DateTime _sugeridosEm;
+    private Task<List<PedidoSugerido>?>? _lendoSugeridos;
+
+    /// <summary>Último pedido sugerido lido (null = ainda não leu, sem o script 019/022 ou sem internet).</summary>
+    public List<PedidoSugerido>? Sugeridos => _sugeridos;
+
+    /// <summary>Avisa as telas abertas quando o pedido sugerido muda (pedido criado, entrega, atualização de 10 em 10 min).</summary>
+    public event Action? SugeridosMudaram;
+
+    /// <summary>
+    /// Pedido sugerido de cada fornecedor (o mesmo da tela Previsão de compras), guardado por 5 minutos para todas as telas.
+    /// atualizar: lê de novo (depois de criar pedido ou receber entrega). Só o gerente; null quando não dá para ler.
+    /// </summary>
+    public async Task<List<PedidoSugerido>?> SugeridosAsync(bool atualizar = false)
+    {
+        if (_sessao.Perfil != Perfil.Gerente || Previsao() is not { } servico) return null;
+        if (!atualizar && _sugeridos is not null && DateTime.Now - _sugeridosEm < TimeSpan.FromMinutes(5)) return _sugeridos;
+        if (_lendoSugeridos is { IsCompleted: false } emAndamento) return await emAndamento;
+        _lendoSugeridos = LerSugeridosAsync(servico);
+        return await _lendoSugeridos;
+    }
+
+    private async Task<List<PedidoSugerido>?> LerSugeridosAsync(PrevisaoService servico)
+    {
+        try
+        {
+            _sugeridos = await servico.SugeridosAsync();
+            _sugeridosEm = DateTime.Now;
+        }
+        catch (ConexaoException)
+        {
+            // Sem o script ou sem internet: as telas usam a regra do estoque mínimo, como antes
+            if (_sugeridos is null) return null;
+        }
+        MontarMenu(_telaAtual);
+        SugeridosMudaram?.Invoke();
+        return _sugeridos;
+    }
+
+    /// <summary>Fornecedores com pedido para fazer hoje (número no menu e cartão do Painel).</summary>
+    public int PedidosParaHoje => _sugeridos?.Count(s => s.ParaHoje) ?? 0;
+
+    /// <summary>Depois de criar ou alterar pedido, ou receber entrega: o pedido sugerido muda.</summary>
+    public void PedidosMudaram() => _ = SugeridosAsync(atualizar: true);
+
+    public PrevisaoService? PrevisaoServico() => Previsao();
 
     // ------------------------------------------------------------ Modo simulação (script 018, só no desenvolvimento)
 
@@ -124,8 +183,8 @@ public partial class AreaInternaView : UserControl
             "estoque" => new EstoqueView(this, Estoque(), Fornecedores()),
             "fornecedores" => new FornecedoresView(this, Fornecedores(), Estoque(), Mensagens()),
             "funcionarios" => new FuncionariosView(this, Funcionarios()),
-            "fechamento" => new FechamentoView(this, Fechamento(), Caixa()),
-            "previsao" => new PrevisaoView(this, Previsao(), Fornecedores(), Estoque()),
+            // Calendário (20/11): junta a antiga Previsão de compras e o Fechamento do dia
+            "calendario" => new CalendarioView(this, Previsao(), Fechamento(), Caixa(), Fornecedores(), Estoque()),
             _ => new CaixaView(this, Caixa(), Estoque()),
         };
         Pagina.Content = tela;
@@ -234,10 +293,27 @@ public partial class AreaInternaView : UserControl
                     CornerRadius = new CornerRadius(9),
                     Padding = new Thickness(7, 1, 7, 1),
                     VerticalAlignment = VerticalAlignment.Center,
-                    Child = new TextBlock { Text = "em breve", FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = (Brush)FindResource("Suave") }
+                    Child = new TextBlock { Text = "em breve", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = (Brush)FindResource("Suave") }
                 };
                 DockPanel.SetDock(embreve, Dock.Right);
                 linha.Children.Add(embreve);
+            }
+            // Fornecedores: quantos pedidos a previsão manda fazer hoje
+            if (item.Id == "fornecedores" && PedidosParaHoje > 0)
+            {
+                var n = PedidosParaHoje;
+                var numero = new Border
+                {
+                    Background = (Brush)FindResource("Ambar50"),
+                    CornerRadius = new CornerRadius(9),
+                    MinWidth = 22,
+                    Padding = new Thickness(7, 1, 7, 1),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    ToolTip = n == 1 ? "1 pedido para fazer hoje (previsão de compras)" : $"{n} pedidos para fazer hoje (previsão de compras)",
+                    Child = new TextBlock { Text = n.ToString(), FontSize = 12, FontWeight = FontWeights.Bold, Foreground = (Brush)FindResource("Ambar700"), HorizontalAlignment = HorizontalAlignment.Center }
+                };
+                DockPanel.SetDock(numero, Dock.Right);
+                linha.Children.Add(numero);
             }
             linha.Children.Add(new TextBlock { Text = item.Nome, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 8, 0, 8) });
 
@@ -247,7 +323,8 @@ public partial class AreaInternaView : UserControl
                 Content = linha,
                 Tag = item.Id == ativo ? "ativo" : null
             };
-            System.Windows.Automation.AutomationProperties.SetName(botao, item.Nome);
+            System.Windows.Automation.AutomationProperties.SetName(botao, item.Id == "fornecedores" && PedidosParaHoje > 0
+                ? $"{item.Nome} ({PedidosParaHoje} para pedir hoje)" : item.Nome);
             botao.Click += (_, _) => Abrir(item.Id);
             ItensMenu.Children.Add(botao);
         }

@@ -68,6 +68,53 @@ public sealed class PedidoSugerido
     [JsonPropertyName("tem_pendente")] public bool TemPendente { get; set; }
     [JsonPropertyName("total")] public decimal Total { get; set; }
     [JsonPropertyName("itens")] public List<ItemSugerido> Itens { get; set; } = [];
+
+    /// <summary>Hora de fazer este pedido: é o dia de pedir, tem o que pedir e não há pedido pendente dele.</summary>
+    [JsonIgnore] public bool ParaHoje => PedirHoje && !TemPendente && Itens.Count > 0;
+
+    /// <summary>Tem produto zerado no pedido (vale avisar mesmo fora do dia de pedir).</summary>
+    [JsonIgnore] public bool TemZerado => !TemPendente && Itens.Any(i => i.Estoque <= 0);
+}
+
+/// <summary>Até quando o estoque de um produto dura pela previsão (função previsao_duracao, script 022).</summary>
+public sealed class DuracaoProduto
+{
+    [JsonPropertyName("produto_id")] public long ProdutoId { get; set; }
+    [JsonPropertyName("estoque")] public decimal Estoque { get; set; }
+    [JsonPropertyName("tem_historico")] public bool TemHistorico { get; set; }
+    /// <summary>Dia em que a previsão diz que acaba (null = não acaba nos dias previstos).</summary>
+    [JsonPropertyName("acaba_em")] public DateOnly? AcabaEm { get; set; }
+    /// <summary>Último dia que a previsão cobre.</summary>
+    [JsonPropertyName("previsto_ate")] public DateOnly? PrevistoAte { get; set; }
+    /// <summary>Próxima entrega possível do fornecedor do produto (pedindo no próximo dia de pedido).</summary>
+    [JsonPropertyName("chegada")] public DateOnly? Chegada { get; set; }
+    [JsonPropertyName("antes_da_entrega")] public bool AntesDaEntrega { get; set; }
+    [JsonPropertyName("ja_pedido")] public bool JaPedido { get; set; }
+    [JsonPropertyName("dias_sem_venda")] public int? DiasSemVenda { get; set; }
+
+    /// <summary>Tem estoque, costuma vender e está há 14 dias ou mais sem nenhuma venda (está na prateleira?).</summary>
+    [JsonIgnore] public bool Parado => TemHistorico && Estoque > 0 && (DiasSemVenda ?? 999) >= 14;
+}
+
+/// <summary>Venda perdida registrada no caixa (botão "Faltou produto", script 022).</summary>
+public sealed class VendaPerdida
+{
+    [JsonPropertyName("id")] public long Id { get; set; }
+    [JsonPropertyName("dia")] public DateOnly Dia { get; set; }
+    [JsonPropertyName("momento")] public DateTimeOffset Momento { get; set; }
+    [JsonPropertyName("produto_id")] public long ProdutoId { get; set; }
+    [JsonPropertyName("quantidade")] public decimal Quantidade { get; set; }
+    /// <summary>nao_tinha, levou_outro ou prateleira_vazia.</summary>
+    [JsonPropertyName("motivo")] public string Motivo { get; set; } = "nao_tinha";
+    [JsonPropertyName("operador_nome")] public string OperadorNome { get; set; } = "";
+    [JsonPropertyName("estoque_no_sistema")] public decimal? EstoqueNoSistema { get; set; }
+    [JsonPropertyName("produtos")] public NomeProduto? Produto { get; set; }
+
+    public sealed class NomeProduto
+    {
+        [JsonPropertyName("nome")] public string Nome { get; set; } = "";
+        [JsonPropertyName("unidade_medida")] public string Unidade { get; set; } = "un";
+    }
 }
 
 public sealed class ItemSugerido
@@ -86,8 +133,13 @@ public sealed class ItemSugerido
     [JsonPropertyName("eventos")] public string? Eventos { get; set; }
     [JsonPropertyName("sugerido")] public decimal Sugerido { get; set; }
     [JsonPropertyName("custo")] public decimal? Custo { get; set; }
+    /// <summary>Estoque mínimo do cadastro (script 022).</summary>
+    [JsonPropertyName("minimo")] public decimal Minimo { get; set; }
+    /// <summary>"previsao" (pelas vendas) ou "minimo" (produto sem histórico: regra do estoque mínimo). Script 022.</summary>
+    [JsonPropertyName("regra")] public string Regra { get; set; } = "previsao";
 
     [JsonIgnore] public bool PorPeso => Unidade == "kg";
+    [JsonIgnore] public bool PeloMinimo => Regra == "minimo";
 }
 
 /// <summary>Um produto: semanas passadas, próximas semanas e o que o modelo aprendeu (função previsao_produto).</summary>
@@ -273,4 +325,52 @@ public sealed class LabAno
     [JsonPropertyName("vies")] public decimal? Vies { get; set; }
     [JsonPropertyName("dentro_faixa")] public decimal? DentroFaixa { get; set; }
     [JsonPropertyName("semanas_com_anomalia")] public int? SemanasComAnomalia { get; set; }
+}
+
+/// <summary>Um mês da tela Calendário (função calendario_mes, script 023).</summary>
+public sealed class CalendarioMes
+{
+    [JsonPropertyName("hoje")] public DateOnly Hoje { get; set; }
+    [JsonPropertyName("inicio")] public DateOnly Inicio { get; set; }
+    [JsonPropertyName("fim")] public DateOnly Fim { get; set; }
+    [JsonPropertyName("previsao_ate")] public DateOnly? PrevisaoAte { get; set; }
+    [JsonPropertyName("dias")] public List<DiaCalendario> Dias { get; set; } = [];
+    [JsonPropertyName("fornecedores")] public List<DiasDePedido> Fornecedores { get; set; } = [];
+    [JsonPropertyName("datas")] public List<DataFestiva> Datas { get; set; } = [];
+}
+
+public sealed class DiaCalendario
+{
+    [JsonPropertyName("dia")] public DateOnly Dia { get; set; }
+    /// <summary>Vendas pagas (só até hoje).</summary>
+    [JsonPropertyName("vendido")] public decimal? Vendido { get; set; }
+    [JsonPropertyName("vendas")] public int? Vendas { get; set; }
+    [JsonPropertyName("fechado")] public bool Fechado { get; set; }
+    /// <summary>Previsão de vendas em R$ (de hoje em diante, nos dias que a previsão cobre).</summary>
+    [JsonPropertyName("previsto")] public decimal? Previsto { get; set; }
+    [JsonPropertyName("previsto_min")] public decimal? PrevistoMin { get; set; }
+    [JsonPropertyName("previsto_max")] public decimal? PrevistoMax { get; set; }
+    /// <summary>Vendido no mesmo dia da semana, 52 semanas antes.</summary>
+    [JsonPropertyName("ano_passado")] public decimal? AnoPassado { get; set; }
+    [JsonPropertyName("evento")] public string? Evento { get; set; }
+    [JsonPropertyName("fechado_evento")] public bool LojaFechada { get; set; }
+}
+
+/// <summary>Dias do mês em que pedir para o fornecedor pega uma entrega dele.</summary>
+public sealed class DiasDePedido
+{
+    [JsonPropertyName("fornecedor_id")] public long FornecedorId { get; set; }
+    [JsonPropertyName("fornecedor")] public string Fornecedor { get; set; } = "";
+    [JsonPropertyName("prazo")] public int Prazo { get; set; }
+    [JsonPropertyName("dias")] public List<DateOnly>? Dias { get; set; }
+}
+
+/// <summary>Data festiva: último dia para pedir e os produtos que vendem a mais.</summary>
+public sealed class DataFestiva
+{
+    [JsonPropertyName("dia")] public DateOnly Dia { get; set; }
+    [JsonPropertyName("nome")] public string Nome { get; set; } = "";
+    [JsonPropertyName("fator")] public decimal Fator { get; set; }
+    [JsonPropertyName("pedir_ate")] public DateOnly PedirAte { get; set; }
+    [JsonPropertyName("produtos")] public string? Produtos { get; set; }
 }

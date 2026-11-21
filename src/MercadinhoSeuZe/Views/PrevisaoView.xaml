@@ -10,7 +10,7 @@
             <Button x:Name="BotaoAtualizar" DockPanel.Dock="Right" Style="{StaticResource BotaoFantasma}" Height="40" Padding="16,0" VerticalAlignment="Bottom"
                     Content="Atualizar" Click="Atualizar_Click" ToolTip="Ler de novo do banco" />
             <StackPanel Margin="0,0,16,0">
-                <TextBlock Text="Previsão de compras" FontSize="28" FontWeight="Bold" Margin="0,0,0,4" />
+                <TextBlock x:Name="Titulo" Text="Previsão de compras" FontSize="28" FontWeight="Bold" Margin="0,0,0,4" />
                 <TextBlock x:Name="Subtitulo" Text="Carregando…" Style="{StaticResource TextoSuave}" TextWrapping="Wrap" />
             </StackPanel>
         </DockPanel>

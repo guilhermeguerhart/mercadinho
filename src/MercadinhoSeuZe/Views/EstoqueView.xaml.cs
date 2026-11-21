@@ -27,6 +27,7 @@ public partial class EstoqueView : UserControl
     private List<RegraValidade> _regras = [];
     private List<Fornecedor>? _listaFornecedores;   // null = tabela de fornecedores ainda não existe
     private List<Pedido> _pendentes = [];
+    private Dictionary<long, DuracaoProduto>? _duracao;   // previsão (script 022); null = sem previsão: a coluna some
     private string _filtro = "todos";
     private string? _categoria;          // null = todas
     private string _tipo = "todos";      // todos, un (por unidade) ou kg (por quilo)
@@ -62,6 +63,7 @@ public partial class EstoqueView : UserControl
 
         // Tudo pedido ao mesmo tempo: o tempo de espera é o da consulta mais lenta, não a soma delas
         var fornecedores = CarregarFornecedoresAsync();
+        var duracao = CarregarDuracaoAsync();
         try
         {
             var lista = _servico.ListarComPromocoesAsync();
@@ -76,7 +78,7 @@ public partial class EstoqueView : UserControl
             MostrarErro(ex.Message);
             return;
         }
-        await fornecedores;
+        await Task.WhenAll(fornecedores, duracao);
         if (_listaFornecedores is not null) Fornecedor.AplicarPrazos(_produtos, _listaFornecedores);
         Mostrar();
         MostrarPromocoes();
@@ -105,6 +107,18 @@ public partial class EstoqueView : UserControl
         }
     }
 
+    /// <summary>Até quando cada produto dura pela previsão (script 022). Sem o script ou sem internet: sem a coluna.</summary>
+    private async Task CarregarDuracaoAsync()
+    {
+        if (_area.PrevisaoServico() is not { } previsao) { _duracao = null; return; }
+        try { _duracao = (await previsao.DuracaoAsync()).ToDictionary(d => d.ProdutoId); }
+        catch (ConexaoException) { _duracao = null; }
+    }
+
+    private DuracaoProduto? DuracaoDe(Produto p) => _duracao?.GetValueOrDefault(p.Id);
+
+    private bool AcabaAntesDaEntrega(Produto p) => DuracaoDe(p)?.AntesDaEntrega == true;
+
     private void MostrarErro(string texto)
     {
         AvisoErroTexto.Text = texto;
@@ -131,6 +145,10 @@ public partial class EstoqueView : UserControl
         var nValidade = _produtos.Count(p => p.ValidadeProxima);
         var nVencido = _produtos.Count(p => p.Vencido);
         var nAviso = _produtos.Count(p => p.AvisoAntecipado);
+        var nAcaba = _produtos.Count(AcabaAntesDaEntrega);
+        KpiAcabaBotao.Visibility = _duracao is null ? Visibility.Collapsed : Visibility.Visible;
+        KpiAcaba.Text = nAcaba.ToString(PtBr);
+        if (_duracao is null && _filtro == "acaba") _filtro = "todos";
 
         foreach (var kpi in Kpis.Children.OfType<Button>())
             kpi.Tag = kpi.Uid == _filtro ? "ativo" : null;
@@ -146,7 +164,8 @@ public partial class EstoqueView : UserControl
         KpiValidade.Text = nValidade.ToString(PtBr);
         KpiVencido.Text = nVencido.ToString(PtBr);
         Resumo.Text = $"{Plural(_produtos.Count, "produto cadastrado", "produtos cadastrados")} · {nBaixo} com estoque baixo · {nAviso} para repor em breve · " +
-                      $"{nSem} sem estoque · {nValidade} com validade próxima · {nVencido} vencidos";
+                      $"{nSem} sem estoque · {nValidade} com validade próxima · {nVencido} vencidos" +
+                      (_duracao is null ? "" : $" · {nAcaba} acabam antes da próxima entrega");
 
         var termo = Busca.Text.Trim();
         // Busca, filtro ou ordem diferentes da última vez: volta para a página 1 (abrir lotes ou editar mantém a página)
@@ -155,7 +174,7 @@ public partial class EstoqueView : UserControl
         _ultimaConsulta = consulta;
 
         IEnumerable<Produto> lista = _produtos
-            .Where(p => PassaBusca(p, termo) && PassaSituacao(p, _filtro) && PassaCategoria(p, _categoria) && PassaTipo(p, _tipo));
+            .Where(p => PassaBusca(p, termo) && (_filtro == "acaba" ? AcabaAntesDaEntrega(p) : PassaSituacao(p, _filtro)) && PassaCategoria(p, _categoria) && PassaTipo(p, _tipo));
         var porNome = StringComparer.Create(PtBr, CompareOptions.IgnoreCase);
         lista = _ordem switch
         {
@@ -163,8 +182,11 @@ public partial class EstoqueView : UserControl
             "quantidade" => lista.OrderBy(p => p.Quantidade).ThenBy(p => p.Nome, porNome),
             "valor" => lista.OrderByDescending(p => p.Quantidade * p.Preco).ThenBy(p => p.Nome, porNome),
             "preco" => lista.OrderBy(p => p.Preco).ThenBy(p => p.Nome, porNome),
+            _ when _filtro == "acaba" => lista.OrderBy(p => DuracaoDe(p)?.AcabaEm ?? DateOnly.MaxValue).ThenBy(p => p.Nome, porNome),
             _ => lista.OrderBy(p => p.Nome, porNome)
         };
+        AjustarColunas(CabecalhoTabela);
+        CabecalhoDura.Visibility = _duracao is null || _compacta ? Visibility.Collapsed : Visibility.Visible;
         var pagina = _paginas.Recortar(lista.ToList());
         MostrarFiltrosAtivos(termo, _paginas.Total);
 
@@ -230,13 +252,13 @@ public partial class EstoqueView : UserControl
         System.Windows.Automation.AutomationProperties.SetName(seta, aberto ? $"Fechar detalhes de {p.Nome}" : $"Abrir detalhes de {p.Nome}");
         seta.Click += (_, _) => AlternarLotes(p.Id);
         seta.HorizontalAlignment = HorizontalAlignment.Right;
-        Colocar(grade, seta, 5);
+        Colocar(grade, seta, 6);
 
         // Antes da seta: alerta de validade (vermelho = vencido, amarelo = vence em até 30 dias)
         if (SinalValidade(p.Situacao) is { } sinalValidade)
         {
             sinalValidade.HorizontalAlignment = HorizontalAlignment.Center;
-            Colocar(grade, sinalValidade, 4);
+            Colocar(grade, sinalValidade, 5);
         }
 
         // Produto
@@ -304,7 +326,8 @@ public partial class EstoqueView : UserControl
             celulaPreco.ToolTip = $"Promoção {promo.Texto} {promo.Periodo}";
         }
         celulaPreco.Children.Add(preco);
-        Colocar(grade, celulaPreco, 3);
+        Colocar(grade, celulaPreco, 4);
+        if (_duracao is not null && !_compacta && CelulaDura(p) is { } dura) Colocar(grade, dura, 3);
 
         // Clicar em qualquer parte da linha também abre e fecha
         var linha = new Border { Background = Brushes.Transparent, Cursor = System.Windows.Input.Cursors.Hand, Child = grade };
@@ -320,6 +343,43 @@ public partial class EstoqueView : UserControl
             BorderThickness = new Thickness(0, 0, 0, 1),
             Background = aberto ? Recurso<Brush>("Fundo") : Brushes.Transparent,
             Child = bloco
+        };
+    }
+
+    /// <summary>
+    /// "~2 dias · qua" (vermelho), "~4 dias · antes da entrega" (âmbar), "~5 semanas" (verde), "sem histórico" ou
+    /// "parado há 40 dias" (cinza). Pela previsão de vendas (previsao_duracao, script 022).
+    /// </summary>
+    private Border? CelulaDura(Produto p)
+    {
+        if (DuracaoDe(p) is not { } d) return null;
+        var hoje = DateOnly.FromDateTime(DateTime.Today);
+        string texto, fundo, cor, dica;
+        if (!d.TemHistorico)
+            (texto, fundo, cor, dica) = ("sem histórico", "Fundo", "Suave", "Ainda sem vendas para prever: o pedido usa o estoque mínimo.");
+        else if (d.Parado)
+            (texto, fundo, cor, dica) = ($"parado há {d.DiasSemVenda ?? 120} dias", "Fundo", "Suave",
+                "Costuma vender, mas não vende há 2 semanas ou mais. Está na prateleira? Está escondido ou vencido?");
+        else if (d.AcabaEm is not { } acaba)
+            (texto, fundo, cor, dica) = (d.PrevistoAte is { } ate ? $"além de {ate:dd/MM}" : "—", "Verde50", "Verde700", "Dura mais que os dias previstos.");
+        else
+        {
+            var dias = Math.Max(0, acaba.DayNumber - hoje.DayNumber);
+            var quanto = d.Estoque <= 0 ? "acabou" : dias == 0 ? "acaba hoje" : dias < 14 ? $"~{dias} {(dias == 1 ? "dia" : "dias")}" : $"~{dias / 7} semanas";
+            var chegada = d.Chegada is { } c ? $" A próxima entrega possível é {c:dd/MM}." : "";
+            if (d.AntesDaEntrega)
+                (texto, fundo, cor, dica) = ($"{quanto} · antes da entrega", dias <= 2 ? "Vermelho50" : "Ambar50", dias <= 2 ? "Vermelho600" : "Ambar700",
+                    $"Pela previsão acaba em {acaba:dd/MM}, antes da próxima entrega.{chegada} Peça hoje.");
+            else
+                (texto, fundo, cor, dica) = (dias < 14 ? $"{quanto} · {acaba.ToString("ddd", PtBr).TrimEnd('.')}" : quanto,
+                    d.JaPedido ? "Azul50" : dias < 7 ? "Ambar50" : "Verde50", d.JaPedido ? "Azul600" : dias < 7 ? "Ambar700" : "Verde700",
+                    $"Pela previsão acaba em {acaba:dd/MM}.{chegada}" + (d.JaPedido ? " Já tem pedido pendente." : ""));
+        }
+        return new Border
+        {
+            Background = Recurso<Brush>(fundo), CornerRadius = new CornerRadius(4), Padding = new Thickness(8, 2, 8, 3),
+            HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0), ToolTip = dica,
+            Child = new TextBlock { Text = texto, FontSize = 12.5, FontWeight = FontWeights.SemiBold, Foreground = Recurso<Brush>(cor), TextTrimming = TextTrimming.CharacterEllipsis }
         };
     }
 
@@ -680,9 +740,10 @@ public partial class EstoqueView : UserControl
     private void AjustarColunas(Grid grade)
     {
         grade.ColumnDefinitions.Clear();
+        var dura = _duracao is null ? 0 : 190;
         GridLength[] larguras = _compacta
-            ? [new(1, GridUnitType.Star), new(0), new(96), new(0), new(28), new(32)]
-            : [new(2.2, GridUnitType.Star), new(1.3, GridUnitType.Star), new(110), new(130), new(36), new(40)];
+            ? [new(1, GridUnitType.Star), new(0), new(96), new(0), new(0), new(28), new(32)]
+            : [new(2.2, GridUnitType.Star), new(1.3, GridUnitType.Star), new(110), new(dura), new(130), new(36), new(40)];
         foreach (var l in larguras)
             grade.ColumnDefinitions.Add(new ColumnDefinition { Width = l });
     }
@@ -701,7 +762,7 @@ public partial class EstoqueView : UserControl
         CaixaLeitor.HorizontalAlignment = compacta ? HorizontalAlignment.Stretch : HorizontalAlignment.Right;
         AjustarColunas(CabecalhoTabela);
         foreach (TextBlock t in CabecalhoTabela.Children)
-            t.Visibility = _compacta && Grid.GetColumn(t) is 1 or 3 ? Visibility.Collapsed : Visibility.Visible;
+            t.Visibility = _compacta && Grid.GetColumn(t) is 1 or 3 or 4 ? Visibility.Collapsed : Visibility.Visible;
         if (_carregou) Mostrar();
     }
 

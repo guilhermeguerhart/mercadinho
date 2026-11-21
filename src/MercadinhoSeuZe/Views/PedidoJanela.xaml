@@ -22,6 +22,18 @@
             <ComboBox x:Name="EscolhaFornecedor" SelectionChanged="Fornecedor_SelectionChanged" AutomationProperties.Name="Fornecedor" />
             <TextBlock x:Name="FornecedorErro" Style="{StaticResource ErroCampo}" />
 
+            <!-- Quantidades da previsão de vendas (pedido sugerido do fornecedor escolhido) -->
+            <Border x:Name="FaixaPrevisao" Background="{StaticResource Azul50}" CornerRadius="8" Padding="14,10" Margin="0,12,0,0" Visibility="Collapsed">
+                <DockPanel>
+                    <Button x:Name="BotaoLimparItens" DockPanel.Dock="Right" Content="Limpar itens" Style="{StaticResource BotaoFantasma}" Height="32"
+                            Padding="12,0" FontSize="13" Margin="12,0,0,0" VerticalAlignment="Center" Click="LimparItens_Click"
+                            ToolTip="Tira todos os itens para montar o pedido do zero" />
+                    <ContentControl DockPanel.Dock="Left" Style="{StaticResource Icone}" Tag="{StaticResource IconeTendencia}" Foreground="{StaticResource Azul600}"
+                                    Width="20" Margin="0,0,12,0" VerticalAlignment="Center" />
+                    <TextBlock x:Name="TextoPrevisao" FontSize="13.5" TextWrapping="Wrap" VerticalAlignment="Center" />
+                </DockPanel>
+            </Border>
+
             <!-- Itens -->
             <DockPanel Margin="0,18,0,8">
                 <Button x:Name="BotaoOQueFalta" DockPanel.Dock="Right" Style="{StaticResource BotaoLink}" FontSize="13" VerticalAlignment="Bottom"

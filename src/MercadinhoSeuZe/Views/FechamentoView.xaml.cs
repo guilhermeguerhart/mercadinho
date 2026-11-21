@@ -29,19 +29,39 @@ public partial class FechamentoView : UserControl
     private bool _abaAnalises;
     private bool _estreita;
 
-    public FechamentoView(AreaInternaView area, FechamentoService? servico, CaixaService? caixa)
+    /// <param name="modo">Dentro do Calendário: "dia" (só o resumo e o fechamento do dia escolhido no calendário) ou
+    /// "analises" (só as análises). null = tela inteira, com cabeçalho e abas.</param>
+    public FechamentoView(AreaInternaView area, FechamentoService? servico, CaixaService? caixa, string? modo = null, DateTime? dia = null)
     {
         InitializeComponent();
         _area = area;
         _servico = servico;
         _caixa = caixa;
+        _dia = dia ?? DateTime.Today;
         ChaveOcultar.IsChecked = ValoresVenda.Ocultos;
+        if (modo is not null)
+        {
+            Cabecalho.Visibility = Visibility.Collapsed;
+            Abas.Visibility = Visibility.Collapsed;
+            Navegacao.Visibility = Visibility.Collapsed;
+            _abaAnalises = modo == "analises";
+            AbaDia.Visibility = _abaAnalises ? Visibility.Collapsed : Visibility.Visible;
+            AbaAnalises.Visibility = _abaAnalises ? Visibility.Visible : Visibility.Collapsed;
+        }
         Loaded += async (_, _) =>
         {
             ValoresVenda.Mudou += Redesenhar;
-            await CarregarDiaAsync();
+            if (_abaAnalises) { if (_analise is null) await CarregarAnaliseAsync(); }
+            else await CarregarDiaAsync();
         };
         Unloaded += (_, _) => ValoresVenda.Mudou -= Redesenhar;
+    }
+
+    /// <summary>Calendário: mostra o resumo e o fechamento de outro dia (até hoje).</summary>
+    public async Task MostrarDiaAsync(DateTime dia)
+    {
+        _dia = dia.Date > DateTime.Today ? DateTime.Today : dia.Date;
+        if (IsLoaded) await CarregarDiaAsync();
     }
 
     // ------------------------------------------------------------ Dados

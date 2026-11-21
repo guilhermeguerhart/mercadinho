@@ -86,6 +86,16 @@ public static class PrevisaoTestes
                 foreach (var i in s.Itens)
                 {
                     itens++;
+                    if (i.PeloMinimo)
+                    {
+                        // Sem histórico de vendas (script 022): regra do estoque mínimo, 2 × mínimo − estoque, pelo menos o mínimo
+                        var passoMin = i.PorPeso ? 0.1m : Math.Max(i.Caixa, 1);
+                        Verificar.Verdadeiro(i.Sugerido > 0 && i.Sugerido + 0.001m >= i.Minimo, $"{i.Nome}: sugerido {i.Sugerido} abaixo do mínimo {i.Minimo} (regra do estoque mínimo)");
+                        Verificar.Verdadeiro(i.Pendente == 0, $"{i.Nome}: já tem pedido pendente e entrou pela regra do mínimo");
+                        Verificar.Verdadeiro(Math.Abs(i.Sugerido / passoMin - Math.Round(i.Sugerido / passoMin)) < 0.001m,
+                            $"{i.Nome}: {i.Sugerido} não é {(i.PorPeso ? "múltiplo de 0,1 kg" : $"caixa fechada de {passoMin:0}")}");
+                        continue;
+                    }
                     var falta = i.Previsto + i.Margem - i.Estoque - i.Pendente;
                     var passo = i.PorPeso ? 1 : Math.Max(i.Caixa, 1);
                     Verificar.Verdadeiro(i.Sugerido > 0, $"{i.Nome}: sugerido {i.Sugerido} (só entra o que falta)");
@@ -107,13 +117,21 @@ public static class PrevisaoTestes
             var g = await amb.Entrar("gerente");
             var sugeridos = await Erros.SemScriptPula(new PrevisaoService(amb.Api!, g).SugeridosAsync, "019");
             var fornecedores = (await amb.Api!.ListarAsync<JsonElement>("fornecedores?select=id,ativo", g.Token)).ToDictionary(f => f.Long("id"), f => f.GetProperty("ativo").GetBoolean());
-            var produtos = (await amb.Api.ListarAsync<JsonElement>("produtos?select=id,fornecedor_id", g.Token))
-                .ToDictionary(p => p.Long("id"), p => p.GetProperty("fornecedor_id").ValueKind == JsonValueKind.Number ? p.Long("fornecedor_id") : (long?)null);
+            var produtos = (await amb.Api.ListarAsync<JsonElement>("produtos?select=id,fornecedor_id,categoria", g.Token))
+                .ToDictionary(p => p.Long("id"), p => (Fornecedor: p.GetProperty("fornecedor_id").ValueKind == JsonValueKind.Number ? p.Long("fornecedor_id") : (long?)null,
+                                                       Categoria: p.GetProperty("categoria").GetString() ?? ""));
+            // Sem fornecedor principal (script 022): é do primeiro fornecedor ativo (A-Z) que entrega a categoria
+            var ativos = (await amb.Api.ListarAsync<JsonElement>("fornecedores?select=id,nome,categorias&ativo=eq.true", g.Token))
+                .OrderBy(f => (f.GetProperty("nome").GetString() ?? "").ToLowerInvariant(), StringComparer.Ordinal).ToList();
+            long? DaCategoria(string categoria) => ativos.Where(f => (f.GetProperty("categorias").GetString() ?? "").Split(',')
+                    .Any(c => string.Equals(c.Trim(), categoria.Trim(), StringComparison.OrdinalIgnoreCase)))
+                .Select(f => (long?)f.Long("id")).FirstOrDefault();
             foreach (var s in sugeridos)
             {
                 Verificar.Verdadeiro(fornecedores.TryGetValue(s.FornecedorId, out var ativo) && ativo, $"{s.Fornecedor}: fornecedor desativado ou apagado no pedido sugerido");
                 foreach (var i in s.Itens)
-                    Verificar.Verdadeiro(produtos.TryGetValue(i.ProdutoId, out var f) && f == s.FornecedorId, $"{i.Nome} aparece no pedido de {s.Fornecedor}, mas é de outro fornecedor");
+                    Verificar.Verdadeiro(produtos.TryGetValue(i.ProdutoId, out var p) && (p.Fornecedor == s.FornecedorId || p.Fornecedor is null && DaCategoria(p.Categoria) == s.FornecedorId),
+                        $"{i.Nome} aparece no pedido de {s.Fornecedor}, mas é de outro fornecedor");
             }
         });
 

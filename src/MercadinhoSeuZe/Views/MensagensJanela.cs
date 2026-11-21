@@ -168,7 +168,7 @@ internal sealed class MensagensJanela : UserControl
         _escolhaPedido.Children.Clear();
         if (_pedidos.Count > 1)
         {
-            _escolhaPedido.Children.Add(new TextBlock { Text = "OUTROS PEDIDOS", FontSize = 11, FontWeight = FontWeights.Bold, Foreground = Pincel("Suave"), Margin = new Thickness(0, 16, 0, 6) });
+            _escolhaPedido.Children.Add(new TextBlock { Text = "OUTROS PEDIDOS", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = Pincel("Suave"), Margin = new Thickness(0, 16, 0, 6) });
             var chips = new WrapPanel();
             foreach (var outro in _pedidos.Take(8))
             {

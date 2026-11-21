@@ -44,7 +44,18 @@ public partial class FornecedoresView : UserControl
         _mensagens = mensagens;
         AjustarColunas(CabecalhoTabela);
         IniciarAtalhosDesenvolvimento();
-        Loaded += async (_, _) => { if (!_carregou) await CarregarAsync(); };
+        Loaded += async (_, _) =>
+        {
+            _area.SugeridosMudaram += AoMudarSugeridos;
+            if (!_carregou) await CarregarAsync();
+        };
+        Unloaded += (_, _) => _area.SugeridosMudaram -= AoMudarSugeridos;
+    }
+
+    /// <summary>A previsão foi lida de novo (pedido criado, entrega, 10 em 10 minutos): refaz os avisos.</summary>
+    private void AoMudarSugeridos()
+    {
+        if (_dadosProntos) Mostrar();
     }
 
     // ------------------------------------------------------------ Dados
@@ -66,9 +77,10 @@ public partial class FornecedoresView : UserControl
             var resumo = _servico.ResumoPedidosAsync();
             var produtos = _estoque.ListarAsync();
             var naoLidas = CarregarNaoLidasAsync();
+            var sugeridos = _area.SugeridosAsync();
             // Históricos completos que estavam abertos voltam atualizados (depois de um pedido ou entrega novos)
             var completos = _historicoCompleto.Keys.ToDictionary(id => id, _servico.PedidosDoFornecedorAsync);
-            await Task.WhenAll([fornecedores, pedidos, resumo, produtos, naoLidas, .. completos.Values]);
+            await Task.WhenAll([fornecedores, pedidos, resumo, produtos, naoLidas, sugeridos, .. completos.Values]);
             _fornecedores = fornecedores.Result;
             _pedidos = pedidos.Result;
             _resumoPedidos = resumo.Result.GroupBy(p => p.FornecedorId).ToDictionary(g => g.Key, g => (g.Count(), g.Max(p => p.Data)));
@@ -124,7 +136,7 @@ public partial class FornecedoresView : UserControl
             {
                 Background = Recurso<Brush>("Vermelho600"), CornerRadius = new CornerRadius(8), MinWidth = 16, Height = 16, Padding = new Thickness(4, 0, 4, 0),
                 HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top,
-                Child = new TextBlock { Text = nao > 9 ? "9+" : nao.ToString(PtBr), FontSize = 10.5, FontWeight = FontWeights.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }
+                Child = new TextBlock { Text = nao > 9 ? "9+" : nao.ToString(PtBr), FontSize = 11.5, FontWeight = FontWeights.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }
             });
         var dica = nao > 0 ? $"{Plural(nao, "mensagem nova", "mensagens novas")} de {f.Nome}" : $"Mensagens com {f.Nome}";
         var b = new Button { Template = BotaoSoConteudo(), Cursor = System.Windows.Input.Cursors.Hand, ToolTip = dica, Content = conteudo, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) };
@@ -307,7 +319,7 @@ public partial class FornecedoresView : UserControl
 
         // Produtos e sinais de estoque (borda tracejada em cima)
         var produtos = new StackPanel { Margin = new Thickness(18, 10, 18, 14) };
-        produtos.Children.Add(new TextBlock { Text = "O QUE ENTREGA", FontSize = 11, FontWeight = FontWeights.Bold, Foreground = Recurso<Brush>("Suave"), Margin = new Thickness(0, 0, 0, 4) });
+        produtos.Children.Add(new TextBlock { Text = "O QUE ENTREGA", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = Recurso<Brush>("Suave"), Margin = new Thickness(0, 0, 0, 4) });
         produtos.Children.Add(Produtos(f));
         corpo.Children.Add(Tracejada());
         corpo.Children.Add(produtos);
@@ -403,7 +415,7 @@ public partial class FornecedoresView : UserControl
     private StackPanel Dado(string rotulo, string valor)
     {
         var bloco = new StackPanel { Margin = new Thickness(0, 0, 16, 0) };
-        bloco.Children.Add(new TextBlock { Text = rotulo, FontSize = 11, FontWeight = FontWeights.Bold, Foreground = Recurso<Brush>("Suave"), TextWrapping = TextWrapping.NoWrap });
+        bloco.Children.Add(new TextBlock { Text = rotulo, FontSize = 12, FontWeight = FontWeights.Bold, Foreground = Recurso<Brush>("Suave"), TextWrapping = TextWrapping.NoWrap });
         bloco.Children.Add(new TextBlock { Text = valor, FontSize = 14, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis });
         return bloco;
     }
@@ -835,6 +847,11 @@ public partial class FornecedoresView : UserControl
         Sugestoes.Children.Clear();
         var hoje = DateOnly.FromDateTime(DateTime.Today).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         var prefs = PreferenciasLocais.Carregar();
+        if (_area.Sugeridos is { } sugeridos)
+        {
+            MostrarSugestoesDaPrevisao(sugeridos, prefs, hoje);
+            return;
+        }
         // Em falta, ou no ponto de pedido dos produtos com "Pedir antes de acabar" ligado
         var emFalta = _produtos.Where(p => (p.SemEstoque || p.EstoqueBaixo || (p.PedirAntes && p.AvisoAntecipado)) && !JaPedido(p)).ToList();
 
@@ -866,7 +883,12 @@ public partial class FornecedoresView : UserControl
             Sugestoes.Children.Add(CartaoSugestao(texto, acoes));
         }
 
-        // Produtos em falta sem nenhum fornecedor: avisa para ligar
+        AvisoSemFornecedor(emFalta);
+    }
+
+    /// <summary>Produtos em falta sem nenhum fornecedor: avisa para ligar a um.</summary>
+    private void AvisoSemFornecedor(List<Produto> emFalta)
+    {
         var semFornecedor = emFalta.Where(p => FornecedorDe(p) is null).Select(p => p.Nome).ToList();
         if (semFornecedor.Count > 0 && Ativos.Any())
         {
@@ -878,7 +900,121 @@ public partial class FornecedoresView : UserControl
         }
     }
 
-    private Border CartaoSugestao(TextBlock texto, FrameworkElement? acoes)
+    /// <summary>
+    /// Avisos pela previsão de vendas (pedido sugerido, scripts 019 e 022): um por fornecedor que precisa de pedido hoje
+    /// (ou que tem produto zerado), com quanto pedir, quanto custa e até quando dura. Produto sem histórico de vendas
+    /// entra pelo estoque mínimo (já vem assim do banco). Os outros fornecedores aparecem numa linha só, com o dia de pedir.
+    /// </summary>
+    private void MostrarSugestoesDaPrevisao(List<PedidoSugerido> sugeridos, PreferenciasLocais prefs, string hoje)
+    {
+        bool Ignorado(PedidoSugerido s) =>
+            prefs.SugestoesIgnoradas.TryGetValue(s.FornecedorId.ToString(CultureInfo.InvariantCulture), out var dia) && dia == hoje;
+        var porNome = StringComparer.Create(PtBr, true);
+        var agora = sugeridos.Where(s => (s.ParaHoje || s.TemZerado) && Ativos.Any(f => f.Id == s.FornecedorId) && !Ignorado(s))
+            .OrderByDescending(s => s.ParaHoje).ThenBy(s => s.Fornecedor, porNome).ToList();
+
+        foreach (var s in agora)
+        {
+            var f = Ativos.First(x => x.Id == s.FornecedorId);
+            var minimos = s.Itens.Count(i => i.PeloMinimo);
+            var texto = new TextBlock { FontSize = 14, TextWrapping = TextWrapping.Wrap };
+            texto.Inlines.Add(Negrito(f.Nome));
+            texto.Inlines.Add(new System.Windows.Documents.Run($": {Plural(s.Itens.Count, "produto", "produtos")}"));
+            if (s.Total > 0)
+            {
+                texto.Inlines.Add(new System.Windows.Documents.Run(", ≈ "));
+                texto.Inlines.Add(Negrito(s.Total.ToString("C0", PtBr)));
+            }
+            texto.Inlines.Add(new System.Windows.Documents.Run(". "));
+            if (s.ParaHoje)
+            {
+                texto.Inlines.Add(new System.Windows.Documents.Run("Pedindo hoje chega "));
+                texto.Inlines.Add(Negrito(Dia(s.Chegada)));
+                texto.Inlines.Add(new System.Windows.Documents.Run($" e precisa durar até {Dia(s.ProximaEntrega)}."));
+            }
+            else
+            {
+                var zerados = s.Itens.Count(i => i.Estoque <= 0);
+                texto.Inlines.Add(new System.Windows.Documents.Run($"{Plural(zerados, "produto já zerou", "produtos já zeraram")}. O próximo dia de pedir é "));
+                texto.Inlines.Add(Negrito(Dia(s.DataPedido)));
+                texto.Inlines.Add(new System.Windows.Documents.Run($" (chega {Dia(s.Chegada)})."));
+            }
+            var itens = new TextBlock
+            {
+                FontSize = 12.5, Foreground = Recurso<Brush>("Suave"), Margin = new Thickness(0, 3, 0, 0), TextWrapping = TextWrapping.Wrap,
+                Text = string.Join(" · ", s.Itens.OrderBy(i => i.Estoque > 0).ThenBy(i => i.Nome, porNome).Take(4)
+                           .Select(i => $"{i.Nome} {Produto.FormatarQuantidade(i.Sugerido, i.PorPeso).Replace(" unidades", " un.").Replace(" unidade", " un.")}")) +
+                       (s.Itens.Count > 4 ? $" · +{s.Itens.Count - 4}" : "") +
+                       (minimos > 0 ? $"  ({minimos} pelo estoque mínimo: sem histórico de vendas)" : "")
+            };
+
+            var acoes = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
+            acoes.Children.Add(BotaoPequeno("Montar pedido", "IconeEnviar", "Verde700", () => AbrirSugerido(s), primario: true));
+            acoes.Children.Add(BotaoPequeno("Ver conta", "IconeTendencia", "Verde700", () => (_area.Abrir("calendario") as CalendarioView)?.AbrirPrevisaoCompleta()));
+            acoes.Children.Add(BotaoPequeno("Ignorar hoje", "IconeRelogio", "Suave", () =>
+            {
+                var p = PreferenciasLocais.Carregar();
+                p.SugestoesIgnoradas[s.FornecedorId.ToString(CultureInfo.InvariantCulture)] = hoje;
+                p.Salvar();
+                _area.MostrarToast("Sugestão ignorada por hoje.");
+                Mostrar();
+            }));
+            Sugestoes.Children.Add(CartaoSugestao(texto, acoes, s.ParaHoje ? "Pedir hoje · pela previsão de vendas" : "Produto zerado · pela previsão de vendas", itens));
+        }
+
+        // Os outros fornecedores com sugestão: uma linha só, com o próximo dia de pedir de cada um
+        var depois = sugeridos.Where(s => s.Itens.Count > 0 && !s.TemPendente && !agora.Contains(s) && !Ignorado(s) && Ativos.Any(f => f.Id == s.FornecedorId))
+            .OrderBy(s => s.DataPedido).ThenBy(s => s.Fornecedor, porNome).ToList();
+        if (depois.Count > 0)
+        {
+            var texto = new TextBlock { FontSize = 13.5, TextWrapping = TextWrapping.Wrap, Foreground = Recurso<Brush>("Suave") };
+            texto.Inlines.Add(new System.Windows.Documents.Run("Próximos pedidos pela previsão: ") { FontWeight = FontWeights.SemiBold, Foreground = Recurso<Brush>("Tinta") });
+            texto.Inlines.Add(new System.Windows.Documents.Run(string.Join(" · ", depois.Select(s => $"{s.Fornecedor} {Dia(s.DataPedido)} ({Plural(s.Itens.Count, "produto", "produtos")})"))));
+            var ver = new Button { Content = "Ver no Calendário", Style = Recurso<Style>("BotaoLink"), FontSize = 13, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
+            ver.Click += (_, _) => _area.Abrir("calendario");
+            var linha = new DockPanel();
+            DockPanel.SetDock(ver, Dock.Right);
+            linha.Children.Add(ver);
+            linha.Children.Add(texto);
+            Sugestoes.Children.Add(new Border
+            {
+                Background = Brushes.White, BorderBrush = Recurso<Brush>("Linha"), BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(12), Padding = new Thickness(18, 10, 18, 10), Margin = new Thickness(0, 0, 0, 12), Child = linha
+            });
+        }
+        AvisoSemFornecedor(_produtos.Where(p => (p.SemEstoque || p.EstoqueBaixo) && !JaPedido(p)).ToList());
+    }
+
+    /// <summary>Abre o Novo pedido com os itens e as quantidades da previsão.</summary>
+    private void AbrirSugerido(PedidoSugerido s)
+    {
+        var f = Ativos.FirstOrDefault(x => x.Id == s.FornecedorId);
+        if (f is null) { _area.MostrarToast("Fornecedor não encontrado. Atualize a tela."); return; }
+        var itens = s.Itens.Select(i => _produtos.FirstOrDefault(p => p.Id == i.ProdutoId)).OfType<Produto>().ToList();
+        AbrirPedido(f, itens, s.Itens.ToDictionary(i => i.ProdutoId, i => i.Sugerido));
+    }
+
+    /// <summary>"Montar pedido" do Painel: abre o pedido sugerido do fornecedor quando os dados chegarem.</summary>
+    public void MontarPedidoSugerido(long fornecedorId)
+    {
+        void Abrir()
+        {
+            if (_area.Sugeridos?.FirstOrDefault(s => s.FornecedorId == fornecedorId) is { } s) AbrirSugerido(s);
+        }
+        if (!_dadosProntos) _depoisDeCarregar = Abrir;
+        else Abrir();
+    }
+
+    /// <summary>"hoje", "amanhã" ou "sáb 14/11".</summary>
+    private static string Dia(DateOnly d)
+    {
+        var hoje = DateOnly.FromDateTime(DateTime.Today);
+        if (d == hoje) return "hoje";
+        if (d == hoje.AddDays(1)) return "amanhã";
+        return $"{d.ToString("ddd", PtBr).TrimEnd('.')} {d:dd/MM}";
+    }
+
+    private Border CartaoSugestao(TextBlock texto, FrameworkElement? acoes, string titulo = "Sugestão de reposição", FrameworkElement? detalhe = null)
     {
         var linha = new DockPanel();
         var icone = new Border
@@ -895,8 +1031,9 @@ public partial class FornecedoresView : UserControl
             linha.Children.Add(acoes);
         }
         var corpo = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-        corpo.Children.Add(new TextBlock { Text = "Sugestão de reposição", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = Recurso<Brush>("Ambar700") });
+        corpo.Children.Add(new TextBlock { Text = titulo, FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = Recurso<Brush>("Ambar700") });
         corpo.Children.Add(texto);
+        if (detalhe is not null) corpo.Children.Add(detalhe);
         linha.Children.Add(corpo);
         return new Border
         {
@@ -946,7 +1083,7 @@ public partial class FornecedoresView : UserControl
         _area.AbrirJanela(new FornecedorJanela(_area, _servico!, f, _fornecedores, _produtos, RecarregarAsync));
     }
 
-    private void AbrirPedido(Fornecedor? f, IReadOnlyList<Produto> itens)
+    private void AbrirPedido(Fornecedor? f, IReadOnlyList<Produto> itens, IReadOnlyDictionary<long, decimal>? quantidades = null)
     {
         if (!Pronto()) return;
         if (!Ativos.Any()) { _area.MostrarToast("Cadastre um fornecedor antes de criar pedidos."); return; }
@@ -955,7 +1092,7 @@ public partial class FornecedoresView : UserControl
             {
                 await RecarregarAsync(mensagem);
                 _area.AbrirJanela(new EnvioPedidoJanela(_area, fornecedor, texto, "Pedido criado", pedidoId, _mensagens));
-            }));
+            }, quantidades: quantidades));
     }
 
     /// <summary>Altera um pedido pendente e oferece reenviar a mensagem com as mudanças.</summary>

@@ -41,7 +41,7 @@ public static class TelasTestes
         });
 
         foreach (var (id, nome) in new[] { ("painel", "Painel"), ("estoque", "Estoque"), ("fornecedores", "Fornecedores"), ("caixa", "Caixa (gerente)"),
-                     ("funcionarios", "Funcionários"), ("fechamento", "Fechamento do dia"), ("previsao", "Previsão de compras") })
+                     ("funcionarios", "Funcionários"), ("calendario", "Calendário") })
         {
             l.Tela($"{nome} abre com os dados do banco, sem erro", async () =>
             {
@@ -77,7 +77,7 @@ public static class TelasTestes
             var falsa = new Sessao(Guid.NewGuid(), "teste", "Teste", Perfil.Gerente, "token-falso");
             var area = new AreaInternaView(janelaFalsa, falsa, null);
             Colocar(area);
-            foreach (var id in new[] { "painel", "estoque", "fornecedores", "caixa", "funcionarios", "fechamento", "previsao" })
+            foreach (var id in new[] { "painel", "estoque", "fornecedores", "caixa", "funcionarios", "calendario" })
             {
                 area.Abrir(id);
                 Mostrar(area, "Sem banco - " + id, TimeSpan.FromSeconds(1), amb, aceitarAvisoDeErro: true, foto: id == "estoque");
@@ -89,7 +89,12 @@ public static class TelasTestes
             var g = await amb.Entrar("gerente");
             var area = new AreaInternaView(janelaFalsa, g, amb.Api);
             Colocar(area);
-            var tela = (PrevisaoView)area.Abrir("previsao")!;
+            // Desde 20/11 a previsão completa fica dentro do Calendário (área recolhida "Dados completos da previsão")
+            var calendario = (CalendarioView)area.Abrir("calendario")!;
+            Mostrar(area, "Calendário", espera, amb);
+            calendario.AbrirPrevisaoCompleta();
+            Bomba.Pausar(TimeSpan.FromSeconds(1));
+            var tela = Descendentes(area).OfType<PrevisaoView>().FirstOrDefault() ?? throw new FalhaTeste("A previsão completa não abriu no Calendário.");
             Mostrar(area, "Previsão - pedido sugerido", espera, amb, foto: false);
             foreach (var aba in tela.Abas.Children.OfType<Button>().Where(b => b.Uid != "pedido").ToList())
             {
@@ -157,6 +162,17 @@ public static class TelasTestes
         {
             var erros = TextosVisiveis(conteudo).Where(t => FrasesDeErro.Any(f => t.Contains(f, StringComparison.OrdinalIgnoreCase))).Distinct().ToList();
             if (erros.Count > 0) throw new FalhaTeste($"{nome} mostrou: {string.Join(" | ", erros)}");
+        }
+    }
+
+    private static IEnumerable<DependencyObject> Descendentes(DependencyObject raiz)
+    {
+        var fila = new Queue<DependencyObject>([raiz]);
+        while (fila.Count > 0)
+        {
+            var d = fila.Dequeue();
+            yield return d;
+            for (var i = 0; i < VisualTreeHelper.GetChildrenCount(d); i++) fila.Enqueue(VisualTreeHelper.GetChild(d, i));
         }
     }
 

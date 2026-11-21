@@ -16,7 +16,12 @@ public partial class PedidoJanela : UserControl
 {
     private static readonly CultureInfo PtBr = new("pt-BR");
 
-    private sealed record Item(Produto Produto, TextBox Quantidade, TextBlock Erro, TextBox Custo, TextBlock CustoErro);
+    /// <param name="Dica">"Previsão: 2 kg" e o efeito de pedir mais ou menos que isso.</param>
+    private sealed record Item(Produto Produto, TextBox Quantidade, TextBlock Erro, TextBox Custo, TextBlock CustoErro, TextBlock Dica)
+    {
+        /// <summary>Quantidade com que o item entrou (se continuar igual, a previsão pode trocar).</summary>
+        public string Inicial { get; set; } = "";
+    }
 
     private readonly AreaInternaView _area;
     private readonly FornecedorService _servico;
@@ -28,6 +33,10 @@ public partial class PedidoJanela : UserControl
     private readonly Pedido? _editando;
     private string? _previsaoAutomatica;
     private bool _preenchendoPrevisao;
+    private readonly bool _quantidadesDoChamador;          // tela Previsão já mandou as quantidades sugeridas
+    private PedidoSugerido? _sugerido;                     // pedido sugerido do fornecedor escolhido
+    private readonly HashSet<long> _daPrevisao = [];        // itens que entraram pela previsão
+    private readonly Dictionary<Item, Border> _blocos = [];
 
     /// <param name="jaPedido">Produto que já está num pedido pendente.</param>
     /// <param name="aoCriar">Recebe a mensagem do aviso, o fornecedor e o texto do pedido para enviar.</param>
@@ -44,6 +53,7 @@ public partial class PedidoJanela : UserControl
         _produtos = produtos;
         _jaPedido = jaPedido;
         _aoCriar = aoCriar;
+        _quantidadesDoChamador = quantidades is not null;
 
         EscolhaFornecedor.Items.Add(new ComboBoxItem { Content = "Selecione o fornecedor", Foreground = (Brush)FindResource("Placeholder") });
         foreach (var f in _fornecedores)
@@ -83,10 +93,22 @@ public partial class PedidoJanela : UserControl
         };
         Observacao.TextChanged += (_, _) => AtualizarPrevia();
         Formulario.LimparAoDigitar(Previsao, PrevisaoErro);
+        AplicarSugerido();
         PreencherPrevisao();
         MostrarResultados();
         AtualizarPrevia();
 
+        Loaded += async (_, _) =>
+        {
+            // Previsão ainda não lida (ou velha): lê e preenche quando chegar
+            if (_editando is null && await _area.SugeridosAsync() is not null && IsLoaded)
+            {
+                AplicarSugerido();
+                PreencherPrevisao();
+                MostrarResultados();
+                AtualizarPrevia();
+            }
+        };
         Loaded += (_, _) =>
         {
             if (EscolhaFornecedor.SelectedIndex <= 0) EscolhaFornecedor.Focus();
@@ -102,6 +124,10 @@ public partial class PedidoJanela : UserControl
         if (!IsInitialized || Previsao is null) return;
         FornecedorErro.Text = "";
         EscolhaFornecedor.Tag = null;
+        // Trocou de fornecedor: sai o que a previsão pôs e ninguém mexeu, entra a previsão do novo
+        foreach (var i in _itens.Where(i => _daPrevisao.Contains(i.Produto.Id) && i.Quantidade.Text == i.Inicial).ToList())
+            Remover(i);
+        AplicarSugerido();
         PreencherPrevisao();
         MostrarResultados();
         AtualizarPrevia();
@@ -161,7 +187,9 @@ public partial class PedidoJanela : UserControl
         var custoErro = new TextBlock { Style = (Style)FindResource("ErroCampo") };
         Formulario.LimparAoDigitar(custo, custoErro);
         custo.TextChanged += (_, _) => AtualizarPrevia();
-        var item = new Item(p, quantidade, erro, custo, custoErro);
+        var dica = new TextBlock { FontSize = 12.5, TextWrapping = TextWrapping.Wrap, Visibility = Visibility.Collapsed };
+        var item = new Item(p, quantidade, erro, custo, custoErro, dica) { Inicial = quantidade.Text };
+        quantidade.TextChanged += (_, _) => MostrarDica(item);
         _itens.Add(item);
         ItensErro.Text = "";
 
@@ -195,20 +223,20 @@ public partial class PedidoJanela : UserControl
         var nome = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };
         nome.Children.Add(new TextBlock { Text = p.Nome, FontWeight = FontWeights.SemiBold, FontSize = 14 });
         nome.Children.Add(Situacao(p));
+        nome.Children.Add(dica);
         linha.Children.Add(nome);
 
         var bloco = new Border { BorderBrush = (Brush)FindResource("Linha"), BorderThickness = new Thickness(0, Itens.Children.Count == 0 ? 0 : 1, 0, 0), Child = linha };
+        _blocos[item] = bloco;
         remover.Click += (_, _) =>
         {
-            _itens.Remove(item);
-            Itens.Children.Remove(bloco);
-            if (Itens.Children.Count > 0 && Itens.Children[0] is Border primeiro) primeiro.BorderThickness = new Thickness(0);
-            SemItens.Visibility = _itens.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            Remover(item);
             PreencherPrevisao();
             MostrarResultados();
             AtualizarPrevia();
         };
         Itens.Children.Add(bloco);
+        MostrarDica(item);
         SemItens.Visibility = Visibility.Collapsed;
         PreencherPrevisao();
         if (focar)
@@ -217,6 +245,104 @@ public partial class PedidoJanela : UserControl
             AtualizarPrevia();
             Dispatcher.BeginInvoke(() => { quantidade.Focus(); quantidade.SelectAll(); }, System.Windows.Threading.DispatcherPriority.Input);
         }
+    }
+
+    private void Remover(Item item)
+    {
+        _itens.Remove(item);
+        _daPrevisao.Remove(item.Produto.Id);
+        if (_blocos.Remove(item, out var bloco)) Itens.Children.Remove(bloco);
+        if (Itens.Children.Count > 0 && Itens.Children[0] is Border primeiro) primeiro.BorderThickness = new Thickness(0);
+        SemItens.Visibility = _itens.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        BotaoLimparItens.Visibility = _itens.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void LimparItens_Click(object sender, RoutedEventArgs e)
+    {
+        foreach (var i in _itens.ToList()) Remover(i);
+        PreencherPrevisao();
+        MostrarResultados();
+        AtualizarPrevia();
+        Busca.Focus();
+    }
+
+    // ------------------------------------------------------------ Previsão de vendas (pedido sugerido)
+
+    private ItemSugerido? SugeridoDe(Produto p) => _sugerido?.Itens.FirstOrDefault(i => i.ProdutoId == p.Id);
+
+    /// <summary>
+    /// Pedido novo: com a previsão do fornecedor escolhido, os itens que ninguém mexeu passam para a quantidade sugerida
+    /// e entram os outros produtos que a previsão manda pedir. A faixa azul diz até quando o pedido precisa durar.
+    /// </summary>
+    private void AplicarSugerido()
+    {
+        if (FaixaPrevisao is null) return;
+        _sugerido = _editando is null && Selecionado is { } f ? _area.Sugeridos?.FirstOrDefault(s => s.FornecedorId == f.Id) : null;
+        if (_sugerido is null)
+        {
+            FaixaPrevisao.Visibility = Visibility.Collapsed;
+            foreach (var i in _itens) MostrarDica(i);
+            return;
+        }
+        if (!_quantidadesDoChamador)
+        {
+            foreach (var i in _itens)
+                if (SugeridoDe(i.Produto) is { } s && i.Quantidade.Text == i.Inicial)
+                    i.Quantidade.Text = i.Inicial = Formulario.Quantidade(s.Sugerido);
+            foreach (var s in _sugerido.Itens)
+                if (_itens.All(i => i.Produto.Id != s.ProdutoId) && _produtos.FirstOrDefault(p => p.Id == s.ProdutoId) is { } p && !_jaPedido(p))
+                {
+                    Adicionar(p, focar: false, quantidadeInicial: s.Sugerido);
+                    _daPrevisao.Add(p.Id);
+                }
+        }
+        foreach (var i in _itens) MostrarDica(i);
+
+        var quando = _sugerido.PedirHoje ? "Pedindo hoje, chega" : $"O próximo dia de pedir é {Dia(_sugerido.DataPedido)}; chega";
+        var minimos = _sugerido.Itens.Count(i => i.PeloMinimo);
+        TextoPrevisao.Inlines.Clear();
+        TextoPrevisao.Inlines.Add(new System.Windows.Documents.Run(_sugerido.Itens.Count == 0 ? "Previsão de vendas: nada para pedir agora. " : "Quantidades da previsão de vendas. ") { FontWeight = FontWeights.SemiBold });
+        TextoPrevisao.Inlines.Add(new System.Windows.Documents.Run(
+            $"{quando} {Dia(_sugerido.Chegada)} e precisa durar até {Dia(_sugerido.ProximaEntrega)} (venda prevista + margem − estoque − já pedido)." +
+            (minimos > 0 ? $" {Plural(minimos, "produto sem histórico de vendas vem", "produtos sem histórico de vendas vêm")} pelo estoque mínimo." : "") +
+            (_sugerido.TemPendente ? " Já existe pedido pendente deste fornecedor (já descontado)." : "")));
+        BotaoLimparItens.Visibility = _itens.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        FaixaPrevisao.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>"Previsão: 2 kg" embaixo do item e, se a quantidade for outra, o que isso muda.</summary>
+    private void MostrarDica(Item item)
+    {
+        var p = item.Produto;
+        if (SugeridoDe(p) is not { } s)
+        {
+            item.Dica.Visibility = Visibility.Collapsed;
+            return;
+        }
+        var porque = s.PeloMinimo ? $"sem histórico de vendas, pelo estoque mínimo de {p.Formatar(s.Minimo)}"
+                                  : $"vende uns {p.Formatar(s.Previsto)} até {Dia(s.Ate)}";
+        var texto = $"Previsão: {p.Formatar(s.Sugerido)} ({porque})";
+        var cor = "Azul600";
+        if (Formulario.LerQuantidade(item.Quantidade.Text, p.PorPeso) is { } q && q != s.Sugerido && !s.PeloMinimo)
+        {
+            var dif = q - s.Sugerido;
+            texto += dif > 0
+                ? $". Com {p.Formatar(dif)} a mais, isso deve sobrar em {Dia(s.Ate)}."
+                : $". Com {p.Formatar(-dif)} a menos, pode faltar antes de {Dia(s.Ate)}.";
+            cor = dif > 0 ? "Suave" : "Ambar700";
+        }
+        item.Dica.Text = texto;
+        item.Dica.Foreground = (Brush)FindResource(cor);
+        item.Dica.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>"hoje", "amanhã" ou "sáb 14/11".</summary>
+    private static string Dia(DateOnly d)
+    {
+        var hoje = DateOnly.FromDateTime(DateTime.Today);
+        if (d == hoje) return "hoje";
+        if (d == hoje.AddDays(1)) return "amanhã";
+        return $"{d.ToString("ddd", PtBr).TrimEnd('.')} {d:dd/MM}";
     }
 
     /// <summary>"Estoque: 3 unidades (mín. 8) · sem estoque" em vermelho, amarelo ou cinza.</summary>
@@ -445,11 +571,13 @@ public partial class PedidoJanela : UserControl
             if (_editando is null)
             {
                 var id = await _servico.CriarPedidoAsync(f!.Id, previsao, Observacao.Text.Trim(), itens);
+                _area.PedidosMudaram();
                 await _aoCriar($"Pedido para {f.Nome} criado ({Plural(_itens.Count, "item", "itens")}).", f, texto, id);
             }
             else
             {
                 await _servico.EditarPedidoAsync(_editando.Id, previsao, Observacao.Text.Trim(), itens);
+                _area.PedidosMudaram();
                 await _aoCriar($"Pedido para {f!.Nome} alterado ({Plural(_itens.Count, "item", "itens")}).", f, texto, _editando.Id);
             }
         }

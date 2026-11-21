@@ -26,6 +26,7 @@ public partial class PainelView : UserControl
     private bool _atualizando;
     private ResumoDia? _resumo;
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(30) };
+    private readonly HashSet<string> _topicosAbertos = ["pedirhoje"];   // continuam abertos na atualização de 30 em 30 segundos
 
     public PainelView(AreaInternaView area, Sessao sessao, EstoqueService? estoque, FornecedorService? fornecedores, CaixaService? caixa)
     {
@@ -39,9 +40,13 @@ public partial class PainelView : UserControl
 
         ChaveOcultar.IsChecked = ValoresVenda.Ocultos;
         _timer.Tick += async (_, _) => await AtualizarAsync();
-        Loaded += async (_, _) => { _timer.Start(); ValoresVenda.Mudou += MostrarVendas; await AtualizarAsync(); };
-        Unloaded += (_, _) => { _timer.Stop(); ValoresVenda.Mudou -= MostrarVendas; };
+        Loaded += async (_, _) => { _timer.Start(); ValoresVenda.Mudou += MostrarVendas; _area.SugeridosMudaram += AoMudarSugeridos; await AtualizarAsync(); };
+        Unloaded += (_, _) => { _timer.Stop(); ValoresVenda.Mudou -= MostrarVendas; _area.SugeridosMudaram -= AoMudarSugeridos; };
     }
+
+    private async void AoMudarSugeridos() => await AtualizarAsync();
+
+    private void PedirHoje_Click(object sender, System.Windows.Input.MouseButtonEventArgs e) => _area.Abrir("fornecedores");
 
     private async Task AtualizarAsync()
     {
@@ -119,7 +124,18 @@ public partial class PainelView : UserControl
             catch (ConexaoException) { }   // sem internet agora: tenta de novo na próxima atualização
         }
 
-        await Task.WhenAll(LerVendasAsync(), LerEstoqueAsync(), LerPedidosAsync(), LerMensagensAsync());
+        // Pedido sugerido pela previsão (o mesmo do menu e dos Fornecedores) e vendas perdidas de hoje no caixa (script 022)
+        List<PedidoSugerido>? sugeridos = null;
+        async Task LerSugeridosAsync() => sugeridos = await _area.SugeridosAsync();
+        List<VendaPerdida> perdidas = [];
+        async Task LerPerdidasAsync()
+        {
+            if (_area.PrevisaoServico() is not { } previsao) return;
+            try { perdidas = await previsao.VendasPerdidasAsync(DateOnly.FromDateTime(agora)); }
+            catch (ConexaoException) { }   // sem o script 022 ou sem internet: sem esses avisos
+        }
+
+        await Task.WhenAll(LerVendasAsync(), LerEstoqueAsync(), LerPedidosAsync(), LerMensagensAsync(), LerSugeridosAsync(), LerPerdidasAsync());
         if (produtos is not null && pedidos is not null) Fornecedor.AplicarPrazos(produtos, fornecedores);
 
         var porNome = StringComparer.Create(PtBr, CompareOptions.IgnoreCase);
@@ -127,6 +143,10 @@ public partial class PainelView : UserControl
         var baixos = produtos?.Where(p => p.EstoqueBaixo).OrderBy(p => p.Quantidade).ThenBy(p => p.Nome, porNome).ToList() ?? [];
         var antecipados = produtos?.Where(p => p.AvisoAntecipado).OrderBy(p => p.Quantidade).ThenBy(p => p.Nome, porNome).ToList() ?? [];
         var validade = produtos?.Where(p => p.Vencido || p.ValidadeProxima).OrderBy(p => p.ProximaValidade).ToList() ?? [];
+        var prateleira = perdidas.Where(v => v.Motivo == "prateleira_vazia").GroupBy(v => v.ProdutoId).Select(g => g.First()).ToList();
+        var faltaram = perdidas.Where(v => v.Motivo != "prateleira_vazia").GroupBy(v => v.ProdutoId)
+            .Select(g => (Nome: g.First().Produto?.Nome ?? "Produto", Clientes: g.Count(), Quantidade: g.Sum(v => v.Quantidade), PorPeso: g.First().Produto?.Unidade == "kg"))
+            .OrderByDescending(x => x.Clientes).ToList();
 
         _resumo = resumo;
         MostrarVendas();
@@ -140,20 +160,54 @@ public partial class PainelView : UserControl
             : "Aguardando entrega do fornecedor";
         AtalhoCaixa.Text = caixas.Any(c => c.OperadorId == _sessao.Id) ? "Ir para o caixa" : "Abrir caixa";
 
+        // Pedir hoje (previsão de vendas, pedido sugerido)
+        var paraHoje = sugeridos?.Where(s => s.ParaHoje).OrderBy(s => s.Fornecedor, StringComparer.Create(PtBr, true)).ToList() ?? [];
+        var zerados = sugeridos?.Where(s => !s.ParaHoje && s.TemZerado).OrderBy(s => s.DataPedido).ToList() ?? [];
+        KpiPedirHoje.Text = sugeridos is null ? "—" : Plural(paraHoje.Count, "pedido", "pedidos");
+        KpiPedirHoje.Foreground = (Brush)FindResource(paraHoje.Count > 0 ? "Ambar700" : "Tinta");
+        var proximo = sugeridos?.Where(s => s.Itens.Count > 0 && !s.TemPendente && !s.PedirHoje).OrderBy(s => s.DataPedido).FirstOrDefault();
+        KpiPedirHojeSub.Text = sugeridos is null ? "Previsão indisponível agora"
+            : paraHoje.Count > 0 ? $"{string.Join(" e ", paraHoje.Select(s => s.Fornecedor))} · {Plural(paraHoje.Sum(s => s.Itens.Count), "produto", "produtos")}" +
+                                   (paraHoje.Sum(s => s.Total) is > 0 and var total ? $" · ≈ {total.ToString("C0", PtBr)}" : "")
+            : proximo is not null ? $"Nada para hoje · próximo: {proximo.Fornecedor}, {Dia(proximo.DataPedido)}"
+            : "Nada para pedir pela previsão";
+
         // Avisos separados por tópico (pedido do Guilherme): o cabeçalho mostra só quantos são; as linhas são montadas
         // quando o tópico é aberto (cada tópico guarda uma função que cria os avisos na hora).
         var topicos = new List<Topico>();
 
+        // Pedir hoje pela previsão: um aviso por fornecedor, com "Montar pedido" (abre o pedido já preenchido)
+        topicos.Add(new Topico("pedirhoje", "Pedir hoje (previsão)", "IconeTendencia", paraHoje.Count + zerados.Count,
+            zerados.Count > 0 ? Gravidade.Urgente : Gravidade.Atencao, () =>
+            [.. paraHoje.Select(s => new Aviso("IconeCaminhao", "Ambar50", "Ambar700",
+                    [Negrito(s.Fornecedor), new Run($" · {Plural(s.Itens.Count, "produto", "produtos")}" + (s.Total > 0 ? $" · ≈ {s.Total.ToString("C0", PtBr)}" : ""))],
+                    $"Pedindo hoje chega {Dia(s.Chegada)} e precisa durar até {Dia(s.ProximaEntrega)}",
+                    () => MontarPedido(s.FornecedorId), "Montar pedido")),
+             .. zerados.Select(s => new Aviso("IconeAlerta", "Vermelho50", "Vermelho600",
+                    [Negrito(s.Fornecedor), new Run($": {Plural(s.Itens.Count(i => i.Estoque <= 0), "produto zerou", "produtos zeraram")}")],
+                    $"O próximo dia de pedir é {Dia(s.DataPedido)} (chega {Dia(s.Chegada)})",
+                    () => MontarPedido(s.FornecedorId), "Montar pedido"))]));
+
         // Estoque, do mais urgente ao menos urgente
         topicos.Add(new Topico("estoque", "Estoque", "IconeCaixaProduto",
-            semEstoque.Count + baixos.Count + validade.Count + antecipados.Count + (erroEstoque is null ? 0 : 1),
-            erroEstoque is not null || semEstoque.Count > 0 || validade.Any(p => p.Vencido) ? Gravidade.Urgente
-                : baixos.Count + validade.Count + antecipados.Count > 0 ? Gravidade.Atencao : Gravidade.Normal,
+            semEstoque.Count + baixos.Count + validade.Count + antecipados.Count + prateleira.Count + faltaram.Count + (erroEstoque is null ? 0 : 1),
+            erroEstoque is not null || semEstoque.Count > 0 || prateleira.Count > 0 || validade.Any(p => p.Vencido) ? Gravidade.Urgente
+                : baixos.Count + validade.Count + antecipados.Count + faltaram.Count > 0 ? Gravidade.Atencao : Gravidade.Normal,
             () =>
             {
                 var lista = new List<Aviso>();
                 if (erroEstoque is not null)
                     lista.Add(new("IconeAlerta", "Vermelho50", "Vermelho600", [new Run("Não foi possível ler o estoque: " + erroEstoque)], "Estoque"));
+                // Do caixa (F10 "Faltou produto"): o sistema tem, mas não está na gôndola
+                foreach (var v in prateleira)
+                    lista.Add(new("IconeAlerta", "Vermelho50", "Vermelho600",
+                        [Negrito(v.Produto?.Nome ?? "Produto"), new Run(" não está na prateleira" +
+                            (v.EstoqueNoSistema is > 0 and var q ? $" (o sistema diz {Produto.FormatarQuantidade(q, v.Produto?.Unidade == "kg")})" : "") + ". Reponha.")],
+                        $"Avisado no caixa por {v.OperadorNome} às {v.Momento.ToLocalTime():HH:mm}"));
+                foreach (var (nome, clientes, quantidade, porPeso) in faltaram)
+                    lista.Add(new("IconeTriangulo", "Ambar50", "Ambar700",
+                        [new Run(clientes == 1 ? "1 cliente procurou " : $"{clientes} clientes procuraram "), Negrito(nome),
+                         new Run($" e não tinha ({Produto.FormatarQuantidade(quantidade, porPeso)}).")], "Hoje, no caixa"));
                 foreach (var p in semEstoque)
                     lista.Add(new("IconeAlerta", "Vermelho50", "Vermelho600", [Negrito(p.Nome), new Run(" está sem estoque.")], "Estoque"));
                 foreach (var p in baixos)
@@ -178,7 +232,7 @@ public partial class PainelView : UserControl
 
         // Fornecedor com dias certos de entrega: hoje é o último dia para pedir e ainda pegar a próxima entrega
         var ultimoDia = new List<(Fornecedor F, DateOnly Chega, int Faltam)>();
-        if (produtos is not null && pedidos is not null)
+        if (produtos is not null && pedidos is not null && sugeridos is null)
             foreach (var f in fornecedores.Where(f => f.Ativo))
             {
                 if (f.UltimoDiaHoje() is not { } chega) continue;
@@ -251,8 +305,8 @@ public partial class PainelView : UserControl
         ChaveOcultar.IsChecked = ValoresVenda.Ocultos;
         KpiVendas.Text = _resumo is null ? "—" : ValoresVenda.Moeda(_resumo.Total);
         KpiVendasSub.Text = _resumo is null ? "Não foi possível ler as vendas"
-            : ValoresVenda.Ocultos ? "Valores ocultos" : Plural(_resumo.QuantidadeVendas, "venda realizada", "vendas realizadas");
-        KpiTicket.Text = _resumo is null ? "—" : ValoresVenda.Moeda(_resumo.TicketMedio);
+            : ValoresVenda.Ocultos ? "Valores ocultos"
+            : Plural(_resumo.QuantidadeVendas, "venda", "vendas") + (_resumo.QuantidadeVendas > 0 ? $" · ticket médio {Moeda(_resumo.TicketMedio)}" : "");
     }
 
     private void ChaveOcultar_Click(object sender, RoutedEventArgs e) => ValoresVenda.Definir(ChaveOcultar.IsChecked == true);
@@ -261,13 +315,12 @@ public partial class PainelView : UserControl
 
     private enum Gravidade { Normal, Atencao, Urgente }
 
-    private sealed record Aviso(string Icone, string Fundo, string Cor, Inline[] Texto, string Quando, Action? Abrir = null);
+    private sealed record Aviso(string Icone, string Fundo, string Cor, Inline[] Texto, string Quando, Action? Abrir = null, string RotuloAbrir = "Abrir");
 
     /// <summary>Um tópico dos avisos: o cabeçalho usa só o número e a gravidade; Montar cria as linhas ao abrir.</summary>
     private sealed record Topico(string Id, string Nome, string Icone, int Quantidade, Gravidade Gravidade, Func<List<Aviso>> Montar);
 
     private List<Topico> _topicos = [];
-    private readonly HashSet<string> _topicosAbertos = [];   // continuam abertos na atualização de 30 em 30 segundos
     private readonly Dictionary<string, Paginacao> _paginasAvisos = [];
 
     private void MostrarAvisos()
@@ -370,7 +423,10 @@ public partial class PainelView : UserControl
         });
         if (a.Abrir is not null)
         {
-            var botao = new Button { Content = "Abrir", Style = (Style)FindResource("BotaoLink"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
+            var botao = a.RotuloAbrir == "Abrir"
+                ? new Button { Content = "Abrir", Style = (Style)FindResource("BotaoLink"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) }
+                : new Button { Content = a.RotuloAbrir, Style = (Style)FindResource("BotaoPrimario"), Height = 34, Padding = new Thickness(14, 0, 14, 0), FontSize = 13,
+                               VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
             botao.Click += (_, _) => a.Abrir();
             DockPanel.SetDock(botao, Dock.Right);
             linha.Children.Add(botao);
@@ -392,6 +448,7 @@ public partial class PainelView : UserControl
         else if (destino == "estoque") _area.Abrir("estoque");
         else if (destino == "Estoque") (_area.Abrir("estoque") as EstoqueView)?.NovoProduto();
         else if (destino == "Fornecedores") (_area.Abrir("fornecedores") as FornecedoresView)?.NovoPedido();
+        else if (destino == "Fechamento do dia") _area.Abrir("calendario");   // o fechamento fica no Calendário (dia de hoje)
         else _area.EmBreve(destino);
     }
 
@@ -407,6 +464,18 @@ public partial class PainelView : UserControl
         Grid.SetColumn(CartaoAvisos, empilhar ? 0 : 1);
         Grid.SetRow(CartaoAvisos, empilhar ? 1 : 0);
         CartaoAtalhos.Margin = new Thickness(0, 0, empilhar ? 0 : 20, 20);
+    }
+
+    /// <summary>"Montar pedido": abre os Fornecedores já com o Novo pedido preenchido pela previsão.</summary>
+    private void MontarPedido(long fornecedorId) => (_area.Abrir("fornecedores") as FornecedoresView)?.MontarPedidoSugerido(fornecedorId);
+
+    /// <summary>"hoje", "amanhã" ou "sáb 14/11".</summary>
+    private static string Dia(DateOnly d)
+    {
+        var hoje = DateOnly.FromDateTime(DateTime.Today);
+        if (d == hoje) return "hoje";
+        if (d == hoje.AddDays(1)) return "amanhã";
+        return $"{d.ToString("ddd", PtBr).TrimEnd('.')} {d:dd/MM}";
     }
 
     private static string Turno(int hora) => hora < 12 ? "turno da manhã" : hora < 18 ? "turno da tarde" : "turno da noite";

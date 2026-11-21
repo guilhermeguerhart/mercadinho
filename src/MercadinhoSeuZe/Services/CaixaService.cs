@@ -130,4 +130,12 @@ public sealed class CaixaService(SupabaseApi api, Sessao sessao)
     /// <summary>Só o gerente: reabre um caixa de hoje fechado por engano.</summary>
     public Task ReabrirAsync(long caixaId) =>
         api.ChamarAsync<object>("reabrir_caixa", new { p_caixa_id = caixaId }, sessao.Token);
+
+    /// <summary>
+    /// Botão "Faltou produto" (F10): o cliente procurou e não tinha (motivo nao_tinha, levou_outro ou prateleira_vazia).
+    /// Ajuda a previsão a pedir mais da próxima vez (script 022). Devolve o texto de confirmação do banco.
+    /// </summary>
+    public async Task<string> RegistrarVendaPerdidaAsync(long produtoId, decimal quantidade, string motivo) =>
+        await api.ChamarAsync<string>("registrar_venda_perdida", new { p_produto = produtoId, p_quantidade = quantidade, p_motivo = motivo }, sessao.Token)
+        ?? "Anotado.";
 }

@@ -76,6 +76,15 @@ database/                  Scripts SQL, numerados, para rodar no SQL Editor do S
   021_correcao_laboratorio.sql  Corrige o 020: o Supabase recusa UPDATE/DELETE sem WHERE em chamadas do programa
                            (pg_safeupdate: "UPDATE requires a WHERE clause", erro 400). Regra para os próximos scripts:
                            toda função chamada pelo programa usa WHERE em UPDATE e DELETE (nem que seja "where true").
+  022_semana8_previsao_no_app.sql  Previsão no dia a dia (semana 8): pedido_sugerido troca o do 019 (produto sem histórico
+                           de vendas entra pela regra do estoque mínimo, item com regra 'minimo'; produto sem fornecedor
+                           principal entra no 1º fornecedor ativo A-Z da categoria; item traz 'minimo'), fornecedor_proximo_pedido,
+                           fornecedor_do_produto, previsao_duracao (coluna "Dura até" do Estoque) e vendas_perdidas +
+                           registrar_venda_perdida (F10 do caixa; também soma em simulacao_faltas, que a previsão já usa).
+                           Testado no PGlite com 2 anos de exemplo: itens da previsão iguais aos do 019.
+  023_semana8_calendario.sql  Tela Calendário: calendario_mes(p_mes) devolve por dia o vendido, se foi fechado, a previsão
+                           em R$ (previsao_dias × preço, de hoje em diante), o mesmo dia da semana do ano passado e as
+                           datas especiais; os dias de pedido de cada fornecedor e as datas festivas com pedir_ate. Não muda dados.
   010_semana6_agendamentos.sql  pg_cron + pg_net: ler-emails a cada 5 min e resumo das 23h. Rodar só depois de publicar
                            as Edge Functions e guardar o segredo no Vault (README, "Ligar o e-mail").
 supabase/functions/        Edge Functions (Deno/TypeScript): enviar-email (resumo do dia, pedido e resposta ao
@@ -504,6 +513,36 @@ publicar.ps1               Gera publish/MercadinhoSeuZe.exe (feche o .exe aberto
   sem estoque, vencido, pedido atrasado, falta no caixa, erro de leitura), âmbar (atenção) ou neutro; as linhas só
   são montadas ao abrir, em páginas de 5 (Paginacao com Barra(compacta: true)). Os abertos continuam abertos na
   atualização de 30 s. Tópico sem aviso não aparece. Sem o antigo limite de 8 avisos de estoque.
+
+3k. SEMANA 8 - PREVISÃO NO DIA A DIA (PEDIDO DO GUILHERME EM 13/11)
+------------------------------------------------------------------
+- Ele escolheu, entre 5 propostas com imagens, fazer todas, cada uma na sua tela e visível em todo o app.
+- AreaInternaView guarda o pedido sugerido (SugeridosAsync, 5 min de cache, relê a cada 10 min e depois de
+  PedidosMudaram(): PedidoJanela ao criar/editar e EntregaJanela) e avisa as telas (evento SugeridosMudaram). Menu:
+  número âmbar em Fornecedores = pedidos para hoje (PedidoSugerido.ParaHoje). Só gerente.
+- Painel: cartão "Pedir hoje" no lugar do Ticket médio (que foi para a linha das vendas) e tópico "pedirhoje" (aberto
+  por padrão) com "Montar pedido" (FornecedoresView.MontarPedidoSugerido). Avisos do F10 no tópico Estoque.
+- Fornecedores: com a previsão, MostrarSugestoesDaPrevisao (um aviso por fornecedor ParaHoje ou TemZerado, linha
+  "Próximos pedidos"); sem ela, as sugestões antigas pelo estoque mínimo.
+- PedidoJanela: faixa azul com a previsão do fornecedor escolhido (pedido novo), itens que ninguém mexeu passam para o
+  sugerido e entram os que faltam; dica por item ("Previsão: 2 kg" e o efeito de mudar); "Limpar itens".
+- Estoque: coluna DURA ATÉ (índice 3; preço passou para 4) e indicador/filtro "acaba" (previsao_duracao). Sem o 022 a
+  coluna e o indicador somem.
+- Caixa: F10 "Faltou produto" (CaixaJanelas.FaltouProduto, CaixaService.RegistrarVendaPerdidaAsync).
+- 20/11, pedido do Guilherme: o menu perdeu "Previsão de compras" e "Fechamento do dia" e ganhou "Calendário"
+  (Views/CalendarioView.cs, só código, script 023). A FechamentoView e a PrevisaoView continuam e entram dentro dele:
+  FechamentoView(modo "dia" = resumo/fechar do dia clicado, MostrarDiaAsync; modo "analises") e PrevisaoView(embutida),
+  nas áreas recolhidas (criadas só ao abrir). Caminhão âmbar = dia de pedir de fornecedor com itens no pedido sugerido ou
+  pedir_ate de data festiva com fator >= 1,2; cinza = dia de pedido de rotina. "Ver conta" dos Fornecedores abre
+  CalendarioView.AbrirPrevisaoCompleta(); o atalho "Fechar o dia" do Painel abre o Calendário.
+- App de celular (20/11): aba "Calendário" no lugar de "Análises" (calendario_mes; tocar num dia passado abre o resumo na
+  aba Hoje; as análises ficam num bloco que abre e fecha), aba Pedir pelo pedido_sugerido (recuo para a regra do mínimo
+  sem o script) e avisos de pedir hoje e do F10 (vendas_perdidas). Cache do sw.js: mercado-gerencia-4.
+- Acessibilidade (20/11): App.xaml.cs dá nome para o leitor de tela a todo botão sem texto (usa o ToolTip; "×" = Fechar,
+  "‹"/"›" = Anterior/Próximo) — botão novo só de ícone: ponha ToolTip. Cores conferidas pela WCAG AA (texto 4,5:1):
+  Placeholder #656D7C e Ciano600 #0C727B escurecidos; anel de foco do Interruptor em Verde600 (antes sumia). Texto
+  mínimo de 12 px (crachás 11,5). Foco do teclado visível em todos os botões (estilos com FocusVisualStyle nulo têm
+  a própria borda "Foco").
 
 4. O QUE AINDA DEVE SER FEITO (UMA SEMANA POR VEZ, NESTA ORDEM)
 --------------------------------------------------------------

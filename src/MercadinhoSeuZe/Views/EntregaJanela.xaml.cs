@@ -273,6 +273,7 @@ public partial class EntregaJanela : UserControl
         try
         {
             await _servico.RegistrarEntregaAsync(_pedido.Id, entrega!.Value, itens, NumeroNota.Text.Trim(), resto, previsaoResto);
+            _area.PedidosMudaram();
             var lotes = _linhas.Zip(itens).Count(x => x.First.Produto is not null && x.Second.Recebido > 0);
             await _aoGravar($"Entrega registrada: {lotes} {(lotes == 1 ? "lote novo" : "lotes novos")} no estoque." +
                             (resto ? " O que faltou ficou num pedido novo." : ""));

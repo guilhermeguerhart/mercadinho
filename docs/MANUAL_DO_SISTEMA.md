@@ -64,11 +64,15 @@ o gerente abrir a tela na frente de clientes. Fica lembrado no computador.
 
 Só para o gerente. Atualiza sozinho a cada 30 segundos.
 
-- **Indicadores**: vendido hoje, número de vendas, ticket médio, estoque baixo, pedidos pendentes e caixas abertos.
+- **Indicadores**: vendido hoje (com o número de vendas e o ticket médio), estoque baixo, **pedir hoje** e pedidos
+  pendentes. "Pedir hoje" vem da previsão de vendas: quantos fornecedores têm pedido para fazer hoje, quais, quantos
+  produtos e quanto custa. Clicar abre os Fornecedores.
 - **Acesso rápido**: Novo produto (abre o Estoque já no cadastro), Novo pedido (abre Fornecedores já no pedido),
   Caixa, Fechamento.
-- **Avisos recentes**, separados em tópicos que abrem e fecham: Estoque, Promoções, Pedidos e fornecedores, Mensagens
-  e Caixa. Fechado, cada tópico mostra só quantos avisos tem, na cor do mais grave:
+- **Avisos recentes**, separados em tópicos que abrem e fecham: Pedir hoje (previsão), Estoque, Promoções, Pedidos e
+  fornecedores, Mensagens e Caixa. "Pedir hoje" começa aberto, com um aviso por fornecedor e o botão **Montar pedido**
+  (abre o Novo pedido já preenchido). No Estoque também aparecem os avisos do caixa: produto que não está na prateleira
+  (urgente) e clientes que procuraram e não tinha. Fechado, cada tópico mostra só quantos avisos tem, na cor do mais grave:
   - **vermelho** (urgente): sem estoque, lote vencido, pedido atrasado, falta de dinheiro no caixa, erro ao ler;
   - **âmbar** (atenção): estoque baixo, aviso antecipado, validade próxima, hoje é o último dia para pedir;
   - **neutro**: informações (lotes em promoção de validade, fornecedor respondeu).
@@ -188,8 +192,11 @@ São os ligados a ele no cadastro do produto, os de "Também compro de" e, sem l
 
 ### Pedido
 
-1. **Pedir o que falta** monta o pedido com os produtos sem estoque, abaixo do mínimo ou no aviso antecipado
-   (quantidade sugerida = 2 × mínimo − atual, em caixas inteiras). Ou **Novo pedido** com a busca/leitor.
+1. Os avisos amarelos do topo vêm da **previsão de vendas** (ver "Previsão de compras no dia a dia"): **Montar
+   pedido** abre o Novo pedido com os produtos e as quantidades sugeridas. **Pedir o que falta** e **Novo pedido**
+   também funcionam: ao escolher o fornecedor, a janela usa as quantidades da previsão (faixa azul) e mostra embaixo de
+   cada item "Previsão: 2 kg" e o que muda se pedir mais ou menos. **Limpar itens** tira tudo. Sem a previsão (script
+   019/022 não rodado ou sem internet), vale a regra antiga: 2 × mínimo − atual, em caixas inteiras.
 2. A mensagem sai pronta ("Pedido nº 42 ...") para **Enviar pelo WhatsApp** (abre o WhatsApp com o texto) ou
    **Enviar por e-mail** (pela caixa de e-mail do mercado, se ligada; senão abre o e-mail do computador).
 3. Pedido pendente pode ser **editado** (gera "Atualização do pedido") ou **cancelado**.
@@ -201,6 +208,30 @@ São os ligados a ele no cadastro do produto, os de "Também compro de" e, sem l
 
 Ícone de e-mail no cartão do fornecedor, com o número de não lidas. Mostra a conversa (e-mails que chegaram pela caixa
 de pedidos e respostas do WhatsApp coladas à mão). O Painel avisa quando um fornecedor responde.
+
+---
+
+### Previsão de compras no dia a dia
+
+A conta completa da previsão (semana 7) fica no **Calendário**, na área recolhida "Dados completos da previsão". As outras telas usam a mesma conta (função
+`pedido_sugerido`, script 022):
+
+- **Menu**: o número âmbar ao lado de **Fornecedores** diz quantos pedidos a previsão manda fazer hoje. Aparece em
+  todas as telas e se atualiza sozinho a cada 10 minutos e depois de criar pedido ou registrar entrega.
+- **Painel**: indicador "Pedir hoje" e o tópico "Pedir hoje (previsão)" com **Montar pedido**.
+- **Fornecedores**: um aviso por fornecedor em que hoje é o dia de pedir (ou que tem produto zerado): produtos, valor,
+  quando chega e até quando precisa durar. **Ver conta** abre a Previsão de compras; **Ignorar hoje** esconde até
+  amanhã. Os outros aparecem numa linha só ("Próximos pedidos pela previsão").
+- **Novo pedido**: quantidades da previsão (ver acima).
+- **Estoque**: coluna **Dura até** ("~2 dias · qua", "~4 dias · antes da entrega", "~5 semanas", "sem histórico",
+  "parado há 40 dias") e o indicador **Acabam antes da entrega** (filtra os que acabam antes de chegar o próximo pedido
+  possível e ainda não foram pedidos).
+- **Caixa**: botão **Faltou produto (F10)** (ver Caixa).
+
+Regras da sugestão: previsão até a entrega seguinte + margem − estoque − o que já foi pedido, em caixas fechadas.
+**Produto sem histórico de vendas** (loja nova, produto novo) entra pela regra do estoque mínimo (sem estoque, abaixo
+do mínimo ou no aviso: pedir 2 × mínimo − atual, pelo menos o mínimo). **Produto sem fornecedor principal** entra no
+primeiro fornecedor ativo (A-Z) que entrega a categoria dele.
 
 ---
 
@@ -219,6 +250,10 @@ em dias anteriores são canceladas ao abrir.
 - Produto por quilo sem etiqueta: o campo de peso abre em foco.
 - Cada item entra **reservado**: ninguém mais vende a mesma unidade. Lote vencido nunca é vendido.
 - Máximo de 99.999 unidades (ou kg) por item.
+- **Faltou produto (F10)**: o cliente procurou e não tinha. Escolha o produto, quanto ele queria e o que aconteceu
+  (**Não tinha**, **Levou outro** ou **Prateleira vazia**: o sistema diz que tem, mas não está na gôndola). Fica
+  gravado como venda perdida: a previsão não aprende com o dia em falta, conta em "Vendas perdidas" e o gerente vê no
+  Painel. Prateleira vazia vira aviso urgente no Painel para repor.
 
 ### Pagar
 
@@ -282,9 +317,22 @@ hoje (só gerente) e **trocar a própria senha** (pede a senha atual; a nova pre
 
 ---
 
-## 9. Fechamento do dia e Análises
+## 9. Calendário (fechamento do dia, previsão e análises)
 
-Só para o gerente.
+Só para o gerente. Desde 20/11 junta as antigas telas **Fechamento do dia** e **Previsão de compras** (script 023).
+
+- **Mês em grade** (‹ › troca o mês): cada dia mostra o **vendido** (até hoje), a **previsão** dos dias seguintes
+  ("≈ R$", em azul), as datas especiais (feriados, Black Friday...) e um ✓ quando o dia foi fechado. A barrinha mostra o
+  tamanho do dia. Passe o mouse para ver os números e a faixa da previsão.
+- **Caminhão âmbar** = dia de compra: fornecedor com produtos para pedir naquele dia (pedido sugerido) ou último dia para
+  pedir para uma data festiva grande (com os produtos que vendem a mais). **Caminhão cinza** = dia de pedido de rotina de
+  algum fornecedor (a lista sai no próprio dia, porque depende do estoque daquele dia).
+- **Indicadores do mês**: vendido até hoje, previsto até o fim do mês, mês inteiro estimado, contra o ano passado (mesmos
+  dias da semana, 52 semanas antes) e quantos dias de compra faltam.
+- **Clicar num dia**: até hoje mostra o resumo de todos os caixas e o **Fechar o dia** (igual ao antigo Fechamento do
+  dia, abaixo); dia futuro mostra a previsão em R$ com a faixa e o que pedir, com **Montar pedido**.
+- Embaixo, recolhidas (clique para abrir): **Análises de vendas** e **Dados completos da previsão** (pedido sugerido,
+  produto, teste da previsão, alertas e, na versão de teste, o laboratório).
 
 ### Fechamento do dia
 
@@ -423,6 +471,9 @@ Para montar o projeto de teste: criar um projeto novo no Supabase, rodar no SQL 
 | 012 | senha do gerente em dia passado, calendário de datas festivas |
 | 014 | velocidade: índice dos itens da venda e regras de acesso conferidas uma vez por consulta |
 | 015 | análises rápidas: resumo de cada dia guardado pronto (depois de gerar dados de exemplo, rodar `select public.preencher_analise_cache();`) |
+| 016, 019 | previsão de compras (modelo, pedido sugerido, alertas, tela) |
+| 017, 018, 020, 021 | histórico de exemplo, simulador e laboratório da previsão (só para teste e desenvolvimento) |
+| 022 | previsão no dia a dia: sugestão pelo estoque mínimo sem histórico, produto sem fornecedor principal, "Dura até" do Estoque e vendas perdidas do caixa (F10) |
 
 ### Segurança
 
