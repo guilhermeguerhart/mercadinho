@@ -6,7 +6,15 @@
 const MODELO_PADRAO = "Olá{, contato}! Aqui é {usuario}, do Mercado.\nGostaria de fazer um pedido:\n{itens}\nEntrega prevista: {previsao}.\nPode confirmar, por favor? Obrigado!";
 const PRAZO_PADRAO = 3;
 
-const ped = { quantidades: new Map(), desmarcados: new Set(), criados: new Map(), sugeridos: null, sugeridosEm: 0 };
+const ped = { quantidades: new Map(), desmarcados: new Set(), criados: new Map(), sugeridos: null, sugeridosEm: 0, modo: null };
+
+/** "previsao" (padrão) ou "minimo" (a regra antiga); lembrado no aparelho. Sem a previsão no banco, fica no mínimo. */
+function trocarModoPedir(modo) {
+  ped.modo = modo;
+  gravarLocal("modo-pedir", modo);
+  mostrarPedir();
+}
+function emModoPrevisao() { return (ped.modo ??= lerLocal("modo-pedir") === "minimo" ? "minimo" : "previsao") === "previsao" && ped.sugeridos != null; }
 
 /** Pedido sugerido pela previsão (scripts 019 e 022, o mesmo do programa). null = sem o script ou sem internet: regra do mínimo. */
 async function carregarSugeridos(forcar = false) {
@@ -88,7 +96,7 @@ async function carregarPedir(forcar = false) {
 
 function gruposDeReposicao() {
   // Com a previsão: um grupo por fornecedor com produtos para pedir (sem pedido pendente dele); hoje primeiro
-  if (ped.sugeridos) {
+  if (emModoPrevisao()) {
     return ped.sugeridos
       .filter((s) => s.itens.length && !s.tem_pendente)
       .sort((a, b) => (b.pedir_hoje - a.pedir_hoje) || a.data_pedido.localeCompare(b.data_pedido) || a.fornecedor.localeCompare(b.fornecedor))
@@ -118,7 +126,11 @@ function mostrarPedir() {
   const grupos = gruposDeReposicao();
   const criados = [...ped.criados.values()];
   $("abaPedir").innerHTML = `
-    <h2>Pedir</h2><p class="sub">${ped.sugeridos
+    <h2>Pedir</h2>
+    ${ped.sugeridos ? `<div class="chips">
+      <button class="chip ${emModoPrevisao() ? "ativo" : ""}" data-modo="previsao" aria-pressed="${emModoPrevisao()}">Pela previsão</button>
+      <button class="chip ${emModoPrevisao() ? "" : "ativo"}" data-modo="minimo" aria-pressed="${!emModoPrevisao()}">Abaixo do mínimo</button></div>` : ""}
+    <p class="sub">${emModoPrevisao()
       ? "Pela previsão de vendas: quanto pedir de cada fornecedor para durar até a entrega seguinte. Produto sem histórico de vendas vem pelo estoque mínimo."
       : "Produtos sem estoque, abaixo do mínimo ou perto dele, que ainda não estão em pedido pendente."}</p>
     ${criados.map((c) => `<div class="aviso ok-borda"><div>Pedido nº ${c.id} para <b>${esc(c.f.nome)}</b> criado.
@@ -127,6 +139,7 @@ function mostrarPedir() {
       <button class="fantasma" data-copiar="${c.id}">Copiar</button></div></div></div>`).join("")}
     ${grupos.length ? grupos.map(cartaoFornecedor).join("") : `<p class="vazio">Nada para repor agora.</p>`}`;
 
+  for (const b of document.querySelectorAll("[data-modo]")) b.onclick = () => trocarModoPedir(b.dataset.modo);
   for (const c of document.querySelectorAll("[data-qtd]"))
     c.addEventListener("input", () => ped.quantidades.set(Number(c.dataset.qtd), c.value));
   for (const c of document.querySelectorAll("[data-marcar]"))

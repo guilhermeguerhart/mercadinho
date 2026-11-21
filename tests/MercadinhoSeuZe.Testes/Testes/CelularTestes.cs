@@ -69,7 +69,7 @@ public static class CelularTestes
             Verificar.Verdadeiro(app.Contains("perfil.perfil !== \"gerente\""), "Não achei a conferência do perfil gerente no app.js");
             return Task.CompletedTask;
         }, banco: false);
-        l.Certo("Funções que o app chama respondem para o gerente (Hoje, Análises, Avisos, Estoque)", async () =>
+        l.Certo("Funções que o app chama respondem para o gerente (Hoje, Análises, Avisos, Estoque, Pedir)", async () =>
         {
             var g = await amb.Entrar("gerente");
             var hoje = DateTime.Today.ToString("yyyy-MM-dd");
@@ -78,11 +78,15 @@ public static class CelularTestes
                 new { p_inicio = DateTime.Today.AddDays(-29).ToString("yyyy-MM-dd"), p_fim = hoje, p_agrupar = "dia" }, g.Token), TimeSpan.FromSeconds(4), "Aba Análises");
             await amb.Api!.ChamarAsync<JsonElement>("mensagens_nao_lidas", new { }, g.Token);
             await amb.Api.ChamarAsync<JsonElement>("reservados_hoje", new { }, g.Token);
+            // Semana 7: aba Pedir ("Pela previsão") e alertas da previsão na aba Avisos
+            await Verificar.Rapido(() => amb.Api!.ChamarAsync<JsonElement>("pedido_sugerido", new { }, g.Token), TimeSpan.FromSeconds(5), "Aba Pedir (pedido sugerido)");
+            await Verificar.Rapido(() => amb.Api!.ChamarAsync<JsonElement>("previsao_alertas", new { }, g.Token), TimeSpan.FromSeconds(5), "Aba Avisos (alertas da previsão)");
         });
         l.Seguranca("O operador não consegue os dados do app pelo banco", async () =>
         {
             var op = await amb.Entrar("operador");
             await Verificar.Recusa(() => amb.Api!.ChamarAsync<JsonElement>("resumo_dia", new { p_dia = DateTime.Today.ToString("yyyy-MM-dd") }, op.Token), "Resumo pelo operador", "Só o gerente");
+            await Verificar.Recusa(() => amb.Api!.ChamarAsync<JsonElement>("pedido_sugerido", new { }, op.Token), "Pedido sugerido pelo operador", "Só o gerente");
             var msgs = await amb.Api!.ChamarAsync<List<JsonElement>>("mensagens_nao_lidas", new { }, op.Token) ?? [];
             Verificar.Igual(0, msgs.Count, "Mensagens de fornecedores que o operador recebe");
         });

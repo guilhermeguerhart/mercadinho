@@ -92,7 +92,9 @@ supabase/functions/        Edge Functions (Deno/TypeScript): enviar-email (resum
                            Senha do e-mail só nos Secrets do Supabase. Publicar com --no-verify-jwt (conferem o login
                            por dentro; o agendamento usa o cabeçalho x-segredo).
 app-celular/               App de celular da gerência (HTML/CSS/JS, PWA instalável; vira .apk no PWABuilder). Usa só a
-                           chave pública (config.js) e as funções do 009. Só leitura.
+                           chave pública (config.js) e as funções do 009. Aba Pedir (cria pedido com criar_pedido): modo
+                           "Pela previsão" usa pedido_sugerido do 019 (volta para "Abaixo do mínimo" sem ele); aba Avisos
+                           mostra também previsao_alertas.
 src/MercadinhoSeuZe/
   App.xaml                 Cores, ícones (Geometry) e estilos de botões/campos/listas de escolha, indicadores
                            quadrados (Kpi), chips e cabeçalho de tabela. Reutilize, não duplique.
@@ -537,7 +539,7 @@ publicar.ps1               Gera publish/MercadinhoSeuZe.exe (feche o .exe aberto
   CalendarioView.AbrirPrevisaoCompleta(); o atalho "Fechar o dia" do Painel abre o Calendário.
 - App de celular (20/11): aba "Calendário" no lugar de "Análises" (calendario_mes; tocar num dia passado abre o resumo na
   aba Hoje; as análises ficam num bloco que abre e fecha), aba Pedir pelo pedido_sugerido (recuo para a regra do mínimo
-  sem o script) e avisos de pedir hoje e do F10 (vendas_perdidas). Cache do sw.js: mercado-gerencia-4.
+  sem o script) e avisos de pedir hoje e do F10 (vendas_perdidas). Cache do sw.js: mercado-gerencia-5; a aba Pedir tem "Pela previsão" e "Abaixo do mínimo".
 - Acessibilidade (20/11): App.xaml.cs dá nome para o leitor de tela a todo botão sem texto (usa o ToolTip; "×" = Fechar,
   "‹"/"›" = Anterior/Próximo) — botão novo só de ícone: ponha ToolTip. Cores conferidas pela WCAG AA (texto 4,5:1):
   Placeholder #656D7C e Ciano600 #0C727B escurecidos; anel de foco do Interruptor em Verde600 (antes sumia). Texto

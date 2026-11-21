@@ -1,5 +1,6 @@
 // Mercado Gerência (semana 6): app de celular do gerente (estoque.js, pedidos.js e trava.js completam). Usa o mesmo banco do programa
-// (Supabase, chave pública) e as funções do script 009: resumo_dia, analise_vendas e mensagens_nao_lidas.
+// (Supabase, chave pública) e as funções do script 009: resumo_dia, analise_vendas e mensagens_nao_lidas; da semana 7 (019),
+// pedido_sugerido (aba Pedir) e previsao_alertas (aba Avisos).
 // As regras do banco (RLS) garantem que só o gerente vê as vendas.
 "use strict";
 
@@ -418,13 +419,14 @@ function mostrarAnalise() {
 
 async function carregarAvisos(soContar = false) {
   const hoje = iso(hojeLocal());
-  const [mensagens, atrasados, produtos, dia, perdidas, sugeridos] = await Promise.all([
+  const [mensagens, atrasados, produtos, dia, perdidas, sugeridos, previsao] = await Promise.all([
     sb.rpc("mensagens_nao_lidas"),
     sb.from("pedidos").select("id,previsao_entrega,fornecedores(nome)").eq("situacao", "pendente").lt("previsao_entrega", hoje).order("previsao_entrega"),
     sb.from("produtos").select("nome,estoque_minimo,unidade_medida,lotes(quantidade_restante,validade)"),
     sb.rpc("resumo_dia", { p_dia: hoje }),
     sb.from("vendas_perdidas").select("motivo,quantidade,momento,operador_nome,produtos(nome)").eq("dia", hoje).order("momento", { ascending: false }),
     carregarSugeridos(),
+    sb.rpc("previsao_alertas"),   // semana 7 (script 019); sem ele no banco, os outros avisos aparecem do mesmo jeito
   ]);
   const avisos = [];
   // Pela previsão (semana 8): fornecedores para pedir hoje
@@ -457,13 +459,22 @@ async function carregarAvisos(soContar = false) {
   if (vencidos.length) avisos.push(["perigo", `${plural(vencidos.length, "produto tem", "produtos têm")} lote vencido.`, lista(vencidos)]);
   if (semEstoque.length) avisos.push(["perigo", `${plural(semEstoque.length, "produto está", "produtos estão")} sem estoque.`, lista(semEstoque)]);
   if (baixos.length) avisos.push(["atencao", `${plural(baixos.length, "produto está", "produtos estão")} abaixo do mínimo.`, lista(baixos)]);
+  // Alertas da previsão (os mesmos da aba "Alertas" da Previsão de compras do programa)
+  const ALERTAS = {
+    falta: ["perigo", "Clientes ficaram sem o produto"], parado: ["atencao", "Produto parado"],
+    queda: ["atencao", "Vendendo menos que o normal"], alta: ["info", "Vendendo mais que o normal"], data: ["info", "Data especial chegando"],
+  };
+  for (const a of previsao.error ? [] : previsao.data ?? []) {
+    const [classe, titulo] = ALERTAS[a.tipo] ?? ["info", "Previsão"];
+    avisos.push([classe, a.tipo === "data" ? a.texto : `${a.produto}: ${a.texto}`, `Previsão de compras · ${titulo}`]);
+  }
 
   const conta = $("contaAvisos");
   conta.hidden = avisos.length === 0;
   conta.textContent = avisos.length > 9 ? "9+" : String(avisos.length);
   if (soContar) return;
   const erro = [mensagens, atrasados, produtos].find((r) => r.error)?.error;
-  $("abaAvisos").innerHTML = `<h2>Avisos</h2><p class="sub">Estoque, pedidos, caixas e respostas dos fornecedores.</p>
+  $("abaAvisos").innerHTML = `<h2>Avisos</h2><p class="sub">Estoque, pedidos, caixas, previsão de compras e respostas dos fornecedores.</p>
     ${erro ? `<div class="aviso perigo">${esc(mensagemDeErro(erro))}</div>` : ""}
     ${avisos.length ? avisos.map(([c, t, s]) => `<div class="aviso ${c}"><div>${esc(t)}<small>${esc(s)}</small></div></div>`).join("") : `<p class="vazio">Nenhum aviso agora.</p>`}`;
 }
