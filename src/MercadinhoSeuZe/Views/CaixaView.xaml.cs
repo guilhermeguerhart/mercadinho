@@ -74,6 +74,7 @@ public partial class CaixaView : UserControl
         _caixaServico = caixa;
         _estoque = estoque;
         _gerente = caixa?.Sessao.Perfil == Perfil.Gerente;
+        Loaded += (_, _) => MostrarMaquininha();
         ChaveOcultar.Visibility = _gerente ? Visibility.Visible : Visibility.Collapsed;
         ChaveOcultar.IsChecked = ValoresVenda.Ocultos;
         if (!_gerente) ResumoDia.Visibility = CartaoVendas.Visibility = Visibility.Collapsed;
@@ -1169,6 +1170,33 @@ public partial class CaixaView : UserControl
     private void Consulta_Click(object sender, RoutedEventArgs e) => _area.AbrirJanela(CaixaJanelas.ConsultaPreco(_area, _produtos));
 
     private void Faltou_Click(object sender, RoutedEventArgs e) => AbrirFaltou();
+
+    private void MostrarMaquininha()
+    {
+        BotaoMaquininha.Visibility = _gerente ? Visibility.Visible : Visibility.Collapsed;
+        BotaoMaquininha.Content = Maquininha.Tipo == Maquininha.Ton ? "Maquininha: Stone Ton" : "Maquininha: de teste";
+    }
+
+    /// <summary>Gerente escolhe a maquininha deste computador: Stone Ton (de verdade) ou a de teste.</summary>
+    private void Maquininha_Click(object sender, RoutedEventArgs e)
+    {
+        var j = new JanelaSimples(_area, "Maquininha deste computador",
+            "Stone Ton: o operador digita o valor na Ton e confirma no caixa. De teste: nada é cobrado (só para treinar e testar).", 460);
+        foreach (var (tipo, nome) in new[] { (Maquininha.Ton, "Stone Ton"), (Maquininha.Teste, "De teste (não cobra)") })
+        {
+            var b = new Button { Content = nome, Style = j.Estilo("Chip"), Margin = new Thickness(0, 0, 8, 8), Tag = Maquininha.Tipo == tipo ? "ativo" : null };
+            b.Click += (_, _) =>
+            {
+                Maquininha.Escolher(tipo);
+                MostrarMaquininha();
+                j.Fechar();
+                _area.MostrarToast(tipo == Maquininha.Ton ? "Este computador usa a Stone Ton." : "Este computador usa a maquininha de teste.");
+            };
+            j.Corpo.Children.Add(b);
+        }
+        j.Botao("Fechar", true, j.Fechar);
+        _area.AbrirJanela(j);
+    }
 
     /// <summary>F10: o cliente procurou e não tinha (venda perdida para a previsão, script 022).</summary>
     private void AbrirFaltou()

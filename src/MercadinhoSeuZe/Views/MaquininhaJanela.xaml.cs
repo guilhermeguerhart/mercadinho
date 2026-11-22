@@ -39,7 +39,12 @@ public partial class MaquininhaJanela : UserControl
         FormaTexto.Text = FormaPagamento.Nome(cobranca.Forma).ToUpper(PtBr) + (cobranca.Parcelas > 1 ? $" · {cobranca.Parcelas}x" : "");
         Valor.Text = cobranca.Valor.ToString("C", PtBr);
         PainelTeste.Visibility = maquininha is MaquininhaEmulada ? Visibility.Visible : Visibility.Collapsed;
-        if (cobranca.Forma == "pix")
+        PainelTon.Visibility = maquininha is MaquininhaTon ? Visibility.Visible : Visibility.Collapsed;
+        var nota = new string(identificador.Where(char.IsAsciiDigit).ToArray());
+        TextoNota.Text = nota.Length == 0 ? "" : $"Nota nº {nota}: a cobrança fica registrada nesta nota. Se precisar achar na maquininha, procure pelo valor e pela hora da nota.";
+        TextoNota.Visibility = nota.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+        if (cobranca.Forma == "pix") TextoTon.Text = "Gere o Pix na Ton com este valor e mostre o QR ao cliente. Quando a Ton confirmar, toque abaixo.";
+        if (cobranca.Forma == "pix" && maquininha is not MaquininhaTon)
         {
             var codigo = PixCopiaECola.Gerar(cobranca.Valor, identificador);
             CopiaECola.Text = codigo;
@@ -54,7 +59,7 @@ public partial class MaquininhaJanela : UserControl
             _cancelar.Cancel();
             _resultado.TrySetResult(_resposta is { Aprovada: true } ? _resposta : null);
         };
-        Loaded += async (_, _) => { BotaoAprovar.Focus(); await CobrarAsync(); };
+        Loaded += async (_, _) => { (maquininha is MaquininhaTon ? BotaoAprovadoTon : BotaoAprovar).Focus(); await CobrarAsync(); };
     }
 
     private async Task CobrarAsync()
@@ -69,13 +74,15 @@ public partial class MaquininhaJanela : UserControl
             return;
         }
         PainelTeste.Visibility = Visibility.Collapsed;
+        PainelTon.Visibility = Visibility.Collapsed;
         Visor.Text = _resposta.Aprovada ? "APROVADO" : "NÃO APROVADO";
         AvisoResultado.Visibility = Visibility.Visible;
         AvisoResultado.Background = (Brush)FindResource(_resposta.Aprovada ? "Verde50" : "Vermelho50");
         AvisoResultado.BorderBrush = (Brush)FindResource(_resposta.Aprovada ? "Verde700" : "Vermelho600");
         AvisoResultadoTexto.Foreground = (Brush)FindResource(_resposta.Aprovada ? "Verde700" : "Vermelho600");
         AvisoResultadoTexto.Text = _resposta.Aprovada
-            ? $"Aprovado · {_resposta.Bandeira}{(_resposta.FinalCartao is null ? "" : " •••• " + _resposta.FinalCartao)} · NSU {_resposta.Nsu} · autorização {_resposta.Autorizacao}"
+            ? $"Aprovado · {_resposta.Bandeira}{(_resposta.FinalCartao is null ? "" : " •••• " + _resposta.FinalCartao)}" +
+              (_resposta.Nsu is null ? "" : $" · NSU {_resposta.Nsu}") + (_resposta.Autorizacao is null ? "" : $" · autorização {_resposta.Autorizacao}")
             : _resposta.Mensagem + " Escolha outra forma ou tente de novo.";
         BotaoCancelar.Visibility = Visibility.Collapsed;
         BotaoOk.Content = _resposta.Aprovada ? "Continuar" : "Voltar";
@@ -100,6 +107,10 @@ public partial class MaquininhaJanela : UserControl
     private void Recusar_Click(object sender, RoutedEventArgs e) => (_maquininha as MaquininhaEmulada)?.Simular(MaquininhaEmulada.Resultado.Recusar);
 
     private void SemComunicacao_Click(object sender, RoutedEventArgs e) => (_maquininha as MaquininhaEmulada)?.Simular(MaquininhaEmulada.Resultado.SemComunicacao);
+
+    private void AprovadoTon_Click(object sender, RoutedEventArgs e) => (_maquininha as MaquininhaTon)?.Confirmar(true);
+
+    private void RecusadoTon_Click(object sender, RoutedEventArgs e) => (_maquininha as MaquininhaTon)?.Confirmar(false);
 
     private void Cancelar_Click(object sender, RoutedEventArgs e)
     {

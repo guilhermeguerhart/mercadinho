@@ -20,6 +20,8 @@ public sealed class PreferenciasLocais
     public bool ModoCaixa { get; set; }
     /// <summary>Interruptor "Ocultar vendas" do gerente (Views/ValoresVenda).</summary>
     public bool OcultarVendas { get; set; }
+    /// <summary>Maquininha deste computador: "ton" ou "teste" (Services/Maquininha). null = o padrão da versão.</summary>
+    public string? Maquininha { get; set; }
 
     public static PreferenciasLocais Carregar()
     {

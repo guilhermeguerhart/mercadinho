@@ -38,6 +38,20 @@
                 <TextBlock x:Name="AvisoResultadoTexto" FontSize="14" FontWeight="SemiBold" />
             </Border>
 
+            <!-- Stone Ton: o operador digita na maquininha e conta aqui o que ela mostrou -->
+            <Border x:Name="PainelTon" Background="{StaticResource Bilhete}" BorderBrush="{StaticResource BordaEtiqueta}" BorderThickness="1"
+                    CornerRadius="6" Padding="14,12" Margin="0,16,0,0" Visibility="Collapsed">
+                <StackPanel>
+                    <TextBlock x:Name="TextoTon" FontSize="13.5" TextWrapping="Wrap" Margin="0,0,0,10"
+                               Text="Digite o valor na Ton e passe o cartão. Quando ela mostrar o resultado, toque abaixo." />
+                    <!-- A cobrança fica ligada à nota (número da venda): para achar na maquininha, valor + hora desta nota -->
+                    <TextBlock x:Name="TextoNota" FontSize="13" TextWrapping="Wrap" Style="{StaticResource TextoSuave}" Margin="0,0,0,10" />
+                    <WrapPanel>
+                        <Button x:Name="BotaoAprovadoTon" Content="Aprovado na maquininha" Style="{StaticResource BotaoPrimario}" Height="40" Padding="16,0" Margin="0,0,8,4" Click="AprovadoTon_Click" />
+                        <Button Content="Recusado" Style="{StaticResource BotaoFantasma}" Height="40" Padding="14,0" Margin="0,0,0,4" Click="RecusadoTon_Click" />
+                    </WrapPanel>
+                </StackPanel>
+            </Border>
             <!-- Botões de teste (só na maquininha emulada) -->
             <Border x:Name="PainelTeste" Background="{StaticResource Bilhete}" BorderBrush="{StaticResource BordaEtiqueta}" BorderThickness="1"
                     CornerRadius="6" Padding="14,12" Margin="0,16,0,0" Visibility="Collapsed">

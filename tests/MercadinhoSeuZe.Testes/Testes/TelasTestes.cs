@@ -70,6 +70,15 @@ public static class TelasTestes
             area.FecharJanela();
             area.AbrirJanela(new MaquininhaJanela(area, new MaquininhaEmulada(), new Cobranca("credito", 123.45m, 3), "TESTE1"));
             Mostrar(area, "Maquininha", TimeSpan.FromSeconds(2), amb);
+            // Stone Ton (semana 8): o operador digita na Ton e confirma; aprovar fecha com a resposta
+            var ton = new MaquininhaTon();
+            var janelaTon = new MaquininhaJanela(area, ton, new Cobranca("debito", 43.70m), "TESTE2");
+            area.AbrirJanela(janelaTon);
+            Mostrar(area, "Maquininha Stone Ton", TimeSpan.FromSeconds(1), amb);
+            ton.Confirmar(true);
+            Bomba.Pausar(TimeSpan.FromSeconds(2));
+            var respostaTon = janelaTon.Resultado.IsCompleted ? janelaTon.Resultado.Result : null;
+            if (respostaTon is not { Aprovada: true }) throw new FalhaTeste("Maquininha Ton: aprovar não devolveu o pagamento aprovado.");
             area.FecharJanela();
         }, banco: true);
         l.Tela("Sem internet: todas as telas abrem e avisam, sem fechar o programa", () =>

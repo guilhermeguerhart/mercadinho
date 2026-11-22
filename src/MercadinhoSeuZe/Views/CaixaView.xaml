@@ -249,6 +249,8 @@
                         <Button x:Name="BotaoCpf" Content="CPF na nota (F11)" Style="{StaticResource LinkSuave}" Margin="6,2" Click="Cpf_Click" />
                         <Button x:Name="BotaoEspera" Content="Pôr em espera (F12)" Style="{StaticResource LinkSuave}" Margin="6,2" Click="Espera_Click" />
                         <Button x:Name="BotaoConsulta" Content="Consultar preço (F3)" Style="{StaticResource LinkSuave}" Margin="6,2" Click="Consulta_Click" />
+                        <Button x:Name="BotaoMaquininha" Style="{StaticResource LinkSuave}" Margin="6,2" Click="Maquininha_Click" Visibility="Collapsed"
+                                ToolTip="Gerente: qual maquininha este computador usa" />
                         <Button x:Name="BotaoFaltou" Content="Faltou produto (F10)" Style="{StaticResource LinkSuave}" Margin="6,2" Click="Faltou_Click"
                                 ToolTip="O cliente procurou e não tinha: anota para a previsão pedir mais" />
                         <Button x:Name="BotaoCancelarVenda" Content="Cancelar venda" Style="{StaticResource LinkSuave}" Foreground="{StaticResource Vermelho600}" Margin="6,2" Click="CancelarVenda_Click" />

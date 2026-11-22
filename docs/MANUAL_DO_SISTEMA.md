@@ -273,6 +273,15 @@ em dias anteriores são canceladas ao abrir.
 - **Maquininha**: hoje é **emulada** (botões de teste Aprovar / Recusar / Sem comunicação). Nenhum pagamento real é
   feito. O Pix mostra um "copia e cola" de teste.
 
+### Maquininha Stone Ton
+
+A Ton não recebe o valor do programa (só maquininhas Stone empresa homologadas têm integração). No caixa, ao escolher
+débito, crédito, vale ou Pix, a janela mostra o valor em letras grandes: o operador digita esse valor na Ton e, quando
+ela aprovar, toca em **Aprovado na maquininha**; se não aprovar, **Recusado**. A cobrança fica ligada à nota (número
+da venda): para achar uma cobrança na maquininha, procure pelo valor e pela hora da nota. No Pix, a
+Ton mostra o QR na tela dela. O gerente escolhe a maquininha de cada computador no Caixa, em **Maquininha: …** (Stone
+Ton ou de teste). O .exe do mercado já começa na Ton; o de teste (publish-dev), na maquininha de teste.
+
 ### Senha do gerente
 
 Cancelar ou diminuir item, cancelar a venda, dar desconto e fazer sangria pedem **usuário e senha de um gerente**. A
