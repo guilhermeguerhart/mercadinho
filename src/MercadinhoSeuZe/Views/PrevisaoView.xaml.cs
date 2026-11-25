@@ -330,7 +330,7 @@ public partial class PrevisaoView : UserControl
             {
                 _area.MostrarToast(mensagem);
                 await CarregarAsync();
-                _area.AbrirJanela(new EnvioPedidoJanela(_area, forn, texto, "Pedido criado", pedidoId, _area.Mensagens()));
+                _area.AbrirJanela(new EnvioPedidoJanela(_area, forn, texto, "Pedido criado", pedidoId, _area.Mensagens(), enviarSozinho: true));
             },
             quantidades: quantidades));
     }

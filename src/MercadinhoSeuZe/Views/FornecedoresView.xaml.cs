@@ -1091,7 +1091,7 @@ public partial class FornecedoresView : UserControl
             async (mensagem, fornecedor, texto, pedidoId) =>
             {
                 await RecarregarAsync(mensagem);
-                _area.AbrirJanela(new EnvioPedidoJanela(_area, fornecedor, texto, "Pedido criado", pedidoId, _mensagens));
+                _area.AbrirJanela(new EnvioPedidoJanela(_area, fornecedor, texto, "Pedido criado", pedidoId, _mensagens, enviarSozinho: true));
             }, quantidades: quantidades));
     }
 
@@ -1104,7 +1104,7 @@ public partial class FornecedoresView : UserControl
             async (mensagem, fornecedor, texto, pedidoId) =>
             {
                 await RecarregarAsync(mensagem);
-                _area.AbrirJanela(new EnvioPedidoJanela(_area, fornecedor, $"Atualização do pedido de {p.Data:dd/MM/yyyy} (substitui o anterior):\n\n" + texto, "Pedido alterado", pedidoId, _mensagens));
+                _area.AbrirJanela(new EnvioPedidoJanela(_area, fornecedor, $"Atualização do pedido de {p.Data:dd/MM/yyyy} (substitui o anterior):\n\n" + texto, "Pedido alterado", pedidoId, _mensagens, enviarSozinho: true));
             }, p));
     }
 

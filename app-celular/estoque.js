@@ -7,17 +7,18 @@ const CAMPOS_PRODUTO = "id,nome,categoria,preco,unidade_medida,estoque_minimo,es
   "codigo_balanca,fornecedor_id,prazo_entrega_dias,lotes(id,quantidade_inicial,quantidade_restante,data_compra,validade)";
 const DIAS_VALIDADE = 30;
 
-const est = { produtos: null, fornecedores: [], vinculos: [], pendentes: new Set(), lidoEm: 0, filtro: "todos", busca: "", aberto: null };
+const est = { produtos: null, fornecedores: [], vinculos: [], pendentes: new Set(), duracao: null, lidoEm: 0, filtro: "todos", busca: "", aberto: null };
 
 /** Lê produtos, lotes, reservas, fornecedores e pedidos pendentes (no máximo uma vez por minuto, a não ser forçado). */
 async function carregarEstoqueDados(forcar = false) {
   if (est.produtos && !forcar && Date.now() - est.lidoEm < 60000) return null;
-  const [produtos, reservas, fornecedores, vinculos, pendentes] = await Promise.all([
+  const [produtos, reservas, fornecedores, vinculos, pendentes, duracao] = await Promise.all([
     sb.from("produtos").select(CAMPOS_PRODUTO).order("nome"),
     sb.rpc("reservados_hoje"),
-    sb.from("fornecedores").select("id,nome,telefone,whatsapp,contato,categorias,prazo_entrega_dias,dias_entrega,modelo_mensagem,ativo").order("nome"),
+    sb.from("fornecedores").select("id,nome,telefone,whatsapp,email,contato,categorias,prazo_entrega_dias,dias_entrega,modelo_mensagem,ativo").order("nome"),
     sb.from("produto_fornecedores").select("produto_id,fornecedor_id"),
     sb.from("pedido_itens").select("produto_id,pedidos!inner(situacao)").eq("pedidos.situacao", "pendente"),
+    sb.rpc("previsao_duracao"),   // semana 8 (script 022): "Dura até"; sem o script, a informação só não aparece
   ]);
   if (produtos.error) return produtos.error;
   const reservado = new Map((reservas.data ?? []).map((r) => [r.produto_id, Number(r.quantidade)]));
@@ -43,6 +44,7 @@ async function carregarEstoqueDados(forcar = false) {
   est.fornecedores = fornecedores.data ?? [];
   est.vinculos = vinculos.data ?? [];
   est.pendentes = new Set((pendentes.data ?? []).map((i) => i.produto_id));
+  est.duracao = !duracao.error && Array.isArray(duracao.data) ? new Map(duracao.data.map((d) => [d.produto_id, d])) : null;
   est.lidoEm = Date.now();
   return null;
 }
@@ -65,7 +67,29 @@ const FILTROS_ESTOQUE = [
   ["sem", "Sem estoque", (p) => p.situacao === "sem"],
   ["validade", "Validade próxima", (p) => p.validadeProxima],
   ["vencidos", "Vencidos", (p) => p.vencido],
+  ["acaba", "Acabam antes da entrega", (p) => est.duracao?.get(p.id)?.antes_da_entrega === true],
 ];
+
+/**
+ * Até quando o estoque dura pela previsão (previsao_duracao, script 022), com as mesmas regras e textos da coluna
+ * "Dura até" do Estoque do programa: [texto, classe do selo, explicação] ou null sem a previsão.
+ */
+function duracaoDe(p) {
+  const d = est.duracao?.get(p.id);
+  if (!d) return null;
+  const parado = d.tem_historico && Number(d.estoque) > 0 && (d.dias_sem_venda ?? 999) >= 14;
+  if (!d.tem_historico) return ["sem histórico", "neutro", "Ainda sem vendas para prever: o pedido usa o estoque mínimo."];
+  if (parado) return [`parado há ${d.dias_sem_venda ?? 120} dias`, "neutro", "Costuma vender, mas não vende há 2 semanas ou mais. Está na prateleira? Está escondido ou vencido?"];
+  if (!d.acaba_em) return [d.previsto_ate ? `além de ${dataBr(d.previsto_ate).slice(0, 5)}` : "—", "ok", "Dura mais que os dias previstos."];
+  const dias = Math.max(0, diasAte(d.acaba_em));
+  const quanto = Number(d.estoque) <= 0 ? "acabou" : dias === 0 ? "acaba hoje" : dias < 14 ? `~${dias} ${dias === 1 ? "dia" : "dias"}` : `~${Math.floor(dias / 7)} semanas`;
+  const chegada = d.chegada ? ` A próxima entrega possível é ${dataBr(d.chegada).slice(0, 5)}.` : "";
+  if (d.antes_da_entrega)
+    return [`${quanto} · antes da entrega`, dias <= 2 ? "perigo" : "atencao", `Pela previsão acaba em ${dataBr(d.acaba_em).slice(0, 5)}, antes da próxima entrega.${chegada} Peça hoje.`];
+  const semana = deIso(d.acaba_em).toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
+  return [dias < 14 ? `${quanto} · ${semana}` : quanto, d.ja_pedido ? "info" : dias < 7 ? "atencao" : "ok",
+    `Pela previsão acaba em ${dataBr(d.acaba_em).slice(0, 5)}.${chegada}${d.ja_pedido ? " Já tem pedido pendente." : ""}`];
+}
 
 function normalizar(t) { return String(t ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, ""); }
 
@@ -80,14 +104,18 @@ async function carregarEstoque(forcar = false) {
 function mostrarEstoque() {
   const todos = est.produtos ?? [];
   const contar = (f) => todos.filter(f).length;
+  if (!est.duracao && est.filtro === "acaba") est.filtro = "todos";   // sem a previsão no banco
   const filtro = FILTROS_ESTOQUE.find((f) => f[0] === est.filtro) ?? FILTROS_ESTOQUE[0];
   const termo = normalizar(est.busca);
   const lista = todos.filter(filtro[2]).filter((p) => !termo || normalizar(p.nome).includes(termo) || normalizar(p.categoria).includes(termo)
     || p.codigo_barras_caixa === est.busca.trim());
+  // "Acabam antes da entrega": quem acaba primeiro em cima (como no programa)
+  if (est.filtro === "acaba") lista.sort((a, b) => (est.duracao.get(a.id)?.acaba_em ?? "9999").localeCompare(est.duracao.get(b.id)?.acaba_em ?? "9999"));
+  const nAcaba = est.duracao ? contar(FILTROS_ESTOQUE.find((f) => f[0] === "acaba")[2]) : 0;
   const leitor = "BarcodeDetector" in window;
 
   $("abaEstoque").innerHTML = `
-    <h2>Estoque</h2><p class="sub">${plural(todos.length, "produto", "produtos")} · atualizado às ${new Date(est.lidoEm).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</p>
+    <h2>Estoque</h2><p class="sub">${plural(todos.length, "produto", "produtos")}${est.duracao ? ` · ${nAcaba} ${nAcaba === 1 ? "acaba" : "acabam"} antes da próxima entrega` : ""} · atualizado às ${new Date(est.lidoEm).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</p>
     <div class="busca-linha">
       <input id="buscaEstoque" type="search" placeholder="Buscar produto ou categoria" value="${esc(est.busca)}" aria-label="Buscar produto">
       <button class="fantasma" id="botaoCamera" type="button" aria-label="Ler código de barras com a câmera" title="${leitor ? "Ler código de barras" : "Este navegador não lê código de barras; use a busca"}" ${leitor ? "" : "disabled"}>
@@ -120,6 +148,7 @@ function cartaoProduto(p) {
   const fornecedor = est.fornecedores.find((f) => f.id === p.fornecedor_id)?.nome;
   const validade = p.vencido ? `<span class="selo perigo">Lote vencido</span>`
     : p.validadeProxima ? `<span class="selo atencao">Vence em ${diasAte(p.proxima)} dia(s)</span>` : "";
+  const dura = duracaoDe(p);
   const lotes = p.lotes.length ? p.lotes.map((l) => {
     const venc = l.validade && l.validade < iso(hojeLocal());
     return `<tr><td>${formatarQtd(p, l.quantidade_restante)} <small>de ${formatarQtd(p, l.quantidade_inicial)}</small></td>
@@ -128,11 +157,12 @@ function cartaoProduto(p) {
   return `<details class="cartao produto" data-id="${p.id}" ${est.aberto === p.id ? "open" : ""}>
     <summary>
       <span class="bolinha-sit ${classe}" aria-hidden="true"></span>
-      <span class="produto-nome"><b>${esc(p.nome)}</b><small>${esc(p.categoria)} · ${rotulo}</small></span>
+      <span class="produto-nome"><b>${esc(p.nome)}</b><small>${esc(p.categoria)} · ${rotulo}</small>${dura ? `<span class="selo-dura ${dura[1]}">Dura: ${esc(dura[0])}</span>` : ""}</span>
       <span class="produto-qtd"><b>${formatarQtd(p, p.qtd)}</b><small>${moedaReal(p.preco)}${p.kg ? "/kg" : ""}</small></span>
     </summary>
     <div class="produto-corpo">
       ${validade}
+      ${dura ? `<p class="sub dica-dura">${esc(dura[2])}</p>` : ""}
       <div class="dados">
         <div><small>Mínimo</small>${formatarQtd(p, p.minimo)}</div>
         <div><small>Avisar com</small>${formatarQtd(p, p.aviso)}</div>

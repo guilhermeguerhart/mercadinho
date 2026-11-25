@@ -129,7 +129,7 @@ h3 { font-size: 16px; margin: 0 0 10px; }
 .colunas { display: flex; align-items: flex-end; gap: 3px; height: 160px; border-bottom: 1.5px solid var(--tinta); }
 .colunas div { flex: 1; background: var(--marinho-3); border-radius: 2px 2px 0 0; min-height: 0; }
 .colunas div.destaque { background: var(--etiqueta); outline: 1px solid var(--tinta); }
-.rotulos { display: flex; gap: 3px; font-size: 11px; color: var(--suave); margin-top: 4px; }
+.rotulos { display: flex; gap: 3px; font-size: 12px; color: var(--suave); margin-top: 4px; }
 .rotulos span { flex: 1; text-align: center; overflow: visible; white-space: nowrap; }
 
 .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
@@ -161,7 +161,8 @@ h3 { font-size: 16px; margin: 0 0 10px; }
 .abas svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .abas button.ativo { color: var(--marinho); }
 .abas button.ativo::before { content: ""; position: absolute; top: 0; left: 25%; right: 25%; height: 3px; background: var(--etiqueta); }
-.bolinha { position: absolute; top: 4px; left: calc(50% + 6px); min-width: 18px; height: 18px; border-radius: 9px; background: var(--vermelho); color: #fff; font-size: 11px; line-height: 18px; padding: 0 5px; }
+.bolinha { position: absolute; top: 4px; left: calc(50% + 6px); min-width: 18px; height: 18px; border-radius: 9px; background: var(--vermelho); color: #fff; font-size: 12px; font-weight: 700; line-height: 18px; padding: 0 5px; }
+.bolinha-ambar { background: var(--ambar); }
 
 .toast {
   position: fixed; left: 16px; right: 16px; bottom: calc(84px + env(safe-area-inset-bottom)); max-width: 480px; margin: 0 auto;
@@ -212,7 +213,7 @@ details.produto summary::-webkit-details-marker { display: none; }
 .dados { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin: 10px 0; font-size: 14px; }
 .dados small { display: block; color: var(--suave); font-size: 12px; font-weight: 600; }
 .lotes { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-.lotes th { text-align: left; font-size: 11.5px; color: var(--suave); border-bottom: 2px solid var(--tinta); padding: 4px 0; }
+.lotes th { text-align: left; font-size: 12px; color: var(--suave); border-bottom: 2px solid var(--tinta); padding: 4px 0; }
 .lotes td { padding: 6px 0; border-bottom: 1px solid var(--linha); }
 .lotes small { color: var(--suave); }
 .txt-perigo { color: var(--vermelho); font-weight: 600; }
@@ -233,9 +234,10 @@ details.produto summary::-webkit-details-marker { display: none; }
 .qtd-pedido small { color: var(--suave); width: 22px; }
 .aviso.ok-borda { border-color: var(--verde-ok); background: var(--verde-ok-50); }
 .aviso small { margin-bottom: 8px; }
+.aviso small.txt-perigo { color: var(--vermelho); }
 .botoes-linha { display: flex; gap: 8px; flex-wrap: wrap; }
 .link-botao { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; width: auto; padding: 0 16px; min-height: 42px; }
-.abas button { font-size: 11px; }
+.abas button { font-size: 12px; }   /* acessibilidade (semana 8): texto de no mínimo 12 px, como no programa */
 
 /* Calendário (semana 8) */
 .cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin: 4px 0 8px; }
@@ -247,7 +249,7 @@ details.produto summary::-webkit-details-marker { display: none; }
 .cal-dia.escolhido { border: 2px solid var(--marinho); padding: 3px 2px; }
 .cal-dia.evento .cal-num { color: var(--ambar); }
 .cal-num { font-size: 13px; font-weight: 700; }
-.cal-dia b, .cal-dia i { font-size: 11.5px; line-height: 1.1; white-space: nowrap; overflow: hidden; max-width: 100%; }
+.cal-dia b, .cal-dia i { font-size: 12px; line-height: 1.1; white-space: nowrap; overflow: hidden; max-width: 100%; }
 .cal-dia i { color: var(--azul); font-style: normal; }
 .cal-compra { position: absolute; top: 2px; right: 3px; font-size: 12px; }
 .cal-rotina { display: inline-block; width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid var(--suave); }
@@ -258,3 +260,17 @@ details.cartao summary { cursor: pointer; list-style: none; }
 details.cartao summary::-webkit-details-marker { display: none; }
 details.cartao summary::after { content: " ▾"; color: var(--suave); }
 details.cartao[open] summary::after { content: " ▴"; }
+
+/* Estoque: "Dura até" pela previsão (semana 8, script 022), as mesmas cores da coluna do programa */
+.selo-dura { display: inline-block; margin-top: 4px; border-radius: 3px; padding: 1px 8px; font-size: 12.5px; font-weight: 600; }
+.selo-dura.ok { background: var(--verde-ok-50); color: var(--verde-ok); }
+.selo-dura.atencao { background: var(--ambar-50); color: var(--ambar); }
+.selo-dura.perigo { background: var(--vermelho-50); color: var(--vermelho); }
+.selo-dura.info { background: var(--azul-50); color: var(--azul); }
+.selo-dura.neutro { background: var(--fundo); color: var(--suave); }
+.dica-dura { margin: 10px 0 0; }
+
+/* Aba Hoje: cartão "Pedir hoje" (abre a aba Pedir) */
+.kpi-botao { display: block; width: 100%; text-align: left; background: none; border-top: 0; border-left: 0; font: inherit; color: inherit; cursor: pointer; }
+.kpi-botao .kpi-sub { white-space: normal; }
+.kpi-atencao .kpi-valor { color: var(--ambar); }

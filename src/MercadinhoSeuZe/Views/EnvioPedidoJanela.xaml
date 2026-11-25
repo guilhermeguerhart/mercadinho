@@ -20,8 +20,14 @@
             <TextBlock Text="Mensagem" Style="{StaticResource Rotulo}" />
             <TextBox x:Name="Mensagem" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="170" MaxHeight="340" VerticalContentAlignment="Top"
                      Padding="14,10" VerticalScrollBarVisibility="Auto" Background="{StaticResource Bilhete}" AutomationProperties.Name="Mensagem do pedido" />
-            <TextBlock FontSize="12" Style="{StaticResource TextoSuave}" Margin="0,6,0,0"
-                       Text="Pode mudar o texto aqui. O WhatsApp (ou o e-mail) abre com a mensagem escrita: confira e aperte enviar. O programa não envia nada sozinho." />
+            <TextBlock x:Name="Dica" FontSize="12" Style="{StaticResource TextoSuave}" Margin="0,6,0,0" TextWrapping="Wrap"
+                       Text="Pode mudar o texto aqui. O WhatsApp (ou o e-mail) abre com a mensagem escrita: confira e aperte enviar." />
+
+            <!-- Situação do e-mail enviado sozinho ao criar o pedido (pedido do Guilherme, 25/11) -->
+            <Border x:Name="SituacaoEmail" Style="{StaticResource Aviso}" Margin="0,16,0,0" Visibility="Collapsed"
+                    Background="{StaticResource Azul50}" BorderBrush="{StaticResource Azul600}">
+                <TextBlock x:Name="SituacaoEmailTexto" FontSize="14" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+            </Border>
 
             <UniformGrid x:Name="BotoesEnvio" Rows="1" Margin="0,20,0,0">
                 <Button x:Name="BotaoWhatsapp" Style="{StaticResource BotaoPrimario}" Click="Whatsapp_Click">
@@ -33,7 +39,7 @@
                 <Button x:Name="BotaoEmail" Style="{StaticResource BotaoFantasma}" Margin="10,0,0,0" Click="Email_Click">
                     <StackPanel Orientation="Horizontal">
                         <ContentControl Style="{StaticResource Icone}" Tag="{StaticResource IconeEmail}" Foreground="{StaticResource Verde700}" Width="17" Margin="0,0,8,0" />
-                        <TextBlock Text="Enviar por e-mail" />
+                        <TextBlock x:Name="BotaoEmailTexto" Text="Enviar por e-mail" />
                     </StackPanel>
                 </Button>
             </UniformGrid>

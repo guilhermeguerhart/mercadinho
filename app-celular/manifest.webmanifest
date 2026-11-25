@@ -1,7 +1,7 @@
 {
   "name": "Mercado Gerência",
   "short_name": "Mercado",
-  "description": "Vendas do dia, caixas, análises e avisos do mercado para o gerente.",
+  "description": "Vendas do dia, caixas, calendário com a previsão, estoque, pedidos e avisos do mercado para o gerente.",
   "id": "./",
   "start_url": "./index.html",
   "scope": "./",

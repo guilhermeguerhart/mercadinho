@@ -1,6 +1,8 @@
 // Aba Pedir do app (pedido do Guilherme em 05/11): os produtos que precisam de reposição, separados por fornecedor,
 // com a quantidade sugerida. "Criar pedido" grava no sistema (função criar_pedido, a mesma do programa) e o WhatsApp
 // abre com a mensagem pronta, com o "Pedido nº" para a resposta voltar ligada ao pedido. Regras de Models/Fornecedores.cs.
+// Pedido do Guilherme (25/11): fornecedor com e-mail recebe o pedido sozinho pela caixa do mercado (Edge Function
+// enviar-email, a mesma do programa) logo depois de criar; o WhatsApp continua ao lado. E-mails de teste (.example) não.
 "use strict";
 
 const MODELO_PADRAO = "Olá{, contato}! Aqui é {usuario}, do Mercado.\nGostaria de fazer um pedido:\n{itens}\nEntrega prevista: {previsao}.\nPode confirmar, por favor? Obrigado!";
@@ -81,6 +83,39 @@ function mensagemDoPedido(f, linhas, previsao, numero) {
   return `Pedido nº ${numero}\n\n${texto}`;
 }
 
+/** E-mail que recebe o pedido sozinho (igual a EnvioPedidoJanela.PodeEnviarSozinho do programa). */
+function podeEnviarSozinho(email) {
+  const e = String(email ?? "").trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) && !e.endsWith(".example") && !e.endsWith("@example.com") && !e.endsWith(".local");
+}
+
+/** Manda o pedido criado por e-mail; c.email guarda a situação para o cartão (enviando, ok, erro ou desligado). */
+async function enviarEmailDoPedido(c) {
+  c.email = { estado: "enviando" };
+  mostrarPedir();
+  const { data, error } = await sb.functions.invoke("enviar-email", {
+    body: { tipo: "pedido", fornecedor_id: c.f.id, pedido_id: c.id, assunto: `Pedido nº ${c.id} - Mercado para ${c.f.nome}`, corpo: c.texto },
+  });
+  if (!error) c.email = { estado: "ok", para: data?.para || c.f.email, hora: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) };
+  else {
+    const status = error.context?.status;
+    let msg = null;
+    try { msg = (await error.context.json())?.erro; } catch { /* sem corpo */ }
+    c.email = status === 404 ? { estado: "desligado" } : { estado: "erro", msg: msg || (status ? "Tente de novo em alguns minutos." : "Sem internet.") };
+  }
+  mostrarPedir();
+  if (c.email.estado === "erro") toast(`O e-mail do pedido nº ${c.id} não saiu.`);
+}
+
+function situacaoEmail(c) {
+  const e = c.email;
+  if (!e) return "";
+  if (e.estado === "enviando") return `<small aria-live="polite">Enviando por e-mail para ${esc(c.f.email)}…</small>`;
+  if (e.estado === "ok") return `<small aria-live="polite">E-mail enviado para ${esc(e.para)} às ${e.hora}. Se quiser, mande também pelo WhatsApp.</small>`;
+  if (e.estado === "desligado") return `<small>O envio por e-mail ainda não está ligado no Supabase. Envie pelo WhatsApp.</small>`;
+  return `<small class="txt-perigo" aria-live="polite">O e-mail não saiu: ${esc(e.msg)}</small>`;
+}
+
 function numeroWhatsapp(f) {
   const d = String(f.whatsapp || f.telefone || "").replace(/\D/g, "");
   return d.length === 10 || d.length === 11 ? "55" + d : d;
@@ -134,8 +169,9 @@ function mostrarPedir() {
       ? "Pela previsão de vendas: quanto pedir de cada fornecedor para durar até a entrega seguinte. Produto sem histórico de vendas vem pelo estoque mínimo."
       : "Produtos sem estoque, abaixo do mínimo ou perto dele, que ainda não estão em pedido pendente."}</p>
     ${criados.map((c) => `<div class="aviso ok-borda"><div>Pedido nº ${c.id} para <b>${esc(c.f.nome)}</b> criado.
-      <small>Envie a mensagem: o WhatsApp abre com o pedido pronto.</small>
+      ${c.email ? situacaoEmail(c) : `<small>Envie a mensagem: o WhatsApp abre com o pedido pronto.</small>`}
       <div class="botoes-linha"><a class="primario link-botao" href="https://wa.me/${numeroWhatsapp(c.f)}?text=${encodeURIComponent(c.texto)}" target="_blank" rel="noopener">Enviar pelo WhatsApp</a>
+      ${c.email?.estado === "erro" ? `<button class="fantasma" data-reenviar="${c.id}">Tentar de novo por e-mail</button>` : ""}
       <button class="fantasma" data-copiar="${c.id}">Copiar</button></div></div></div>`).join("")}
     ${grupos.length ? grupos.map(cartaoFornecedor).join("") : `<p class="vazio">Nada para repor agora.</p>`}`;
 
@@ -145,6 +181,7 @@ function mostrarPedir() {
   for (const c of document.querySelectorAll("[data-marcar]"))
     c.addEventListener("change", () => { const id = Number(c.dataset.marcar); c.checked ? ped.desmarcados.delete(id) : ped.desmarcados.add(id); });
   for (const b of document.querySelectorAll("[data-criar]")) b.onclick = () => criarPedido(Number(b.dataset.criar), b);
+  for (const b of document.querySelectorAll("[data-reenviar]")) b.onclick = () => enviarEmailDoPedido(ped.criados.get(Number(b.dataset.reenviar)));
   for (const b of document.querySelectorAll("[data-copiar]"))
     b.onclick = async () => {
       try { await navigator.clipboard.writeText(ped.criados.get(Number(b.dataset.copiar)).texto); toast("Mensagem copiada."); }
@@ -170,7 +207,8 @@ function cartaoFornecedor(g) {
   return `<div class="cartao"><h3>${esc(f.nome)}</h3>${selo}
     <p class="sub">${plural(g.itens.length, "produto", "produtos")}${g.s?.total > 0 && !estado.ocultar ? ` · ≈ ${moedaReal(g.s.total)}` : ""} · chega ${previsao.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" })}${g.s ? ` e precisa durar até ${esc(diaCurto(g.s.proxima_entrega))}` : ""}</p>
     ${linhas}
-    <button class="primario" data-criar="${f.id}" style="margin-top:12px">Criar pedido e abrir o WhatsApp</button></div>`;
+    <button class="primario" data-criar="${f.id}" style="margin-top:12px">${podeEnviarSozinho(f.email) ? "Criar e enviar pedido" : "Criar pedido"}</button>
+    ${podeEnviarSozinho(f.email) ? `<small class="sub">O e-mail vai sozinho para ${esc(f.email)}; depois aparece o botão do WhatsApp.</small>` : ""}</div>`;
 }
 
 function lerQuantidade(texto, kg) {
@@ -198,10 +236,15 @@ async function criarPedido(fornecedorId, botao) {
   });
   if (error) { botao.disabled = false; toast(mensagemDeErro(error)); return; }
   const texto = mensagemDoPedido(g.f, linhas, previsao, id);
-  ped.criados.set(id, { id, f: g.f, texto });
+  const criado = { id, f: g.f, texto, email: null };
+  ped.criados.set(id, criado);
   for (const { p } of linhas) { ped.quantidades.delete(p.id); est.pendentes.add(p.id); }
   if (ped.sugeridos) await carregarSugeridos(true);   // o pedido novo já sai da sugestão
   mostrarPedir();
+  contarPedirHoje();
   window.scrollTo(0, 0);
-  toast(`Pedido nº ${id} criado. Toque em "Enviar pelo WhatsApp".`);
+  if (podeEnviarSozinho(g.f.email)) {
+    toast(`Pedido nº ${id} criado. Enviando por e-mail…`);
+    await enviarEmailDoPedido(criado);
+  } else toast(`Pedido nº ${id} criado. Toque em "Enviar pelo WhatsApp".`);
 }

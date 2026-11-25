@@ -188,10 +188,11 @@ function trocarAba(aba) {
 async function carregarDia() {
   const alvo = $("abaHoje");
   if (!estado.resumo) alvo.innerHTML = `<p class="carregando">Carregando o dia…</p>`;
-  const { data, error } = await sb.rpc("resumo_dia", { p_dia: iso(estado.dia) });
+  const [{ data, error }] = await Promise.all([sb.rpc("resumo_dia", { p_dia: iso(estado.dia) }), carregarSugeridos()]);
   if (error) { alvo.innerHTML = `<div class="aviso perigo">${esc(mensagemDeErro(error))}</div>`; return; }
   estado.resumo = data;
   mostrarDia();
+  contarPedirHoje();
 }
 
 function mostrarDia() {
@@ -238,7 +239,7 @@ function mostrarDia() {
     </div>
     <div class="kpis">
       ${kpi("Vendas", numero(r.vendas), `${r.itens_vendidos} itens`)}
-      ${kpi("Ticket médio", moeda(r.ticket_medio))}
+      ${hoje ? kpiPedirHoje() : kpi("Ticket médio", moeda(r.ticket_medio))}
       ${kpi("Descontos", moeda(Number(r.descontos) + Number(r.promocoes)), `promoções ${moeda(r.promocoes)}`)}
       ${kpi("Gaveta", !algumFechado ? "—" : dif === 0 ? "Bateu" : (dif > 0 ? "+" : "−") + moedaReal(Math.abs(dif)), "sobra ou falta")}
       ${margem != null ? kpi("Margem", estado.ocultar ? "•••" : `${(margem * 100).toFixed(0)}%`, "onde há custo") : ""}
@@ -264,8 +265,32 @@ function mostrarDia() {
       ${r.canceladas ? `<p>${plural(r.canceladas, "venda paga cancelada", "vendas pagas canceladas")} (${moeda(r.canceladas_valor)}).</p>` : ""}
       ${r.itens_cancelados.map((i) => `<p class="sub" style="margin:4px 0">${hora(i.criado_em)} · ${esc(i.nome)} (${moeda(i.valor)}) · ${esc(i.operador_nome)}${i.autorizado_por ? ` · autorizado por ${esc(i.autorizado_por)}` : ""}</p>`).join("")}</div>` : ""}
     <p class="sub">Atualizado às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}. Para fechar o dia, use o programa no computador.</p>`;
+  $("kpiPedirHoje")?.addEventListener("click", () => trocarAba("Pedir"));
   $("diaAntes").onclick = () => { estado.dia = somarDias(estado.dia, -1); estado.resumo = null; carregarDia(); };
   $("diaDepois").onclick = () => { if (!hoje) { estado.dia = somarDias(estado.dia, 1); estado.resumo = null; carregarDia(); } };
+}
+
+/** Fornecedores que é hora de pedir hoje pela previsão: dia de pedir, tem o que pedir e sem pedido pendente (como no programa). */
+function paraHoje() { return (ped.sugeridos ?? []).filter((s) => s.pedir_hoje && !s.tem_pendente && s.itens.length); }
+
+/** Cartão "Pedir hoje" da aba Hoje, no lugar do Ticket médio (igual ao Painel do programa). Toque abre a aba Pedir. */
+function kpiPedirHoje() {
+  if (!ped.sugeridos) return kpi("Pedir hoje", "—", "Previsão indisponível agora");
+  const hoje = paraHoje();
+  const proximo = ped.sugeridos.filter((s) => s.itens.length && !s.tem_pendente && !s.pedir_hoje).sort((a, b) => a.data_pedido.localeCompare(b.data_pedido))[0];
+  const total = hoje.reduce((t, s) => t + Number(s.total ?? 0), 0);
+  const sub = hoje.length ? `${hoje.map((s) => s.fornecedor).join(" e ")} · ${plural(hoje.reduce((t, s) => t + s.itens.length, 0), "produto", "produtos")}${total > 0 && !estado.ocultar ? ` · ≈ ${moedaReal(total)}` : ""}`
+    : proximo ? `Nada para hoje · próximo: ${proximo.fornecedor}, ${diaCurto(proximo.data_pedido)}` : "Nada para pedir pela previsão";
+  return `<button type="button" id="kpiPedirHoje" class="kpi kpi-botao${hoje.length ? " kpi-atencao" : ""}" aria-label="Pedir hoje: ${esc(plural(hoje.length, "pedido", "pedidos"))}. Abrir a aba Pedir">
+    <div class="kpi-rotulo">Pedir hoje</div><div class="kpi-valor">${esc(plural(hoje.length, "pedido", "pedidos"))}</div><div class="kpi-sub">${esc(sub)}</div></button>`;
+}
+
+/** Número de pedidos para hoje na aba Pedir (como o número "pedir hoje" no menu Fornecedores do programa). */
+function contarPedirHoje() {
+  const n = paraHoje().length;
+  const b = $("contaPedir");
+  b.hidden = n === 0;
+  b.textContent = n;
 }
 
 // ---------------------------------------------------------------- Calendário (semana 8): mês com vendido, previsão e dias de compra
@@ -472,6 +497,7 @@ async function carregarAvisos(soContar = false) {
   const conta = $("contaAvisos");
   conta.hidden = avisos.length === 0;
   conta.textContent = avisos.length > 9 ? "9+" : String(avisos.length);
+  contarPedirHoje();
   if (soContar) return;
   const erro = [mensagens, atrasados, produtos].find((r) => r.error)?.error;
   $("abaAvisos").innerHTML = `<h2>Avisos</h2><p class="sub">Estoque, pedidos, caixas, previsão de compras e respostas dos fornecedores.</p>

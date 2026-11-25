@@ -480,6 +480,13 @@ publicar.ps1               Gera publish/MercadinhoSeuZe.exe (feche o .exe aberto
   o pedido (bilhete), outros pedidos, a conversa em balões (anexos abrem por link temporário do Storage), "Enviar por
   e-mail" e "Registrar resposta do WhatsApp" (colar o que veio pelo WhatsApp até a semana 7). Painel: aviso "X respondeu
   sobre o pedido nº 42" com "Abrir".
+- Pedido sai sozinho por e-mail (pedido do Guilherme, 25/11): ao criar ou alterar um pedido (Fornecedores, Calendário/
+  Previsão) a EnvioPedidoJanela (enviarSozinho) manda o e-mail na hora pela enviar-email e mostra a situação (enviando,
+  enviado às HH:mm, erro com "Tentar de novo por e-mail", função não publicada); o WhatsApp (wa.me) fica como botão
+  principal ao lado. "Reenviar" do histórico não manda sozinho. E-mails de teste (.example, @example.com, .local) nunca
+  recebem envio automático (EnvioPedidoJanela.PodeEnviarSozinho; mesma regra em app-celular/pedidos.js). App de celular:
+  "Criar e enviar pedido" na aba Pedir chama a mesma função (sb.functions.invoke) e o cartão mostra a situação + WhatsApp.
+  Conferido em 25/11: enviar-email e ler-emails publicadas e Secrets do Gmail presentes (Vault + 010 não dá para conferir).
 - Ajustes (03/11, script 012): o dia do Fechamento se escolhe num calendário (clicar na data) além das setas; em dia
   que já passou, fechar o dia, reabrir e fechar um caixa pedem usuário e senha de um gerente (AutorizacaoJanela com
   'alterar_dia'), mesmo para o gerente logado, e o banco confere. O calendário eventos_calendario fica pronto para a
