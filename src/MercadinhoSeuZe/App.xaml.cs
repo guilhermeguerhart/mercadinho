@@ -14,6 +14,21 @@ public partial class App : Application
         EventManager.RegisterClassHandler(typeof(ButtonBase), FrameworkElement.LoadedEvent, new RoutedEventHandler(NomearBotao));
     }
 
+    public App()
+    {
+        // Erro não previsto em uma tela: avisa e segue, em vez de fechar o programa no meio de uma venda.
+        // Só no programa do mercado: o programa de testes também cria o App e anota esses erros no relatório
+        // (uma janela de aviso pararia os testes automáticos).
+        if (System.Reflection.Assembly.GetEntryAssembly() != typeof(App).Assembly) return;
+        DispatcherUnhandledException += (_, e) =>
+        {
+            MessageBox.Show(
+                "Aconteceu um erro inesperado. Confira a tela antes de continuar.\n\n" + e.Exception.Message,
+                "Mercado · Sistema de gestão", MessageBoxButton.OK, MessageBoxImage.Warning);
+            e.Handled = true;
+        };
+    }
+
     private static void NomearBotao(object sender, RoutedEventArgs e)
     {
         if (sender is not ButtonBase b || !string.IsNullOrWhiteSpace(AutomationProperties.GetName(b))) return;

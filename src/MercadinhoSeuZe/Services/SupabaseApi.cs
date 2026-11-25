@@ -21,6 +21,9 @@ public sealed class SupabaseApi
 {
     public HttpClient Http { get; }
 
+    // Mesma conexão, com prazo maior: as Edge Functions (e-mail por SMTP) podem passar de 15 s.
+    private readonly HttpClient _httpFuncoes;
+
     public SupabaseApi(Configuracao config)
     {
         // Respostas comprimidas (gzip/brotli): a lista de produtos com lotes chega bem menor e mais rápido.
@@ -32,6 +35,9 @@ public sealed class SupabaseApi
         };
         Http = new HttpClient(conexao) { BaseAddress = new Uri(config.SupabaseUrl + "/"), Timeout = TimeSpan.FromSeconds(15) };
         Http.DefaultRequestHeaders.Add("apikey", config.SupabaseAnonKey);
+
+        _httpFuncoes = new HttpClient(conexao, disposeHandler: false) { BaseAddress = Http.BaseAddress, Timeout = TimeSpan.FromSeconds(40) };
+        _httpFuncoes.DefaultRequestHeaders.Add("apikey", config.SupabaseAnonKey);
     }
 
     /// <summary>Insere uma linha numa tabela (as regras de acesso do banco decidem se pode).</summary>
@@ -81,7 +87,7 @@ public sealed class SupabaseApi
     {
         using var req = Requisicao(HttpMethod.Get, consulta, token);
         var resposta = await EnviarAsync(req);
-        return await resposta.Content.ReadFromJsonAsync<List<T>>() ?? [];
+        return LerJson<List<T>>(await resposta.Content.ReadAsStringAsync()) ?? [];
     }
 
     /// <summary>A consulta tem o parâmetro principal (não o de uma tabela embutida, como "venda_itens.order").</summary>
@@ -94,7 +100,7 @@ public sealed class SupabaseApi
         using var req = Requisicao(HttpMethod.Post, tabela, token, linha);
         req.Headers.Add("Prefer", "return=representation");
         var resposta = await EnviarAsync(req);
-        return (await resposta.Content.ReadFromJsonAsync<List<T>>() ?? []).FirstOrDefault()
+        return (LerJson<List<T>>(await resposta.Content.ReadAsStringAsync()) ?? []).FirstOrDefault()
                ?? throw new ConexaoException("Resposta inválida do servidor.");
     }
 
@@ -117,7 +123,7 @@ public sealed class SupabaseApi
         using var req = Requisicao(HttpMethod.Post, $"rpc/{funcao}", token, argumentos);
         var resposta = await EnviarAsync(req);
         var corpo = await resposta.Content.ReadAsStringAsync();
-        return corpo.Length == 0 ? default : System.Text.Json.JsonSerializer.Deserialize<T>(corpo);
+        return corpo.Length == 0 ? default : LerJson<T>(corpo);
     }
 
     /// <summary>
@@ -131,8 +137,7 @@ public sealed class SupabaseApi
         HttpResponseMessage resposta;
         try
         {
-            using var limite = new CancellationTokenSource(TimeSpan.FromSeconds(40));
-            resposta = await Http.SendAsync(req, limite.Token);
+            resposta = await _httpFuncoes.SendAsync(req);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
@@ -140,7 +145,7 @@ public sealed class SupabaseApi
         }
         var texto = await resposta.Content.ReadAsStringAsync();
         if (resposta.IsSuccessStatusCode)
-            return texto.Length == 0 ? default : System.Text.Json.JsonSerializer.Deserialize<T>(texto);
+            return texto.Length == 0 ? default : LerJson<T>(texto);
         if (resposta.StatusCode == HttpStatusCode.NotFound && !texto.Contains("\"erro\""))
             throw new FuncaoInexistenteException("A função de e-mail ainda não foi publicada no Supabase (veja o README).");
         string? erro = null;
@@ -208,6 +213,21 @@ public sealed class SupabaseApi
             HttpStatusCode.Conflict => "Já existe um registro com esses dados.",
             _ => $"Erro no servidor ({(int)resposta.StatusCode}). Tente novamente."
         });
+    }
+
+    // Resposta fora do formato esperado vira ConexaoException (as telas já tratam), em vez de derrubar o programa.
+    private static readonly System.Text.Json.JsonSerializerOptions OpcoesJson = new(System.Text.Json.JsonSerializerDefaults.Web);
+
+    private static T? LerJson<T>(string texto)
+    {
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<T>(texto, OpcoesJson);
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            throw new ConexaoException("Resposta inválida do servidor. Tente novamente.");
+        }
     }
 
     private static string? MensagemDoBanco(string corpo)

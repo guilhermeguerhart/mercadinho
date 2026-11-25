@@ -79,9 +79,12 @@ public partial class FechamentoView : UserControl
         BotaoHoje.Visibility = _dia == DateTime.Today ? Visibility.Collapsed : Visibility.Visible;
         try
         {
-            var resumo = _servico.ResumoAsync(_dia);
+            var dia = _dia;
+            var resumo = _servico.ResumoAsync(dia);
             var config = _config is null ? _servico.ConfigAsync() : Task.FromResult(_config);
             await Task.WhenAll(resumo, config);
+            // Se o operador já trocou de dia enquanto esperava, esta resposta é de outro dia: descarta
+            if (dia != _dia) return;
             _resumo = resumo.Result;
             _config = config.Result;
         }

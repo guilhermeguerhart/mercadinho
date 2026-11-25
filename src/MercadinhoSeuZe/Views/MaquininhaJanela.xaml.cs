@@ -99,7 +99,8 @@ public partial class MaquininhaJanela : UserControl
     private void Fechar()
     {
         _resultado.TrySetResult(_resposta is { Aprovada: true } ? _resposta : null);
-        _area.FecharJanela();
+        // Só fecha se esta ainda é a janela aberta (o "Continuar" automático pode chegar depois de outra cobrança)
+        if (_area.JanelaAtual.Content == this) _area.FecharJanela();
     }
 
     private void Aprovar_Click(object sender, RoutedEventArgs e) => (_maquininha as MaquininhaEmulada)?.Simular(MaquininhaEmulada.Resultado.Aprovar);
