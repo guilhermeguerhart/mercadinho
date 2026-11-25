@@ -24,8 +24,8 @@ public sealed class Configuracao
         using var doc = JsonDocument.Parse(stream);
         if (!doc.RootElement.TryGetProperty("Supabase", out var supabase)) return null;
 
-        var url = supabase.GetProperty("Url").GetString();
-        var key = supabase.GetProperty("AnonKey").GetString();
+        var url = supabase.TryGetProperty("Url", out var u) ? u.GetString() : null;
+        var key = supabase.TryGetProperty("AnonKey", out var k) ? k.GetString() : null;
         if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(key) || url.Contains("SEU-PROJETO"))
             return null;
 
