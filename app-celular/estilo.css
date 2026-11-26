@@ -274,3 +274,12 @@ details.cartao[open] summary::after { content: " ▴"; }
 .kpi-botao { display: block; width: 100%; text-align: left; background: none; border-top: 0; border-left: 0; font: inherit; color: inherit; cursor: pointer; }
 .kpi-botao .kpi-sub { white-space: normal; }
 .kpi-atencao .kpi-valor { color: var(--ambar); }
+
+/* Paginação do Estoque (10 por página, como no programa) */
+.paginacao { margin: 16px 0 8px; display: grid; gap: 10px; }
+.paginacao-linha { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 14px; color: var(--suave); }
+.paginacao-linha select { min-height: 38px; border: 1.5px solid var(--linha-forte); border-radius: 4px; background: var(--cartao); color: var(--tinta); padding: 0 8px; font: inherit; }
+.paginacao .chip { min-width: 34px; padding: 0 6px; }
+.paginacao-linha label { margin: 0 4px 0 0; font-weight: 500; }
+.paginacao .chip:disabled { opacity: .45; cursor: default; }
+.paginacao .reticencias { padding: 0 2px; }

@@ -487,6 +487,8 @@ publicar.ps1               Gera publish/MercadinhoSeuZe.exe (feche o .exe aberto
   recebem envio automático (EnvioPedidoJanela.PodeEnviarSozinho; mesma regra em app-celular/pedidos.js). App de celular:
   "Criar e enviar pedido" na aba Pedir chama a mesma função (sb.functions.invoke) e o cartão mostra a situação + WhatsApp.
   Conferido em 25/11: enviar-email e ler-emails publicadas e Secrets do Gmail presentes (Vault + 010 não dá para conferir).
+- App de celular, Estoque (25/11): paginação como a do programa (barraPaginas em app-celular/estoque.js: "Mostrar [10] por
+  página", 5/10/25/50/100 lembrado no aparelho, « ‹ 1 … 3 4 … 12 › »; busca e filtro voltam à página 1; até 5 itens some).
 - Ajustes (03/11, script 012): o dia do Fechamento se escolhe num calendário (clicar na data) além das setas; em dia
   que já passou, fechar o dia, reabrir e fechar um caixa pedem usuário e senha de um gerente (AutorizacaoJanela com
   'alterar_dia'), mesmo para o gerente logado, e o banco confere. O calendário eventos_calendario fica pronto para a

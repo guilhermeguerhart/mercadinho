@@ -7,7 +7,7 @@ const CAMPOS_PRODUTO = "id,nome,categoria,preco,unidade_medida,estoque_minimo,es
   "codigo_balanca,fornecedor_id,prazo_entrega_dias,lotes(id,quantidade_inicial,quantidade_restante,data_compra,validade)";
 const DIAS_VALIDADE = 30;
 
-const est = { produtos: null, fornecedores: [], vinculos: [], pendentes: new Set(), duracao: null, lidoEm: 0, filtro: "todos", busca: "", aberto: null };
+const est = { produtos: null, fornecedores: [], vinculos: [], pendentes: new Set(), duracao: null, lidoEm: 0, filtro: "todos", busca: "", aberto: null, pagina: 1, porPagina: null };
 
 /** Lê produtos, lotes, reservas, fornecedores e pedidos pendentes (no máximo uma vez por minuto, a não ser forçado). */
 async function carregarEstoqueDados(forcar = false) {
@@ -113,6 +113,11 @@ function mostrarEstoque() {
   if (est.filtro === "acaba") lista.sort((a, b) => (est.duracao.get(a.id)?.acaba_em ?? "9999").localeCompare(est.duracao.get(b.id)?.acaba_em ?? "9999"));
   const nAcaba = est.duracao ? contar(FILTROS_ESTOQUE.find((f) => f[0] === "acaba")[2]) : 0;
   const leitor = "BarcodeDetector" in window;
+  est.porPagina ??= [5, 10, 25, 50, 100].includes(Number(lerLocal("por-pagina"))) ? Number(lerLocal("por-pagina")) : 10;
+  // Paginação (pedido do Guilherme, 25/11): 10 por página como no programa (Views/Paginacao.cs); até 5 a barra some
+  const paginas = Math.max(1, Math.ceil(lista.length / est.porPagina));
+  est.pagina = Math.min(Math.max(1, est.pagina), paginas);
+  const pagina = lista.slice((est.pagina - 1) * est.porPagina, est.pagina * est.porPagina);
 
   $("abaEstoque").innerHTML = `
     <h2>Estoque</h2><p class="sub">${plural(todos.length, "produto", "produtos")}${est.duracao ? ` · ${nAcaba} ${nAcaba === 1 ? "acaba" : "acabam"} antes da próxima entrega` : ""} · atualizado às ${new Date(est.lidoEm).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</p>
@@ -125,21 +130,46 @@ function mostrarEstoque() {
       const n = contar(f);
       return id !== "todos" && n === 0 ? "" : `<button class="chip ${id === est.filtro ? "ativo" : ""}" data-filtro="${id}">${nome} · ${n}</button>`;
     }).join("")}</div>
-    ${lista.length ? lista.map(cartaoProduto).join("") : `<p class="vazio">Nenhum produto encontrado.</p>`}`;
+    ${lista.length ? pagina.map(cartaoProduto).join("") : `<p class="vazio">Nenhum produto encontrado.</p>`}
+    ${barraPaginas(lista.length, paginas)}`;
 
   const busca = $("buscaEstoque");
   busca.addEventListener("input", () => {
     est.busca = busca.value;
+    est.pagina = 1;
     const pos = busca.selectionStart;
     mostrarEstoque();
     const nova = $("buscaEstoque");
     nova.focus();
     nova.setSelectionRange(pos, pos);
   });
-  for (const b of document.querySelectorAll("[data-filtro]")) b.onclick = () => { est.filtro = b.dataset.filtro; mostrarEstoque(); };
+  for (const b of document.querySelectorAll("[data-filtro]")) b.onclick = () => { est.filtro = b.dataset.filtro; est.pagina = 1; mostrarEstoque(); };
+  for (const b of document.querySelectorAll("#abaEstoque [data-pagina]"))
+    b.onclick = () => { est.pagina = Number(b.dataset.pagina); mostrarEstoque(); $("abaEstoque").scrollIntoView({ block: "start" }); window.scrollBy(0, -80); };
+  const tamanho = $("porPagina");
+  if (tamanho) tamanho.onchange = () => { est.porPagina = Number(tamanho.value); gravarLocal("por-pagina", tamanho.value); est.pagina = 1; mostrarEstoque(); };
   for (const d of document.querySelectorAll("#abaEstoque details"))
     d.addEventListener("toggle", () => { if (d.open) est.aberto = Number(d.dataset.id); });
   if (leitor) $("botaoCamera").onclick = abrirLeitor;
+}
+
+/** Barra embaixo da lista: "Mostrar [10] por página" e « ‹ 1 … 6 7 8 … 14 › (igual à do programa). */
+function barraPaginas(total, paginas) {
+  if (total <= 5) return "";
+  const atual = est.pagina;
+  const numeros = [...new Set([1, atual - 1, atual, atual + 1, paginas])].filter((n) => n >= 1 && n <= paginas).sort((a, b) => a - b);
+  const botao = (n, texto, rotulo, desligado = false) =>
+    `<button class="chip ${n === atual && !rotulo ? "ativo" : ""}" data-pagina="${n}" ${desligado ? "disabled" : ""}
+      aria-label="${rotulo ?? `Página ${n}`}" ${n === atual && !rotulo ? 'aria-current="page"' : ""}>${texto}</button>`;
+  let meio = "", anterior = 0;
+  for (const n of numeros) { if (n - anterior > 1) meio += `<span class="reticencias" aria-hidden="true">…</span>`; meio += botao(n, n); anterior = n; }
+  const inicio = (atual - 1) * est.porPagina + 1, fim = Math.min(total, atual * est.porPagina);
+  return `<nav class="paginacao" aria-label="Páginas do estoque">
+    <div class="paginacao-linha"><label for="porPagina">Mostrar</label>
+      <select id="porPagina">${[5, 10, 25, 50, 100].map((n) => `<option ${n === est.porPagina ? "selected" : ""}>${n}</option>`).join("")}</select>
+      <span>por página · ${inicio}–${fim} de ${total}</span></div>
+    ${paginas > 1 ? `<div class="paginacao-linha">${botao(1, "«", "Primeira página", atual === 1)}${botao(atual - 1, "‹", "Página anterior", atual === 1)}${meio}${botao(atual + 1, "›", "Próxima página", atual === paginas)}${botao(paginas, "»", "Última página", atual === paginas)}</div>` : ""}
+  </nav>`;
 }
 
 function cartaoProduto(p) {
@@ -228,6 +258,7 @@ async function abrirLeitor() {
     if (!p) { toast(`Nenhum produto com o código ${codigo}.`); return; }
     est.busca = p.nome;
     est.filtro = "todos";
+    est.pagina = 1;
     est.aberto = p.id;
     mostrarEstoque();
     document.querySelector(`#abaEstoque details[data-id="${p.id}"]`)?.scrollIntoView({ block: "center" });
